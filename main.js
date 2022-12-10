@@ -194,10 +194,10 @@ async function loadArm() {
     
     'Compare|Bitwise not equal to zero': 'Compare|Bitwise Test',
     
-    'Compare|Bitwise equal': 'Compare|x==y',
-    'Compare|Equal to': 'Compare|x==y',
-    'Compare|Bitwise equal to zero': 'Compare|To zero|x==0',
-    'Compare|Not equal to': 'Compare|x!=y',
+    'Compare|Bitwise equal': 'Compare|==',
+    'Compare|Equal to': 'Compare|==',
+    'Compare|Bitwise equal to zero': 'Compare|==',
+    'Compare|Not equal to': 'Compare|!=',
   };
   
   let optMap = (c, f) => c===undefined? c : f(c);
@@ -219,13 +219,19 @@ async function loadArm() {
       .replace(/^Scalar arithmetic\|/, "With scalar\|")
       .replace(/^Arithmetic\|Across vector arithmetic\|/, "Arithmetic\|Fold\|")
       .replace(/^Arithmetic\|Pairwise arithmetic\|/, "Arithmetic\|Pairwise\|")
-      .replace(/Compare\|Absolute /, "Compare|Absolute|")
-      .replace(/greater than or equal to( zero)?/i, c=>c.includes("zero")? "To zero|x>=0" : "x>=y")
-      .replace(/less than or equal to( zero)?/i, c=>c.includes("zero")? "To zero|x<=0" : "x<=y")
-      .replace(/less than( zero)?/i, c=>c.includes("zero")? "To zero|x<0" : "x<y")
-      .replace(/greater than( zero)?/i, c=>c.includes("zero")? "To zero|x>0" : "x>y")
-      .replace(/^(Compare multiple|Fault suppression|Predication|Prefetch|Vector length|Vector tuple manipulation)\|/, c => "SVE|"+c)
       .replace(/^Shift\|/, "Logical|Shift|");
+    
+    if (category.startsWith("Compare|")) {
+      category = category
+        .replace(/Compare\|Absolute /, "Compare|Absolute|")
+        .replace(/greater than or equal to( zero)?/i, c=>">=")
+        .replace(/less than or equal to( zero)?/i, c=>"<=")
+        .replace(/less than( zero)?/i, c=>"<")
+        .replace(/greater than( zero)?/i, c=>">")
+        .replace(/^(Compare multiple|Fault suppression|Predication|Prefetch|Vector length|Vector tuple manipulation)\|/, c => "SVE|"+c)
+      ;
+    }
+    
     if (categoryMap[category]) category = categoryMap[category];
     
     let categories = [category];

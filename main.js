@@ -520,6 +520,8 @@ let query_searchInObj = Object.fromEntries(query_searchIn);
 
 function updateSearch(link=true) {
   let parts = searchFieldEl.value.toLowerCase().split(/ /g);
+  let partsOn = parts.filter(c=>!c.startsWith('!'));
+  let partsOff = parts.filter(c=>c.startsWith('!')).map(c=>c.substring(1));
   let categorySet = new Set(query_categories);
   let archSet = new Set(query_archs);
   let sName = query_searchInObj.name.checked;
@@ -555,7 +557,11 @@ function updateSearch(link=true) {
     if (sDesc) a.push(c.desc);
     if (sOper) a.push(c.implDesc);
     a = a.filter(c=>c).map(c=>c.toLowerCase());
-    let searchMatch = parts.length==0  ||  parts.every(p => a.some(cv => cv.includes(p)));
+    let searchMatch = (
+         (partsOn.length==0   ||  partsOn.every (p =>  a.some(cv => cv.includes(p))))
+      && (partsOff.length==0  ||  partsOff.every(p => !a.some(cv => cv.includes(p))))
+    );
+    
     if (!searchMatch) return false;
     
     let categoryMatch = c.categories.some(c => categorySet.has(c));

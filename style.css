@@ -34,6 +34,11 @@ body {
   overflow: overlay;
 }
 
+#search-field {
+  padding: 0 0.3em;
+  line-height: 1.5;
+}
+
 .desc {
   padding: 0.2em;
   padding-left: 1em;

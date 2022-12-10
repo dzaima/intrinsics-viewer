@@ -1,0 +1,163 @@
+body {
+  scrollbar-color: #666 #333; /* firefox */
+  height: 100%;
+  overflow-y: scroll; /* don't randomly reposition everything when a scrollbar appears */
+}
+
+.flex-horiz {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: row;
+  flex-wrap: nowrap;
+}
+
+.indent {
+  padding-left: .8em;
+}
+.flex-grow {
+  flex-grow: 1;
+}
+
+.h-name {
+  color: #A6E22C
+}
+.h-type {
+  color: #67D8EF
+}
+
+#desc-place {
+  padding-top: 1em;
+  overflow: overlay;
+}
+
+.desc {
+  padding: 0.2em;
+  padding-left: 1em;
+}
+pre {
+  margin: 0.1em 0.3em;
+  padding: 0.3em 0.3em;
+  overflow-x: auto;
+}
+code {
+  padding: 0.1em 0.3em;
+}
+h4 {
+  margin: 0;
+}
+
+.gr {
+  min-width: 0.8em;
+  min-height: 0.8em;
+  display: inline-block;
+  user-select: none;
+}
+
+.gr-yes {
+  font-family: DejaVu Sans Mono, monospace;
+  cursor: pointer;
+}
+
+table {
+  table-layout: fixed;
+  width: 100%;
+  height: min-content;
+  
+  border: 1px solid #555;
+  border-collapse: collapse;
+  font-size: 0.9em;
+}
+th {
+  border: 1px solid #555;
+}
+tr {
+  border-bottom: 1px solid #444;
+  cursor: pointer;
+}
+td:nth-child(1) { text-align: right; overflow: hidden; }
+td { overflow: hidden; white-space: nowrap; }
+.mono {
+  font-family: DejaVu Sans Mono, monospace;
+  font-size: 0.9em;
+}
+td {
+  font-family: DejaVu Sans Mono, monospace;
+  padding-left: 0.5em;
+  padding-right: 0.5em;
+}
+
+#pagination-place {
+  display: inline-block;
+  width: 100%;
+}
+.page-btn {
+  cursor: pointer;
+  display: inline-block;
+  padding: 0.2em;
+  margin: 0em 0.4em 0.3em 0;
+  border-radius: 0.4em;
+  
+  min-width: 1.5em;
+  text-align: center;
+  
+  user-select: none;
+  background-color: #262626;
+  font-family: DejaVu Sans Mono, monospace;
+}
+
+.page-btn.page-curr {
+  background-color: #555;
+}
+
+
+
+body.dark  { background-color: #383838; color: #D3D3D3; } body.dark  .mainArea { background-color: #202020; color: #D3D3D3; }
+body.black { background-color: #222222; color: #D3D3D3; } body.black .mainArea { background-color: #000000; color: #D3D3D3; }
+body.light { background-color: #FFFFFF; color: #000000; } body.light .mainArea { background-color: #ffffff; color: #000000; border: 1px solid #a9a9a9; }
+
+body.dark input { background-color: #333; color: #D2D2D2; }
+body.dark .removed { color: #aaa; }
+body.dark  .mcont    { background-color: #505C63; }
+body.dark  .mcont.me { background-color: #333333; }
+body.light .mcont    { background-color: #F5F5F5; }
+body.light .mcont.me { background-color: #EBFFE9; }
+
+body.light a { color: #1A8A18 !important; } /* important to override onebox blue */
+body.dark  a { color: #A7DBC6 !important; }
+
+body.dark  pre  { background-color: #222; } code { background-color: #2A2A2A; }
+body.light code { background-color: #ddd; } body.light pre { background-color: #eee; border: 1px #ddd solid; }
+
+
+
+
+a {
+  text-decoration: none;
+}
+button {
+  text-shadow: none;
+  vertical-align: middle;
+  text-align: center;
+}
+body.dt button {
+  background-color: #444;
+  color: #D3D3D3;
+  border-color: #333;
+}
+body.dt button[disabled] {
+  color: #808080;
+}
+
+
+::-webkit-scrollbar-button, ::-webkit-scrollbar-track {
+  display:none;
+}
+::-webkit-scrollbar-thumb {
+  background-color:#666;
+}
+::-webkit-scrollbar, ::-webkit-scrollbar-corner {
+  background-color:#333;
+}
+::-webkit-scrollbar-thumb {
+  border: none;
+}

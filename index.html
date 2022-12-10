@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Intrinsics viewer</title>
+  <link rel="stylesheet" href="style.css" charset="utf-8" />
+  <script type="text/javascript" src="pako.min.js"></script>
+  <script type="text/javascript" src="main.js" defer></script>
+</head>
+<body class="dark">
+  <div class="flex-horiz" style="padding: 0.2em;">
+    <div style="flex-grow: 1; flex-basis: 65%">
+      <div class="flex-horiz" style="padding: 0.2em;"> Search:&nbsp; <input id="search-field" type="search" oninput="updateSearch(false)" onchange="updateLink()" style="flex-grow: 1;"> </div>
+      <script type="text/javascript">document.getElementById("search-field").focus();</script>
+      
+      <div class="flex-horiz" style="padding: 0.2em;">
+        <div id=options style="flex-basis: 25%">
+          
+          <select id="cpu-list" onchange="newCPU();"></select>
+          <br>
+          
+          <div id="arch-list"></div>
+          <br>
+          Categories:
+          <div id="category-list"></div>
+        </div>
+        <div style="flex-basis: 75%">
+          <div>
+            <span class="flex-horiz" style="width: 100%">
+              <span>Search in:</span>
+              <label class="flex-grow" style="text-align: center;"><input type="checkbox" onclick="updateSearch()" id="s-name" checked> name</label>
+              <label class="flex-grow" style="text-align: center;"><input type="checkbox" onclick="updateSearch()" id="s-desc" checked> description</label>
+              <label class="flex-grow" style="text-align: center;"><input type="checkbox" onclick="updateSearch()" id="s-inst" checked> instruction</label>
+              <label class="flex-grow" style="text-align: center;"><input type="checkbox" onclick="updateSearch()" id="s-oper" checked> operation</label>
+              <span style="flex-grow:2; text-align: right; min-width: 6em; width: min-content;"><span id="result-count">0</span> results</span>
+            </span>
+          </div>
+          <div class="flex-horiz" style="width: 100%;">
+            <span class='page-btn' onclick="deltaPage(-1);"> « </span>
+            <div id="pages-1" style="flex-grow: 1;"></div>
+            <div id="pages-2" style="flex-grow: 1; text-align: center;"></div>
+            <div id="pages-3" style="flex-grow: 1; text-align: right;"></div>
+            <span class='page-btn' onclick="deltaPage(1);"> » </span>
+          </div>
+          <table>
+            <thead>
+              <colgroup>
+                <col style="width: 15%">
+                <col style="width: 63%">
+                <!-- <col style="width: 22%"> -->
+              </colgroup>
+              <tr>
+                <th>Result</th>
+                <th>Name</th>
+                <!-- <th>Arch</th> -->
+              </tr>
+            </thead>
+            <tbody id="result-list">
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div id='desc-place' style="flex-grow: 1; flex-basis: 25%; padding-top: 1em">
+    </div>
+  </div>
+</body>
+</html>

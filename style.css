@@ -18,6 +18,10 @@ body {
   flex-grow: 1;
 }
 
+.cht-off {
+  color: #888;
+}
+
 .h-name {
   color: #A6E22C
 }

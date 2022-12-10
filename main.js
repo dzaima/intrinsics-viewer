@@ -25,6 +25,8 @@ async function loadFile(path) {
   return new TextDecoder().decode(b);
 }
 
+
+let idCounter = 0;
 async function loadIntel() {
   let src = await loadFile("data/intel_intrinsics-1.xml");
   
@@ -146,6 +148,7 @@ async function loadIntel() {
     return {
       raw: e,
       cpu: ["x86-64"],
+      id: idCounter++,
       
       ret: type(take("return")),
       args: filter("parameter").map(type),
@@ -239,6 +242,7 @@ async function loadArm() {
     return {
       raw: c,
       cpu: c.Architectures.map(c => c=="v7"? "armv7" : c=="A32"? "aarch32" : c=="A64"? "aarch64" : c=="MVE"? "Arm MVE" : "arm??"),
+      id: idCounter++,
       
       ret: {type: c.return_type.value},
       args: args,
@@ -312,15 +316,22 @@ function makeCheckbox(display, key, updated, group) {
   }})
   check.checked = true;
   
+  let count = mkch('span', ['?']);
+  let label = mkch('label', [check, display+' (', count, ')'], {cl: ['flex-grow', 'cht-off']});
+  
   let row = mkch('div', [
     mkch('span', [group? (group.hidden? ">" : "∨") : ""], {cl:['gr',group?'gr-yes':'gr-no'], onclick: t => {
       group.hidden^= 1;
       t.textContent = group.hidden? ">" : "∨";
     }}),
-    mkch('label', [check, display], {cl: 'flex-grow'}),
+    label,
   ], {cl: 'flex-horiz'})
   
-  return {check: check, obj: row, key: key};
+  return {check: check, obj: row, key: key, setCount: (n) => {
+    if (n) label.classList.remove('cht-off');
+    else   label.classList.add('cht-off');
+    count.textContent = n;
+  }};
 }
 
 function jp(a, b) {
@@ -357,7 +368,7 @@ function makeTree(tree, ob, update) {
     if (!ob.has(tree.name)) indent.hidden = true;
     let check = makeCheckbox(tree.name, key, updateFn, indent)
     
-    return {check: check.check, obj: mkch('div', [check.obj, indent]), ch:chRes, leaf:leafRes, key:key};
+    return {check: check.check, obj: mkch('div', [check.obj, indent]), ch:chRes, leaf:leafRes, setCount: check.setCount, key:key};
   }
   res = step(tree, '');
   res.updateFn = updateFn;
@@ -515,18 +526,49 @@ function updateSearch(link=true) {
   let sDesc = query_searchInObj.desc.checked;
   let sInst = query_searchInObj.inst.checked;
   let sOper = query_searchInObj.oper.checked;
+  
+  function untree(c) {
+    let objs = [];
+    function rec(c, ps) {
+      let ps2 = [...ps, c];
+      objs.push(c, ...c.leaf);
+      return [...c.ch.flatMap(e => rec(e, ps2)), ...c.leaf.map(e => [e.key, [...ps2, e]])];
+    }
+    let es = rec(c, []);
+    objs.forEach(e => e.currSet=new Set());
+    let map = Object.fromEntries(es);
+    return {
+      add: (l, id) => l.forEach(e => map['all|'+e].forEach(e => e.currSet.add(id))),
+      write: () => objs.forEach(e => {
+        e.setCount(e.currSet.size);
+        e.currSet = undefined;
+      }),
+    };
+  }
+  let archStore = untree(curr_archObj);
+  let categoryStore = untree(curr_categoryObj);
+  
   query_found = is1.filter((c) => {
-    if (!c.categories.some(c => categorySet.has(c))) return false;
-    if (!c.archs.some(c => archSet.has(c))) return false;
     let a = [];
-    if (sName) { a.push(c.name); a.push(c.ret.type); c.args.forEach(c => a.push(c.type)); };
+    if (sName) { a.push(c.name); a.push(c.ret.type); c.args.forEach(c => a.push(c.type)); }
     if (sInst) a.push(c.implInstrRaw);
     if (sDesc) a.push(c.desc);
     if (sOper) a.push(c.implDesc);
     a = a.filter(c=>c).map(c=>c.toLowerCase());
-    if (parts.length>0 && !parts.every(p => a.some(cv => cv.includes(p)))) return false;
-    return true;
+    let searchMatch = parts.length==0  ||  parts.every(p => a.some(cv => cv.includes(p)));
+    if (!searchMatch) return false;
+    
+    let categoryMatch = c.categories.some(c => categorySet.has(c));
+    let archMatch = c.archs.some(c => archSet.has(c));
+    
+    if (c.archs      && categoryMatch)     archStore.add(c.archs,      c.id);
+    if (c.categories &&     archMatch) categoryStore.add(c.categories, c.id);
+    
+    return searchMatch && categoryMatch && archMatch;
   });
+  
+  archStore.write();
+  categoryStore.write();
   
   toPage(0);
   resultCountEl.textContent = query_found.length;
@@ -555,7 +597,6 @@ function loadLink() {
   let hash = decodeURIComponent(location.hash.slice(1));
   if (hash[0]=='0') {
     let json = JSON.parse(dec(hash.slice(1)));
-    console.log(json);
     
     cpuListEl.value = json.u;
     newCPU(false);

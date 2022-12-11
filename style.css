@@ -79,6 +79,10 @@ table {
 }
 .perf-table td:not(:nth-child(1)) { text-align: center; }
 
+.operation pre {
+  overflow-x: visible;
+}
+
 #search-table {
   table-layout: fixed;
   width: 100%;

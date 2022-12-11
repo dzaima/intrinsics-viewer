@@ -527,7 +527,7 @@ function toPage(page) {
       text+= `<br>Categor${c.categories.length>1?"ies":"y"}: <span class="mono">${c.categories.map(c=>esc(c.replace(/\|/g,'→'))).join(', ')}</span>`;
       text+= `<br><br>Description:<div class="desc">${c.desc}</div>`;
       if (c.implInstr) text+= `<br>Instruction:<pre>${c.implInstr}</pre>`;
-      if (c.implDesc) text+= `<br>Operation:<pre>${c.implDesc}</pre>`;
+      if (c.implDesc) text+= `<br>Operation:<pre class="operation">${c.implDesc}</pre>`;
       if (c.implTimes) text+= `<br>Performance:<table class="perf-table"></table>`;
       descPlaceEl.innerHTML = text;
       
@@ -683,6 +683,9 @@ function loadLink() {
   let i2 = await loadArm();
   console.log("arm parsed");
   is0 = [...i1, ...i2];
+  is0.forEach(c => {
+    if (c.archs.length==0 || c.categories.length==0) throw new Error(c);
+  });
   let cpus = unique(is0.map(c=>c.cpu).flat());
   cpus.forEach((c, i) => {
     cpuListEl.append(new Option(c, c));

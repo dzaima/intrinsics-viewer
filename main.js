@@ -260,6 +260,7 @@ async function loadArm() {
     }
     
     if (categoryMap[category]) category = categoryMap[category];
+    if (c.name==='vmaxnmq_f64') category = "Arithmetic|Maximum";
     
     let categories = [category];
     
@@ -544,7 +545,7 @@ function toPage(page) {
       if (c.args.length>7 || c.args==0) {
         desc = [mkRetLine(), ' ', mkFnLine()];
       } else {
-        desc = [mkRetLine(), ' ', h('name',c.name), ' (\n', ...c.args.map((a,i)=>{
+        desc = [mkRetLine(), ' ', h('name',c.name), '(\n', ...c.args.map((a,i)=>{
           return mkch('span', ['  ', h('type',a.type), ' '+a.name, ','.repeat(i!=c.args.length-1), a.info? h('comm',' // '+a.info) : '', '\n']);
         }), ')'];
       }

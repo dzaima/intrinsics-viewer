@@ -140,7 +140,11 @@ async function loadIntel() {
     }
     
     let instrs = filter("instruction");
-    let implInstrList = instrs.map(c=>esc(c.getAttribute("name").toLowerCase()+" "+c.getAttribute("form")));
+    let implInstrList = instrs.map(c => {
+      let res = c.getAttribute("name").toLowerCase();
+      if (c.hasAttribute("form")) res+= " "+c.getAttribute("form")
+      return esc(res);
+    });
     if (e.getAttribute("sequence")==="TRUE") {
       if (implInstrList.length==0) implInstrList = ["(sequence)"];
       else implInstrList = implInstrList.map(c => c+" (sequence)");

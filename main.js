@@ -523,8 +523,9 @@ function toPage(page) {
       console.log(c);
       
       let text = `<br>`;
-      text+= `<br>Architecture: <span class="mono">${c.archs.map(c=>esc(c.split(/\|/g).slice(-1)[0])).join(' + ')}</span><br>`;
-      text+= `<br>Description:<div class="desc">${c.desc}</div>`;
+      text+= `<br>Architecture: <span class="mono">${c.archs.map(c=>esc(c.split(/\|/g).slice(-1)[0])).join(' + ')}</span>`;
+      text+= `<br>Categor${c.categories.length>1?"ies":"y"}: <span class="mono">${c.categories.map(c=>esc(c.replace(/\|/g,'→'))).join(', ')}</span>`;
+      text+= `<br><br>Description:<div class="desc">${c.desc}</div>`;
       if (c.implInstr) text+= `<br>Instruction:<pre>${c.implInstr}</pre>`;
       if (c.implDesc) text+= `<br>Operation:<pre>${c.implDesc}</pre>`;
       if (c.implTimes) text+= `<br>Performance:<table class="perf-table"></table>`;

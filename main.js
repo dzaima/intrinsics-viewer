@@ -44,6 +44,7 @@ async function loadIntel() {
       .replace(/short\b/g, "int16_t")
       .replace(/int\b/g, "int32_t")
     ;
+    if (type==="unsigned") type = "uint32_t";
     
     let info = '';
     let mw = c.getAttribute("memwidth");

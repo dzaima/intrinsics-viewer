@@ -2,6 +2,8 @@ body {
   scrollbar-color: #666 #333; /* firefox */
   height: 100%;
   overflow-y: scroll; /* don't randomly reposition everything when a scrollbar appears */
+  font-family: sans-serif;
+  font-size: 0.9em;
 }
 
 .flex-horiz {
@@ -69,14 +71,9 @@ table {
   border-collapse: collapse;
 }
 
-.perf-table td,
-.perf-table th {
-  border: 1px solid #555;
-}
-.perf-table td,
-.perf-table th {
-  padding: 0 0.5em;
-}
+.perf-table { margin: 0.5em; }
+.perf-table td, .perf-table th { border: 1px solid #555; }
+.perf-table td, .perf-table th { padding: 0 0.5em; }
 .perf-table td:not(:nth-child(1)) { text-align: center; }
 
 .operation pre {
@@ -87,8 +84,6 @@ table {
   table-layout: fixed;
   width: 100%;
   height: min-content;
-  
-  font-size: 0.9em;
 }
 #search-table th {
   border: 1px solid #555;
@@ -101,7 +96,6 @@ table {
 #search-table td { overflow: hidden; white-space: nowrap; }
 .mono {
   font-family: DejaVu Sans Mono, monospace;
-  font-size: 0.9em;
 }
 .code-ws {
   white-space: pre-wrap;

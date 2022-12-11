@@ -136,7 +136,7 @@ async function loadIntel() {
     }
     
     let implTimes = instrs.map(c=>perf[c.getAttribute("xed")]).filter(c=>c);
-    if (implTimes.length>1) console.log(instrs.map(c=>c.getAttribute("xed")));
+    // if (implTimes.length>1) console.log(instrs.map(c=>c.getAttribute("xed"))); // TODO do something about this
     implTimes = implTimes.length? implTimes[0] : undefined;
     
     let archs = filter("CPUID").map(c=>c.textContent).map(c=>{
@@ -230,7 +230,9 @@ async function loadArm() {
       .replace(/^Scalar arithmetic\|/, "With scalar\|")
       .replace(/^Arithmetic\|Across vector arithmetic\|/, "Arithmetic\|Fold\|")
       .replace(/^Arithmetic\|Pairwise arithmetic\|/, "Arithmetic\|Pairwise\|")
-      .replace(/^Shift\|/, "Logical|Shift|");
+      .replace(/^Shift\|/, "Logical|Shift|")
+      .replace(/^(Compare multiple|Fault suppression|Predication|Prefetch|Vector length|Vector tuple manipulation)\|/, c => "SVE|"+c)
+    ;
     
     if (category.startsWith("Compare|")) {
       category = category
@@ -239,7 +241,6 @@ async function loadArm() {
         .replace(/less than or equal to( zero)?/i, c=>"<=")
         .replace(/less than( zero)?/i, c=>"<")
         .replace(/greater than( zero)?/i, c=>">")
-        .replace(/^(Compare multiple|Fault suppression|Predication|Prefetch|Vector length|Vector tuple manipulation)\|/, c => "SVE|"+c)
       ;
     }
     

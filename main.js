@@ -33,6 +33,8 @@ async function loadIntel() {
   let perf = JSON.parse(perfSrc.substring(perfSrc.indexOf('{')).replace(/,\s*}/g,'}').replace(/,\s*]/g,']').replace(/\{l:"/g, '{"l":"').replace(/",t:"/g, '","t":"'));
   
   let type = (c) => {
+    let name = c.getAttribute("varname");
+    
     let type = c.getAttribute("type")
       .replace("unsigned ", "u")
       .replace(/__int64\b/g, "int64_t")
@@ -41,9 +43,17 @@ async function loadIntel() {
       .replace(/int\b/g, "int32_t")
     ;
     
+    let info = '';
+    let mw = c.getAttribute("memwidth");
+    if (mw) info+= "Used memory bytes: " + mw/8;
+    
+    let iw = c.getAttribute("immwidth");
+    if (iw) info+= (info?"; ":"")+"Used bits: " + iw;
+    
     return {
-      name: c.getAttribute("varname"),
+      name: name,
       type: type,
+      info: info,
     };
   };
   
@@ -148,9 +158,13 @@ async function loadIntel() {
       if (c.startsWith("SSE") || c.startsWith("SSSE")) return "SSE|"+c;
       return c;
     });
+    if (archs.length==0) archs = ['other|all'];
     
     let implDesc = takeOpt("operation", c=>c.textContent);
     if(implDesc) while(" \n\t".includes(implDesc[implDesc.length-1])) implDesc = implDesc.substring(0, implDesc.length-1);
+    
+    let parameters = filter("parameter").map(type);
+    if (parameters.length==1 && parameters[0].type=='void') parameters = [];
     
     return {
       raw: e,
@@ -158,7 +172,7 @@ async function loadIntel() {
       id: idCounter++,
       
       ret: type(take("return")),
-      args: filter("parameter").map(type),
+      args: parameters,
       name: e.getAttribute("name"),
       
       desc: take("description").textContent,
@@ -524,7 +538,16 @@ function toPage(page) {
         })
       ]));
       
-      descPlaceEl.insertAdjacentElement('afterBegin', mkch('span', [mkRetLine(), ' ', mkFnLine()], {cl: 'mono'}));
+      let desc;
+      if (c.args.length>7 || c.args==0) {
+        desc = [mkRetLine(), ' ', mkFnLine()];
+      } else {
+        desc = [mkRetLine(), ' ', h('name',c.name), ' (\n', ...c.args.map((a,i)=>{
+          return mkch('span', ['  ', h('type',a.type), ' '+a.name, ','.repeat(i!=c.args.length-1), a.info? h('comm',' // '+a.info) : '', '\n']);
+        }), ')'];
+      }
+      
+      descPlaceEl.insertAdjacentElement('afterBegin', mkch('span', desc, {cl: ['mono', 'code-ws']}));
     }
     return r;
   }));

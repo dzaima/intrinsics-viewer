@@ -22,12 +22,9 @@ body {
   color: #888;
 }
 
-.h-name {
-  color: #A6E22C
-}
-.h-type {
-  color: #67D8EF
-}
+.h-name { color: #A6E22C; }
+.h-type { color: #67D8EF; }
+.h-comm { color: #888888; }
 
 #desc-place {
   padding-top: 1em;
@@ -101,6 +98,9 @@ table {
 .mono {
   font-family: DejaVu Sans Mono, monospace;
   font-size: 0.9em;
+}
+.code-ws {
+  white-space: pre-wrap;
 }
 #search-table td {
   font-family: DejaVu Sans Mono, monospace;

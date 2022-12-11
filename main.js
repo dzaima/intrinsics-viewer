@@ -164,7 +164,7 @@ async function loadIntel() {
       desc: take("description").textContent,
       header: takeOpt("header", c=>c.textContent),
       
-      implDesc: implDesc+implTimes,
+      implDesc: implDesc,
       implInstr: implInstrList.join("<br>"),
       implTimes: implTimes,
       

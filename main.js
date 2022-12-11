@@ -29,6 +29,8 @@ async function loadFile(path) {
 let idCounter = 0;
 async function loadIntel() {
   let src = await loadFile("data/intel_intrinsics-1.xml");
+  let perfSrc = await loadFile("data/intel_perf2-1.js");
+  let perf = JSON.parse(perfSrc.substring(perfSrc.indexOf('{')).replace(/,\s*}/g,'}').replace(/,\s*]/g,']').replace(/\{l:"/g, '{"l":"').replace(/",t:"/g, '","t":"'));
   
   let type = (c) => {
     let type = c.getAttribute("type")
@@ -126,11 +128,16 @@ async function loadIntel() {
       return undefined;
     }
     
-    let implInstrList = filter("instruction").map(c=>esc(c.getAttribute("name").toLowerCase()+" "+c.getAttribute("form")));
+    let instrs = filter("instruction");
+    let implInstrList = instrs.map(c=>esc(c.getAttribute("name").toLowerCase()+" "+c.getAttribute("form")));
     if (e.getAttribute("sequence")==="TRUE") {
       if (implInstrList.length==0) implInstrList = ["(sequence)"];
       else implInstrList = implInstrList.map(c => c+" (sequence)");
     }
+    
+    let implTimes = instrs.map(c=>perf[c.getAttribute("xed")]).filter(c=>c);
+    if (implTimes.length>1) console.log(instrs.map(c=>c.getAttribute("xed")));
+    implTimes = implTimes.length? implTimes[0] : undefined;
     
     let archs = filter("CPUID").map(c=>c.textContent).map(c=>{
       if (e.getAttribute("tech")==='SVML') return "SVML|"+c;
@@ -157,8 +164,9 @@ async function loadIntel() {
       desc: take("description").textContent,
       header: takeOpt("header", c=>c.textContent),
       
-      implDesc: implDesc,
+      implDesc: implDesc+implTimes,
       implInstr: implInstrList.join("<br>"),
+      implTimes: implTimes,
       
       archs: archs,
       categories: filter("category").map(c=>c.textContent),
@@ -497,13 +505,24 @@ function toPage(page) {
     ]);
     r.onclick = () => {
       console.log(c);
+      
       let text = `<br>`;
       text+= `<br>Architecture: <span class="mono">${c.archs.map(c=>esc(c.split(/\|/g).slice(-1)[0])).join(' + ')}</span><br>`;
       text+= `<br>Description:<div class="desc">${c.desc}</div>`;
       if (c.implInstr) text+= `<br>Instruction:<pre>${c.implInstr}</pre>`;
       if (c.implDesc) text+= `<br>Operation:<pre>${c.implDesc}</pre>`;
-      
+      if (c.implTimes) text+= `<br>Performance:<table class="perf-table"></table>`;
       descPlaceEl.innerHTML = text;
+      
+      if (c.implTimes) descPlaceEl.getElementsByClassName("perf-table")[0].append(mkch('tbody', [
+        mkch('tr', ['Architecture', 'Latency', 'Throughput (CPI)'].map(c=>mkch('th',[c]))),
+        ...c.implTimes.map(c => {
+          let [[k,v]] = Object.entries(c);
+          console.log([k,v]);
+          return mkch('tr', [k, v.l, v.t].map(e => mkch('td', [e])));
+        })
+      ]));
+      
       descPlaceEl.insertAdjacentElement('afterBegin', mkch('span', [mkRetLine(), ' ', mkFnLine()], {cl: 'mono'}));
     }
     return r;

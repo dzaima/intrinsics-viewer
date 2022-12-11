@@ -68,28 +68,41 @@ h4 {
 }
 
 table {
+  border: 1px solid #555;
+  border-collapse: collapse;
+}
+
+.perf-table td,
+.perf-table th {
+  border: 1px solid #555;
+}
+.perf-table td,
+.perf-table th {
+  padding: 0 0.5em;
+}
+.perf-table td:not(:nth-child(1)) { text-align: center; }
+
+#search-table {
   table-layout: fixed;
   width: 100%;
   height: min-content;
   
-  border: 1px solid #555;
-  border-collapse: collapse;
   font-size: 0.9em;
 }
-th {
+#search-table th {
   border: 1px solid #555;
 }
-tr {
+#search-table tr {
   border-bottom: 1px solid #444;
   cursor: pointer;
 }
-td:nth-child(1) { text-align: right; overflow: hidden; }
-td { overflow: hidden; white-space: nowrap; }
+#search-table td:nth-child(1) { text-align: right; overflow: hidden; }
+#search-table td { overflow: hidden; white-space: nowrap; }
 .mono {
   font-family: DejaVu Sans Mono, monospace;
   font-size: 0.9em;
 }
-td {
+#search-table td {
   font-family: DejaVu Sans Mono, monospace;
   padding-left: 0.5em;
   padding-right: 0.5em;

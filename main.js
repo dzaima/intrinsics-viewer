@@ -266,7 +266,7 @@ async function loadArm() {
     }
     
     if (categoryMap[category]) category = categoryMap[category];
-    if (c.name==='vmaxnmq_f64') category = "Arithmetic|Maximum";
+    if (c.name.startsWith('vmaxnmq_') || c.name.startsWith('vmaxnm_')) category = "Arithmetic|Maximum";
     
     let categories = [category];
     

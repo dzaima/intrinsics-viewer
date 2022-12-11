@@ -37,6 +37,7 @@ async function loadIntel() {
     
     let type = c.getAttribute("type")
       .replace("unsigned ", "u")
+      .replace(/__int32\b/g, "int32_t")
       .replace(/__int64\b/g, "int64_t")
       .replace(/long long\b/g, "int64_t")
       .replace(/char\b/g, "int8_t")

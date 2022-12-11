@@ -246,6 +246,14 @@ async function loadArm() {
       return ({type: c.substring(0, i), name: c.substring(i+1)});
     });
     
+    if (c.Arguments_Preparation) {
+      let argMap = Object.fromEntries(args.map(c=>[c.name, c]));
+      Object.entries(c.Arguments_Preparation).forEach(([k,v]) => {
+        if (!argMap[k]) return;
+        if (v.hasOwnProperty("minimum") && v.hasOwnProperty("maximum")) argMap[k].info = "range: ["+v.minimum+";"+v.maximum+"]";
+      });
+    }
+    
     let category = c.instruction_group
       .replace(/^Vector arithmetic\|/, "Arithmetic\|")
       .replace(/^Scalar arithmetic\|/, "With scalar\|")

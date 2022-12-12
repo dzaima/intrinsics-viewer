@@ -187,6 +187,7 @@ async function loadIntel() {
       
       implDesc: implDesc,
       implInstr: implInstrList.join("<br>"),
+      implInstrRaw: implInstrList.join("\n"),
       implTimes: implTimes,
       
       archs: archs,

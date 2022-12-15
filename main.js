@@ -576,6 +576,7 @@ let query_searchIn = [
   ['desc', document.getElementById("s-desc")],
   ['inst', document.getElementById("s-inst")],
   ['oper', document.getElementById("s-oper")],
+  ['catg', document.getElementById("s-catg")],
 ];
 let query_searchInObj = Object.fromEntries(query_searchIn);
 
@@ -589,6 +590,7 @@ function updateSearch(link=true) {
   let sDesc = query_searchInObj.desc.checked;
   let sInst = query_searchInObj.inst.checked;
   let sOper = query_searchInObj.oper.checked;
+  let sCatg = query_searchInObj.catg.checked;
   
   function untree(c) {
     let objs = [];
@@ -617,6 +619,7 @@ function updateSearch(link=true) {
     if (sInst) a.push(c.implInstrRaw);
     if (sDesc) a.push(c.desc);
     if (sOper) a.push(c.implDesc);
+    if (sCatg) a.push(c.categories.join(' '));
     a = a.filter(c=>c).map(c=>c.toLowerCase());
     let searchMatch = (
          (partsOn.length==0   ||  partsOn.every (p =>  a.some(cv => cv.includes(p))))

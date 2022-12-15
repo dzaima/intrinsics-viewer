@@ -660,7 +660,7 @@ function updateLink() {
   history.pushState({}, "", "#0"+enc(json));
 }
 
-function loadLink() {
+function loadLink(prependSearch = false) {
   let hash = decodeURIComponent(location.hash.slice(1));
   if (hash[0]=='0') {
     let json = JSON.parse(dec(hash.slice(1)));
@@ -672,7 +672,8 @@ function loadLink() {
       query_searchIn[i][1].checked = c=='1';
     });
     
-    searchFieldEl.value = json.s;
+    if (prependSearch) searchFieldEl.value = json.s + searchFieldEl.value;
+    else searchFieldEl.value = json.s;
     
     function selTree(t, vs) {
       let set = new Set(vs);
@@ -707,10 +708,10 @@ function loadLink() {
     cpuListEl.append(new Option(c, c));
   });
   
-  loadLink();
+  loadLink(true);
 })();
 
-window.onhashchange=loadLink;
+window.onhashchange=() => loadLink();
 
 
 

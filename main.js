@@ -675,8 +675,11 @@ function loadLink(prependSearch = false) {
       query_searchIn[i][1].checked = c=='1';
     });
     
-    if (prependSearch) searchFieldEl.value = json.s + searchFieldEl.value;
-    else searchFieldEl.value = json.s;
+    if (prependSearch) {
+      if (!searchFieldEl.value.includes(json.s)) searchFieldEl.value = json.s + searchFieldEl.value;
+    } else {
+      searchFieldEl.value = json.s;
+    }
     
     function selTree(t, vs) {
       let set = new Set(vs);

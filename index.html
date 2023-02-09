@@ -10,7 +10,7 @@
 <body class="dark">
   <div class="flex-horiz" style="padding: 0.2em;">
     <div style="flex-grow: 1; flex-basis: 65%">
-      <div class="flex-horiz" style="padding: 0.2em;">
+      <div class="flex-horiz" style="padding: 0.2em; align-items: center;">
         Search:&nbsp; <input id="search-field" class="mono" type="search" oninput="updateSearch(false)" onchange="updateLink()" style="flex-grow: 1;">
       </div>
       <script type="text/javascript">document.getElementById("search-field").focus();</script>
@@ -22,20 +22,20 @@
           <br>
           
           <div id="arch-list"></div>
-          <br>
+          <div style="padding: 0.2em;"></div>
           Categories:
           <div id="category-list"></div>
         </div>
         <div style="flex-basis: 75%">
           <div>
-            <span class="flex-horiz" style="width: 100%">
+            <span class="flex-horiz" style="width: 100%; align-items: center; padding-bottom: 0.1em;">
               <span>Search in:</span>
               <label class="flex-grow" style="text-align: center;"><input type="checkbox" onclick="updateSearch()" id="s-name" checked> name</label>
               <label class="flex-grow" style="text-align: center;"><input type="checkbox" onclick="updateSearch()" id="s-desc" checked> description</label>
               <label class="flex-grow" style="text-align: center;"><input type="checkbox" onclick="updateSearch()" id="s-inst" checked> instruction</label>
               <label class="flex-grow" style="text-align: center;"><input type="checkbox" onclick="updateSearch()" id="s-oper" checked> operation</label>
               <label class="flex-grow" style="text-align: center;"><input type="checkbox" onclick="updateSearch()" id="s-catg" checked> category</label>
-              <span style="flex-grow:2; text-align: right; min-width: 6em; width: min-content;"><span id="result-count">0</span> results</span>
+              <span style="flex-grow:2; text-align: right; min-width: 6em; width: min-content;"><span id="result-count">loading…</span></span>
             </span>
           </div>
           <div class="flex-horiz" style="width: 100%;">
@@ -52,8 +52,8 @@
                 <col style="width: 63%">
                 <!-- <col style="width: 22%"> -->
               </colgroup>
-              <tr>
-                <th>Result</th>
+              <tr class="table-header">
+                <th style="text-align: right; padding-right: 0.5em">Result</th>
                 <th>Name</th>
                 <!-- <th>Arch</th> -->
               </tr>
@@ -64,7 +64,7 @@
         </div>
       </div>
     </div>
-    <div id='desc-place' style="flex-grow: 1; flex-basis: 25%; padding-top: 1em">
+    <div id='desc-place' style="flex-grow: 1; flex-basis: 25%; padding-left: 0.5em; padding-top: 1em">
     </div>
   </div>
 </body>

@@ -16,7 +16,7 @@ let query_archs = [];
 let query_categories = [];
 let query_found = [];
 let query_currPage = 0;
-let perPage = 35;
+let perPage = 37;
 
 
 async function loadFile(path) {
@@ -641,7 +641,7 @@ function updateSearch(link=true) {
   categoryStore.write();
   
   toPage(0);
-  resultCountEl.textContent = query_found.length;
+  resultCountEl.textContent = query_found.length+" result"+(query_found.length==1?"":"s");
   
   if (link) updateLink();
 }

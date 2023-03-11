@@ -78,7 +78,7 @@ async function loadIntel() {
     VAES: "AVX512+",
     GFNI: "AVX512+",
     
-    KNCNI: "AVX512",
+    KNCNI: "AVX512+",
     
     BMI1: "bitmanip",
     BMI2: "bitmanip",
@@ -123,7 +123,7 @@ async function loadIntel() {
   };
   
   let xml = new DOMParser().parseFromString(src, "text/xml");
-  let res = [...xml.children[0].children].map(e=>{
+  let res0 = [...xml.children[0].children].map(e=>{
     let ch = [...e.children];
     let assert = cond => {
       if (!cond) throw new Error("bad element: "+e.outerHTML);
@@ -194,6 +194,22 @@ async function loadIntel() {
       categories: filter("category").map(c=>c.textContent),
     };
   });
+  let res = [];
+  let map = new Map();
+  res0.forEach(n => {
+    let p = map.get(n.name);
+    if (p) {
+      if (p.desc==n.desc && p.implInstrRaw==n.implInstrRaw && p.implDesc==n.implDesc && (!p.implTimes) == (!n.implTimes) && [p,n].some(c=>c.archs.length==1 && c.archs[0].endsWith("|KNCNI"))) {
+        p.archs = p.archs.concat(n.archs);
+        return;
+      }
+      // console.log("imperfect duplicate? "+n.name);
+    } else {
+      map.set(n.name, n);
+    }
+    res.push(n);
+  });
+  
   return res;
 }
 async function loadArm() {
@@ -536,10 +552,13 @@ function toPage(page) {
       // mkch('td', [c.archs.map(c=>c.split(/\|/g).slice(-1)[0]).join("+")]),
     ]);
     r.onclick = () => {
-      console.log(c);
-      
+      let a0 = c.archs;
+      let a1 = a0;
+      if (a0.length>1) a1 = a1.filter(c=>!c.endsWith("|KNCNI"));
+      let a2 = a1.map(c=>esc(c.split(/\|/g).slice(-1)[0])).join(' + ');
+      if (a0.length != a1.length) a2+= " / KNCNI";
       let text = `<br>`;
-      text+= `<br>Architecture: <span class="mono">${c.archs.map(c=>esc(c.split(/\|/g).slice(-1)[0])).join(' + ')}</span>`;
+      text+= `<br>Architecture: <span class="mono">${a2}</span>`;
       text+= `<br>Categor${c.categories.length>1?"ies":"y"}: <span class="mono">${c.categories.map(c=>esc(c.replace(/\|/g,'→'))).join(', ')}</span>`;
       text+= `<br><br>Description:<div class="desc">${c.desc}</div>`;
       if (c.implInstr) text+= `<br>Instruction:<pre>${c.implInstr}</pre>`;
@@ -551,7 +570,6 @@ function toPage(page) {
         mkch('tr', ['Architecture', 'Latency', 'Throughput (CPI)'].map(c=>mkch('th',[c]))),
         ...c.implTimes.map(c => {
           let [[k,v]] = Object.entries(c);
-          console.log([k,v]);
           return mkch('tr', [k, v.l, v.t].map(e => mkch('td', [e])));
         })
       ]));

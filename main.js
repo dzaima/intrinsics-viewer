@@ -78,7 +78,7 @@ async function loadIntel() {
     VAES: "AVX512+",
     GFNI: "AVX512+",
     
-    KNCNI: "AVX512+",
+    KNCNI: "other",
     
     BMI1: "bitmanip",
     BMI2: "bitmanip",

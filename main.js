@@ -363,8 +363,8 @@ async function loadRVV() {
     'Loads and Stores|Unit-stride Fault-Only-First Loads': 'Load/store|Fault-only-first load',
     
     'Mask|count population in mask': 'Mask|Population count',
-    'Mask|Element Index': 'Mask|Masked indexes',
-    'Mask|Iota': 'Mask|Compress indexes',
+    'Mask|Element Index': 'Mask|Element indices',
+    'Mask|Iota': 'Mask|Compression indices',
     'Mask|Find-first-set mask bit': 'Mask|Find first set',
     'Mask|Set-including-first mask bit': 'Mask|Set including first',
     'Mask|Set-before-first mask bit': 'Mask|Set before first',
@@ -373,7 +373,7 @@ async function loadRVV() {
     'Mask|Mask-Register Logical': c => 'Mask|' + mapn(c,['_vmandn','Logical|ANDN', '_vmnand','Logical|~AND', '_vmxnor','Logical|XNOR', '_vmand','Logical|AND', '_vmclr','Zero', '_vmnor','Logical|NOR', '_vmnot','Logical|NOT', '_vmorn','Logical|ORN', '_vmset','Logical|', '_vmxor','Logical|XOR', '_vmmv','Move', '_vmor','Logical|OR']),
     
     'Permutation|Integer and Floating-Point Scalar Move': c => 'Permutation|' + mapn(c,['_s_x_','Set first', '_x_s_','Extract first', '_s_f_','Set first', '_f_s_','Extract first']),
-    'Permutation|Register Gather': c => 'Permutation|Shuffle|' + mapn(c,['_vrgatherei16','16-bit indexes', '_vrgather','8-bit indexes']),
+    'Permutation|Register Gather': c => 'Permutation|Shuffle|' + mapn(c,['_vrgatherei16','16-bit indices', '_vrgather','8-bit indices']),
     // 'Permutation|Compress': 'Permutation|Compress',
     'Permutation|Slide1up and Slide1down': c => 'Permutation|Slide|' + mapn(c,['slide1up','Up 1', 'slide1down','Down 1']),
     'Permutation|Slideup':                 'Permutation|Slide|Up N',

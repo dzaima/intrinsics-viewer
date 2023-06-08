@@ -388,7 +388,7 @@ async function loadRVV() {
     'Miscellaneous Vector|LMUL Extension': 'Permutation|LMUL extend',
     'Miscellaneous Vector|LMUL Truncation': 'Permutation|LMUL truncate',
     
-    'Reduction|Single-Width Floating-Point Reduction': c => 'Fold|'+mapn(c,['_vfredosum','Ordered sum', '_vfredusum','Unordered sum', '_vfredmax','Max', '_vfredmin','Min']),
+    'Reduction|Single-Width Floating-Point Reduction': c => 'Fold|'+mapn(c,['_vfredosum','Sequential sum', '_vfredusum','Tree sum', '_vfredmax','Max', '_vfredmin','Min']),
     'Reduction|Single-Width Integer Reduction':        c => 'Fold|'+mapn(c,['vredmaxu','Max', 'vredminu','Min', 'vredsum','Sum', 'vredmax','Max', 'vredmin','Min', 'vredand','Bitwise and', 'vredor','Bitwise or', 'vredxor','Bitwise xor']),
     'Reduction|Widening Floating-Point Reduction': 'Fold|Widening float sum',
     'Reduction|Widening Integer Reduction':        'Fold|Widening integer sum',
@@ -668,8 +668,8 @@ function newCPU(link=true) {
     'Float|Compare': 8,
     
     'Fold|Sum': 0,
-    'Fold|Ordered sum': 1,
-    'Fold|Unordered sum': 2,
+    'Fold|Sequential sum': 1,
+    'Fold|Tree sum': 2,
     'Fold|Widening float sum': 3,
     'Fold|Widening integer sum': 4,
     

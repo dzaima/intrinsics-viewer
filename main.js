@@ -320,6 +320,15 @@ async function loadArm() {
   return res;
 }
 
+async function loadRVV() {
+  let j = JSON.parse(await loadFile("data/rvv.json"));
+  j.forEach(c => {
+    c.id = idCounter++;
+    c.categories = c.categories.map(c => c.replace(/(^|\|)Vector /g, "$1"))
+  })
+  return j;
+}
+
 function unique(l) {
   return [...new Set(l)];
 }
@@ -738,14 +747,25 @@ function loadLink(prependSearch = false) {
   }
 }
 
+function prettyType(t) {
+  let c = t.type;
+  c = c.replace(/ +(\**) *$/, "$1");
+  c = c.replace(/(.+) const\b/, "const $1");
+  t.type = c;
+}
+
 (async () => {
   let i1 = await loadIntel();
   console.log("intel parsed");
   let i2 = await loadArm();
   console.log("arm parsed");
-  is0 = [...i1, ...i2];
+  let i3 = await loadRVV();
+  console.log("rvv parsed");
+  is0 = [...i1, ...i2, ...i3];
   is0.forEach(c => {
     if (c.archs.length==0 || c.categories.length==0) throw new Error(c);
+    c.args.forEach(prettyType);
+    prettyType(c.ret);
   });
   let cpus = unique(is0.map(c=>c.cpu).flat());
   cpus.forEach((c, i) => {

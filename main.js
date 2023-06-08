@@ -322,9 +322,141 @@ async function loadArm() {
 
 async function loadRVV() {
   let j = JSON.parse(await loadFile("data/rvv.json"));
+  
+  function mapn(c, l) {
+    let n = c.name;
+    for (let i = 0; i < l.length-1; i+= 2) {
+      if (n.includes(l[i])) return l[i+1];
+    }
+    throw 0;
+  }
+  
+  function typeConvert(c) {
+    let rf = c.ret.type.includes("float");
+    let af = c.args[c.args[0].name=='mask'? 1 : 0].type.includes("float");
+    let orig = c.categories[0].split("|")[1];
+    let w = orig=='Widening Floating-Point/Integer Type-Convert';
+    let n = orig=='Narrowing Floating-Point/Integer Type-Convert';
+    let wn = (w? 'widen' : n? 'narrow' : '??');
+    if ( rf &&  af) return 'Conversion|Float '+wn;
+    if (!rf && !af) return 'Conversion|Integer '+wn;
+    if ( rf && !af) return 'Conversion|Integer to float';
+    if (!rf &&  af) return 'Conversion|Float to integer';
+  }
+  
+  const categoryMap = {
+    'Configuration-Setting and Utility|Set the vl to VLMAX with specific vtype': 'Initialize|Set max vl',
+    'Configuration-Setting and Utility|Set vl and vtype': 'Initialize|Set specific vl',
+    
+    'Stride Segment Load/Store Instructions (Zvlsseg)|Strided Segment Load': 'Load/store|Segment (Zvlsseg)|Strided Load',
+    'Stride Segment Load/Store Instructions (Zvlsseg)|Strided Segment Store': 'Load/store|Segment (Zvlsseg)|Strided Store',
+    'Unit-Stride Segment Load/Store Instructions (Zvlsseg)|Unit-Stride Segment Load': 'Load/store|Segment (Zvlsseg)|Load',
+    'Unit-Stride Segment Load/Store Instructions (Zvlsseg)|Unit-Stride Segment Store': 'Load/store|Segment (Zvlsseg)|Store',
+    'Indexed Segment Load/Store Instructions (Zvlsseg)|Indexed Segment Load': 'Load/store|Segment (Zvlsseg)|Indexed Load',
+    'Indexed Segment Load/Store Instructions (Zvlsseg)|Indexed Segment Store': 'Load/store|Segment (Zvlsseg)|Indexed Store',
+    'Loads and Stores|Indexed Load': 'Load/store|Indexed aka gather|Load',
+    'Loads and Stores|Indexed Store': 'Load/store|Indexed aka gather|Store',
+    'Loads and Stores|Strided Load': 'Load/store|Strided|Load',
+    'Loads and Stores|Strided Store': 'Load/store|Strided|Store',
+    'Loads and Stores|Unit-Stride Load': 'Load/store|Load',
+    'Loads and Stores|Unit-Stride Store': 'Load/store|Store',
+    'Loads and Stores|Unit-stride Fault-Only-First Loads': 'Load/store|Fault-only-first load',
+    
+    'Mask|count population in mask': 'Mask|Population count',
+    'Mask|Element Index': 'Mask|Masked indexes',
+    'Mask|Iota': 'Mask|Compress indexes',
+    'Mask|Find-first-set mask bit': 'Mask|Find first set',
+    'Mask|Set-including-first mask bit': 'Mask|Set including first',
+    'Mask|Set-before-first mask bit': 'Mask|Set before first',
+    'Mask|Set-only-first mask bit': 'Mask|Set only first',
+    'Mask|Mask Load/Store': 'Load/store|Mask',
+    'Mask|Mask-Register Logical': c => 'Mask|' + mapn(c,['_vmandn','Logical|ANDN', '_vmnand','Logical|~AND', '_vmxnor','Logical|XNOR', '_vmand','Logical|AND', '_vmclr','Zero', '_vmnor','Logical|NOR', '_vmnot','Logical|NOT', '_vmorn','Logical|ORN', '_vmset','Logical|', '_vmxor','Logical|XOR', '_vmmv','Move', '_vmor','Logical|OR']),
+    
+    'Permutation|Integer and Floating-Point Scalar Move': c => 'Permutation|' + mapn(c,['_s_x_','Set first', '_x_s_','Extract first', '_s_f_','Set first', '_f_s_','Extract first']),
+    'Permutation|Register Gather': c => 'Permutation|Shuffle|' + mapn(c,['_vrgatherei16','16-bit indexes', '_vrgather','8-bit indexes']),
+    // 'Permutation|Compress': 'Permutation|Compress',
+    'Permutation|Slide1up and Slide1down': c => 'Permutation|Slide|' + mapn(c,['slide1up','Up 1', 'slide1down','Down 1']),
+    'Permutation|Slideup':                 'Permutation|Slide|Up N',
+    'Permutation|Slidedown':               'Permutation|Slide|Down N',
+    
+    'Miscellaneous Vector|Initialization': 'Initialize|Set undefined',
+    'Miscellaneous Vector|Reinterpret Cast Conversion|Reinterpret between different SEW under the same LMUL': 'Conversion|Reinterpret|Same LMUL',
+    'Miscellaneous Vector|Reinterpret Cast Conversion|Reinterpret between different type under the same SEW/LMUL': 'Conversion|Reinterpret|Same LMUL & width',
+    'Miscellaneous Vector|Reinterpret Cast Conversion|Reinterpret between vector boolean types and LMUL=1 (m1) vector integer types': 'Conversion|Reinterpret|Boolean',
+    'Miscellaneous Vector|Extraction': 'Permutation|Extract',
+    'Miscellaneous Vector|Insertion': 'Permutation|Insert',
+    'Miscellaneous Vector|LMUL Extension': 'Permutation|LMUL extend',
+    'Miscellaneous Vector|LMUL Truncation': 'Permutation|LMUL truncate',
+    
+    'Reduction|Single-Width Floating-Point Reduction': c => 'Fold|'+mapn(c,['_vfredosum','Ordered sum', '_vfredusum','Unordered sum', '_vfredmax','Max', '_vfredmin','Min']),
+    'Reduction|Single-Width Integer Reduction':        c => 'Fold|'+mapn(c,['vredmaxu','Max', 'vredminu','Min', 'vredsum','Sum', 'vredmax','Max', 'vredmin','Min', 'vredand','Bitwise and', 'vredor','Bitwise or', 'vredxor','Bitwise xor']),
+    'Reduction|Widening Floating-Point Reduction': 'Fold|Widening float sum',
+    'Reduction|Widening Integer Reduction':        'Fold|Widening integer sum',
+    
+    'Fixed-Point Arithmetic|Narrowing Fixed-Point Clip': 'Fixed-point|Narrowing clip',
+    'Fixed-Point Arithmetic|Single-Width Averaging Add and Subtract': 'Fixed-point|Averaging add & subtract',
+    'Fixed-Point Arithmetic|Single-Width Fractional Multiply with Rounding and Saturation': 'Fixed-point|Fractional rounding & saturating multiply',
+    'Fixed-Point Arithmetic|Single-Width Saturating Add and Subtract': 'Fixed-point|Saturating add & subtract',
+    'Fixed-Point Arithmetic|Single-Width Scaling Shift': 'Fixed-point|Scaling shift',
+    
+    'Floating-Point|Floating-Point Absolute Value': 'Float|Absolute',
+    'Floating-Point|Floating-Point Classify': 'Float|Classify',
+    'Floating-Point|Floating-Point Compare': 'Float|Compare',
+    'Floating-Point|Floating-Point Reciprocal Estimate': 'Float|Estimate reciprocal',
+    'Floating-Point|Floating-Point Reciprocal Square-Root Estimate': 'Float|Estimate reciprocal square-root',
+    'Floating-Point|Floating-Point Sign-Injection': 'Float|Sign-injection',
+    'Floating-Point|Floating-Point Square-Root': 'Float|Square root',
+    'Floating-Point|Single-Width Floating-Point Fused Multiply-Add': 'Float|Fused multiply-add',
+    'Floating-Point|Floating-Point MIN/MAX':                      c => 'Float|'      +mapn(c,['_vfmin','Min', '_vfmax','Max']),
+    'Floating-Point|Single-Width Floating-Point Add/Subtract':    c => 'Float|'      +mapn(c,['_vfadd','Add', '_vfsub','Subtract', '_vfrsub','Subtract', '_vfneg','Negate']),
+    'Floating-Point|Single-Width Floating-Point Multiply/Divide': c => 'Float|'      +mapn(c,['_vfdiv','Divide', '_vfrdiv','Divide', '_vfmul','Multiply', '_vfrmul','Multiply']),
+    'Floating-Point|Widening Floating-Point Add/Subtract':        c => 'Float|Widen|'+mapn(c,['_vfwadd','Add', '_vfwsub','Subtract']),
+    'Floating-Point|Widening Floating-Point Fused Multiply-Add': 'Float|Widen|Fused multiply-add',
+    'Floating-Point|Widening Floating-Point Multiply': 'Float|Widen|Multiply',
+    'Floating-Point|Narrowing Floating-Point/Integer Type-Convert': typeConvert,
+    'Floating-Point|Widening Floating-Point/Integer Type-Convert': typeConvert,
+    'Floating-Point|Single-Width Floating-Point/Integer Type-Convert': typeConvert,
+    'Floating-Point|Floating-Point Move': c => mapn(c,['_v_f_','Initialize|Broadcast', '_v_v_','Permutation|Move']),
+    'Floating-Point|Floating-Point Merge': 'Permutation|Merge',
+    
+    'Integer Arithmetic|Integer Merge': 'Permutation|Merge',
+    'Integer Arithmetic|Integer Divide': 'Integer|Divide',
+    'Integer Arithmetic|Integer Add-with-Carry / Subtract-with-Borrow': 'Integer|Add with Carry / Subtract with Borrow',
+    'Integer Arithmetic|Single-Width Integer Multiply-Add': 'Integer|Multiply-add',
+    'Integer Arithmetic|Widening Integer Multiply-Add': 'Integer|Widen|Multiply-add widening',
+    
+    'Integer Arithmetic|Integer Move':                          c =>                        mapn(c,['_v_x_','Initialize|Broadcast', '_v_v_','Permutation|Move']),
+    'Integer Arithmetic|Widening Integer Add/Subtract':         c => 'Integer|Widen|'     +mapn(c,['_vwaddu','Add widening unsigned', '_vwsubu','Subtract widening unsigned', '_vwadd','Add widening signed', '_vwsub','Subtract widening signed']),
+    'Integer Arithmetic|Widening Integer Multiply':             c => 'Integer|Widen|'     +mapn(c,['_vwmulsu', 'Multiply widening signed*unsigned', '_vwmulu', 'Multiply widening unsigned', '_vwmul', 'Multiply widening signed']),
+    'Integer Arithmetic|Integer Extension':                     c => 'Integer|Widen|'     +mapn(c,['_vsext','Sign-extend', '_vzext','Zero-extend']),
+    'Integer Arithmetic|Single-Width Integer Add and Subtract': c => 'Integer|'           +mapn(c,['_vadd','Add', '_vsub','Subtract', '_vrsub','Subtract', '_vneg','Negate']),
+    'Integer Arithmetic|Single-Width Integer Multiply':         c => 'Integer|Multiply|'  +mapn(c,['_vmulhsu','High signed*unsigned', '_vmulhu','High unsigned', '_vmulh','High signed', '_vmul','Same-width']),
+    'Integer Arithmetic|Bitwise Logical':                       c => 'Bitwise|'           +mapn(c,['_vand','AND', '_vor','OR', '_vxor','XOR', '_vnot', 'NOT']),
+    'Integer Arithmetic|Single-Width Bit Shift':                c => 'Bitwise|'           +mapn(c,['_vsrl','Shift right|logical', '_vsra','Shift right|arithmetic', '_vsll','Shift left']),
+    'Integer Arithmetic|Narrowing Integer Right Shift':         c => 'Bitwise|'           +mapn(c,['_vnsrl','Shift right|logical narrowing', '_vnsra','Shift right|arithmetic narrowing']),
+    'Integer Arithmetic|Integer Min/Max':                       c => 'Integer|'           +mapn(c,['_vmin','Min', '_vmax','Max']),
+    'Integer Arithmetic|Integer Comparison':                    c => 'Integer|Compare|'+mapn(c,['_vmsltu','Unsigned <', '_vmsleu','Unsigned <=', '_vmsgtu','Unsigned >', '_vmsgeu','Unsigned >=', '_vmseq','==', '_vmsne','!=', '_vmslt','Signed <', '_vmsle','Signed <=', '_vmsgt','Signed >', '_vmsge','Signed >=']),
+  };
+  
   j.forEach(c => {
+    function applyCategory(f, t) {
+      t = t? "|"+t : "";
+      if (typeof f === 'string') return f+t;
+      return f(c)+t;
+    }
+    
     c.id = idCounter++;
-    c.categories = c.categories.map(c => c.replace(/(^|\|)Vector /g, "$1"))
+    c.categories = c.categories.map(c => {
+      c = c.replace(/(^|\|)Vector /g, "$1");
+      if (categoryMap[c]) {
+        c = applyCategory(categoryMap[c]);
+      } else {
+        let p = c.split("|");
+        let f = categoryMap[p.slice(0,-1).join("|")];
+        if (f) c = applyCategory(f, p[p.length-1]);
+      }
+      return c;
+    });
   })
   return j;
 }
@@ -451,7 +583,7 @@ function newCPU(link=true) {
   is1 = is0.filter(c=>c.cpu.includes(cpu));
   
   let archs = unique(is1.map(c=>c.archs).flat());
-  let preferredOrder = {
+  let orderArch = {
     'all|SSE': 0,
     'all|AVX+AVX2': 1,
     'all|AVX2+': 2,
@@ -481,7 +613,15 @@ function newCPU(link=true) {
     'AVX512|AVX512_VBMI2': 14,
     'AVX512|AVX512_BITALG': 15,
     'AVX512|AVX512_VP2INTERSECT': 16,
+  };
+  
+  let orderCategory = {
+    // x86-64
+    'other|all':0,
+    'other|AMX':1,
+    'other|KNCNI':2,
     
+    // ARM
     'Logical|AND': 0,
     'Logical|OR': 1,
     'Logical|XOR': 2,
@@ -493,20 +633,71 @@ function newCPU(link=true) {
     'all|Logical':1,
     'all|Vector manipulation':2,
     
+    // rvv
     'Arithmetic|Add':0,
     'Arithmetic|Subtract':1,
     'Arithmetic|Multiply':2,
     
-    'other|all':0,
-    'other|AMX':1,
-    'other|KNCNI':2,
+    'all|Integer':0,
+    'all|Float':1,
+    'all|Fold':2,
+    'all|Mask':3,
+    'all|Bitwise':4,
+    'all|Load/store':5,
+    'all|Permutation':6,
+    'all|Initialize':7,
+    'all|Conversion':8,
+    
+    'Integer|Add': 0,
+    'Integer|Subtract': 1,
+    'Integer|Multiply': 2,
+    'Integer|Divide': 3,
+    'Integer|Min': 4,
+    'Integer|Max': 5,
+    'Integer|Negate': 6,
+    'Integer|Compare': 7,
+    
+    'Float|Add': 0,
+    'Float|Subtract': 1,
+    'Float|Multiply': 2,
+    'Float|Divide': 3,
+    'Float|Min': 4,
+    'Float|Max': 5,
+    'Float|Negate': 6,
+    'Float|Absolute': 7,
+    'Float|Compare': 8,
+    
+    'Fold|Sum': 0,
+    'Fold|Ordered sum': 1,
+    'Fold|Unordered sum': 2,
+    'Fold|Widening float sum': 3,
+    'Fold|Widening integer sum': 4,
+    
+    'Mask|Logical': 0,
+    
+    'Load/store|Load': 0,
+    'Load/store|Store': 1,
+    'Load/store|Indexed aka gather': 2,
+    'Load/store|Fault-only-first load': 3,
+    
+    'Conversion|Integer widen': 0,
+    'Conversion|Integer narrow': 1,
+    'Conversion|Float widen': 2,
+    'Conversion|Float narrow': 3,
+    'Conversion|Integer to float': 4,
+    'Conversion|Float to integer': 5,
+    
+    'Bitwise|AND': 0,
+    'Bitwise|OR': 1,
+    'Bitwise|XOR': 2,
+    'Bitwise|NOT': 3,
   };
   let openByDefault = new Set([
     'all',
     'SSE', 'AVX+AVX2',
   ]);
   archListEl.textContent = '';
-  let archGroups = group(archs.map(c => c.split("|")), 'all', preferredOrder);
+  let archGroups = group(archs.map(c => c.split("|")), 'all', orderArch);
   query_archs = [...archs];
   curr_archObj = makeTree(archGroups, openByDefault, (a, link) => {
     query_archs = a;
@@ -517,7 +708,7 @@ function newCPU(link=true) {
   
   let categories = unique(is1.map(c=>c.categories).flat());
   categoryListEl.textContent = '';
-  let categoryGroups = group(categories.map(c => c.split("|")), 'all', preferredOrder);
+  let categoryGroups = group(categories.map(c => c.split("|")), 'all', orderCategory);
   query_categories = categories;
   curr_categoryObj = makeTree(categoryGroups, openByDefault, (c, link) => {
     query_categories = c;

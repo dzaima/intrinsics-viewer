@@ -322,6 +322,9 @@ async function loadArm() {
 
 async function loadRVV() {
   let j = JSON.parse(await loadFile("data/rvv.json"));
+  let doc = Object.fromEntries((await loadFile("data/v-spec.html"))
+    .split(/<h[234] id="/).slice(1)
+    .map(c => [c.substring(0,c.indexOf('"')), c.substring(c.indexOf('\n'))]));
   
   function mapn(c, l) {
     let n = c.name;
@@ -438,14 +441,103 @@ async function loadRVV() {
     'Integer Arithmetic|Integer Comparison':                    c => 'Integer|Compare|'+mapn(c,['_vmsltu','Unsigned <', '_vmsleu','Unsigned <=', '_vmsgtu','Unsigned >', '_vmsgeu','Unsigned >=', '_vmseq','==', '_vmsne','!=', '_vmslt','Signed <', '_vmsle','Signed <=', '_vmsgt','Signed >', '_vmsge','Signed >=']),
   };
   
+  const docMap = {
+                                                "set-vl-and-vtype-functions": "",
+                                       "set-vl-to-vlmax-with-specific-vtype": "",
+                                          "74-vector-unit-stride-operations": "_vector_unit_stride_instructions",
+                                    "75-vector-strided-loadstore-operations": "_vector_strided_instructions",
+                                    "76-vector-indexed-loadstore-operations": "_vector_indexed_instructions",
+                          "77-unit-stride-fault-only-first-loads-operations": "_unit_stride_fault_only_first_loads",
+                          "121-vector-single-width-integer-add-and-subtract": "_vector_single_width_integer_add_and_subtract",
+                        "122-vector-widening-integer-addsubtract-operations": "_vector_widening_integer_addsubtract",
+                                   "123-vector-integer-extension-operations": "_vector_integer_extension",
+        "124-vector-integer-add-with-carry--subtract-with-borrow-operations": "_vector_integer_add_with_carry_subtract_with_borrow_instructions",
+                                     "125-vector-bitwise-logical-operations": "_vector_bitwise_logical_instructions",
+                              "126-vector-single-width-bit-shift-operations": "_vector_single_width_shift_instructions",
+                       "127-vector-narrowing-integer-right-shift-operations": "_vector_narrowing_integer_right_shift_instructions",
+                                  "128-vector-integer-comparison-operations": "_vector_integer_compare_instructions",
+                                      "129-vector-integer-minmax-operations": "_vector_integer_minmax_instructions",
+                      "1210-vector-single-width-integer-multiply-operations": "_vector_single_width_integer_multiply_instructions",
+                                     "1211-vector-integer-divide-operations": "_vector_integer_divide_instructions",
+                          "1212-vector-widening-integer-multiply-operations": "_vector_widening_integer_multiply_instructions",
+                  "1213-vector-single-width-integer-multiply-add-operations": "_vector_single_width_integer_multiply_add_instructions",
+                      "1214-vector-widening-integer-multiply-add-operations": "_vector_widening_integer_multiply_add_instructions",
+                                      "1216-vector-integer-merge-operations": "_vector_integer_merge_instructions",
+                                       "1217-vector-integer-move-operations": "_vector_integer_move_instructions",
+                       "131-vector-single-width-saturating-add-and-subtract": "_vector_single_width_saturating_add_and_subtract",
+                        "132-vector-single-width-averaging-add-and-subtract": "_vector_single_width_averaging_add_and_subtract",
+  "133-vector-single-width-fractional-multiply-with-rounding-and-saturation": "_vector_single_width_fractional_multiply_with_rounding_and_saturation",
+                          "134-vector-single-width-scaling-shift-operations": "_vector_single_width_scaling_shift_instructions",
+                          "135-vector-narrowing-fixed-point-clip-operations": "_vector_narrowing_fixed_point_clip_instructions",
+             "142-vector-single-width-floating-point-addsubtract-operations": "_vector_single_width_floating_point_addsubtract_instructions",
+                 "143-vector-widening-floating-point-addsubtract-operations": "_vector_widening_floating_point_addsubtract_instructions",
+          "144-vector-single-width-floating-point-multiplydivide-operations": "_vector_single_width_floating_point_multiplydivide_instructions",
+                    "145-vector-widening-floating-point-multiply-operations": "_vector_widening_floating_point_multiply",
+      "146-vector-single-width-floating-point-fused-multiply-add-operations": "_vector_single_width_floating_point_fused_multiply_add_instructions",
+          "147-vector-widening-floating-point-fused-multiply-add-operations": "_vector_widening_floating_point_fused_multiply_add_instructions",
+                          "148-vector-floating-point-square-root-operations": "_vector_floating_point_square_root_instruction",
+      "149-vector-floating-point-reciprocal-square-root-estimate-operations": "_vector_floating_point_reciprocal_square_root_estimate_instruction",
+                 "1410-vector-floating-point-reciprocal-estimate-operations": "_vector_floating_point_reciprocal_estimate_instruction",
+                              "1411-vector-floating-point-minmax-operations": "_vector_floating_point_minmax_instructions",
+                      "1412-vector-floating-point-sign-injection-operations": "_vector_floating_point_sign_injection_instructions",
+                             "1413-vector-floating-point-compare-operations": "_vector_floating_point_compare_instructions",
+                            "1414-vector-floating-point-classify-operations": "_vector_floating_point_classify_instruction",
+                               "1415-vector-floating-point-merge-operations": "_vector_floating_point_merge_instruction",
+                                "1416-vector-floating-point-move-operations": "sec-vector-float-move",
+           "1417-single-width-floating-pointinteger-type-convert-operations": "_single_width_floating_pointinteger_type_convert_instructions",
+               "1418-widening-floating-pointinteger-type-convert-operations": "_widening_floating_pointinteger_type_convert_instructions",
+              "1419-narrowing-floating-pointinteger-type-convert-operations": "_narrowing_floating_pointinteger_type_convert_instructions",
+                      "151-vector-single-width-integer-reduction-operations": "sec-vector-integer-reduce",
+               "153-vector-single-width-floating-point-reduction-operations": "sec-vector-float-reduce",
+                          "152-vector-widening-integer-reduction-operations": "sec-vector-integer-reduce-widen",
+                   "154-vector-widening-floating-point-reduction-operations": "sec-vector-float-reduce-widen",
+                               "161-vector-mask-register-logical-operations": "sec-mask-register-logical",
+                                "162-vector-count-population-in-mask-vcpopm": "_vector_count_population_in_mask_vcpop_m",
+                                        "163-vfirst-find-first-set-mask-bit": "_vfirst_find_first_set_mask_bit",
+                                      "164-vmsbfm-set-before-first-mask-bit": "_vmsbf_m_set_before_first_mask_bit",
+                                   "165-vmsifm-set-including-first-mask-bit": "_vmsif_m_set_including_first_mask_bit",
+                                        "166-vmsofm-set-only-first-mask-bit": "_vmsof_m_set_only_first_mask_bit",
+                                                "168-vector-iota-operations": "_vector_iota_instruction",
+                                       "169-vector-element-index-operations": "_vector_element_index_instruction",
+                                        "171-integer-scalar-move-operations": "_integer_scalar_move_instructions",
+                                              "173-vector-slide-operationsU": "_vector_slide1up", // _vector_slide_instructions
+                                              "173-vector-slide-operationsD": "_vector_slide1down_instruction",
+                             "173-vector-slide1up-and-slide1down-functionsD": "_vector_slidedown_instructions",
+                             "173-vector-slide1up-and-slide1down-functionsU": "_vector_slideup_instructions",
+                                     "174-vector-register-gather-operations": "_vector_register_gather_instructions",
+                                            "175-vector-compress-operations": "_vector_compress_instruction",
+                                     "reinterpret-cast-conversion-functions": "",
+                            "vector-lmul-extension-and-truncation-functions": "",
+                                           "vector-initialization-functions": "",
+                                                "vector-insertion-functions": "",
+                                               "vector-extraction-functions": "",
+                                               "vector-extraction-functions": "",
+  };
+  for (let k in docMap) {
+    let val = doc[docMap[k]];
+    if (val) {
+      val = val
+        .replace(/<table>/g, '<table class="note-table">')
+        .replace(/<td class="content">/g, '<td>Note: ')
+        .replace(/<td class="icon">\n<div class="title">Note<\/div>\n<\/td>/g, "")
+        .replaceAll(/<pre>([^]*?)<\/pre>/g, (a,c) => {
+          let lns = c.split('\n');
+          let pad = lns.filter(c=>c.length).map(c=>c.match(/[^ ]/).index).reduce((a,b)=>Math.min(a,b),99);
+          return '<pre>'+lns.map(c => c.substring(pad)).join("\n")+'</pre>';
+        });
+    }
+    docMap[k] = val;
+  }
+  
   j.forEach(c => {
+    c.id = idCounter++;
+    
     function applyCategory(f, t) {
       t = t? "|"+t : "";
       if (typeof f === 'string') return f+t;
       return f(c)+t;
     }
     
-    c.id = idCounter++;
     c.categories = c.categories.map(c => {
       c = c.replace(/(^|\|)Vector /g, "$1");
       if (categoryMap[c]) {
@@ -457,6 +549,17 @@ async function loadRVV() {
       }
       return c;
     });
+    
+    if (c.implDesc) {
+      let match = c.implDesc.match(/\.\.\/rvv-intrinsic-api.md#+(.+)/);
+      if (match) {
+        let m1 = match[1];
+        if (c.categories[0].includes("Slide|Down")) m1+= "D";
+        if (c.categories[0].includes("Slide|Up")) m1+= "U";
+        let docVal = docMap[m1];
+        if (docVal) c.implDesc = '<!--'+c.implDesc+'--><div style="font-family:sans-serif;white-space:normal">'+docVal+'</div>';
+      }
+    }
   })
   return j;
 }

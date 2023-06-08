@@ -24,9 +24,9 @@ body {
   color: #888;
 }
 
-.h-name { color: #A6E22C; }
-.h-type { color: #67D8EF; }
-.h-comm { color: #888888; }
+body.dark .h-name { color: #A6E22C; }
+body.dark .h-type { color: #67D8EF; }
+body.dark .h-comm { color: #888888; }
 
 #desc-place {
   padding-top: 1em;
@@ -41,6 +41,10 @@ body {
 .desc {
   padding: 0.2em;
   padding-left: 1em;
+}
+p {
+  margin-block-start: 0;
+  margin-block-end: 0.3em;
 }
 pre {
   margin: 0.1em 0.3em;
@@ -128,6 +132,14 @@ table {
   color: #888;
 }
 
+/* risc-v Note sections */
+body.dark .operation .note-table {
+  color: #999;
+  margin: 0.5em 0em;
+}
+body.dark .operation table.tableblock {
+  background-color: #171715;
+}
 
 
 
@@ -139,9 +151,17 @@ body.light { background-color: #FFFFFF; color: #000000; }
 #search-table tr > *:nth-child(2) { border-left: none; }
 body.light table, body.light td, body.light th { border: 1px solid #444; }
 
-body.dark tr:nth-child(even), body.dark .table-header { background-color: #222220; }
+body.dark tr:nth-child(even),
+body.dark .operation table.tableblock th,
+body.dark .table-header {
+  background-color: #222220;
+}
 /*body.dark table, body.dark .table-header { border: 1px solid #363636 }*/
-body.dark table { box-shadow: 0px 0px 5px 1px #0000002e; }
+body.dark table:not(.note-table),
+body.dark .operation table.tableblock
+{
+  box-shadow: 0px 0px 5px 1px #0000002e;
+}
 
 
 body.dark  a { color: #A7DBC6 !important; }

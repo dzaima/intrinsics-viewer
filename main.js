@@ -357,8 +357,8 @@ async function loadRVV() {
     'Unit-Stride Segment Load/Store Instructions (Zvlsseg)|Unit-Stride Segment Store': 'Load/store|Segment (Zvlsseg)|Store',
     'Indexed Segment Load/Store Instructions (Zvlsseg)|Indexed Segment Load': 'Load/store|Segment (Zvlsseg)|Indexed Load',
     'Indexed Segment Load/Store Instructions (Zvlsseg)|Indexed Segment Store': 'Load/store|Segment (Zvlsseg)|Indexed Store',
-    'Loads and Stores|Indexed Load': 'Load/store|Indexed aka gather|Load',
-    'Loads and Stores|Indexed Store': 'Load/store|Indexed aka gather|Store',
+    'Loads and Stores|Indexed Load': 'Load/store|Indexed|Load aka gather',
+    'Loads and Stores|Indexed Store': 'Load/store|Indexed|Store aka scatter',
     'Loads and Stores|Strided Load': 'Load/store|Strided|Load',
     'Loads and Stores|Strided Store': 'Load/store|Strided|Store',
     'Loads and Stores|Unit-Stride Load': 'Load/store|Load',
@@ -375,7 +375,7 @@ async function loadRVV() {
     'Mask|Mask Load/Store': 'Load/store|Mask',
     'Mask|Mask-Register Logical': c => 'Mask|' + mapn(c,['_vmandn','Logical|ANDN', '_vmnand','Logical|~AND', '_vmxnor','Logical|XNOR', '_vmand','Logical|AND', '_vmclr','Zero', '_vmnor','Logical|NOR', '_vmnot','Logical|NOT', '_vmorn','Logical|ORN', '_vmset','Logical|', '_vmxor','Logical|XOR', '_vmmv','Move', '_vmor','Logical|OR']),
     
-    'Permutation|Integer and Floating-Point Scalar Move': c => 'Permutation|' + mapn(c,['_s_x_','Set first', '_x_s_','Extract first', '_s_f_','Set first', '_f_s_','Extract first']),
+    'Permutation|Integer and Floating-Point Scalar Move': c => mapn(c,['_s_x_','Initialize|Set first', '_x_s_','Permutation|Extract first', '_s_f_','Initialize|Set first', '_f_s_','Permutation|Extract first']),
     'Permutation|Register Gather': c => 'Permutation|Shuffle|' + mapn(c,['_vrgatherei16','16-bit indices', '_vrgather','8-bit indices']),
     // 'Permutation|Compress': 'Permutation|Compress',
     'Permutation|Slide1up and Slide1down': c => 'Permutation|Slide|' + mapn(c,['slide1up','Up 1', 'slide1down','Down 1']),
@@ -409,7 +409,7 @@ async function loadRVV() {
     'Floating-Point|Floating-Point Sign-Injection': 'Float|Sign-injection',
     'Floating-Point|Floating-Point Square-Root': 'Float|Square root',
     'Floating-Point|Single-Width Floating-Point Fused Multiply-Add': 'Float|Fused multiply-add',
-    'Floating-Point|Floating-Point Compare':                      c => 'Float|Compare|'+mapn(c, ['_vmfeq','==', '_vmfne','!=', '_vmflt','<', '_vmfle','<=', '_vmfgt','>', '_vmfge','>=', ]),
+    'Floating-Point|Floating-Point Compare':                      c => 'Float|Compare|'+mapn(c, ['_vmfeq','==', '_vmfne','!=', '_vmflt','<', '_vmfle','<=', '_vmfgt','>', '_vmfge','>=']),
     'Floating-Point|Floating-Point MIN/MAX':                      c => 'Float|'        +mapn(c,['_vfmin','Min', '_vfmax','Max']),
     'Floating-Point|Single-Width Floating-Point Add/Subtract':    c => 'Float|'        +mapn(c,['_vfadd','Add', '_vfsub','Subtract', '_vfrsub','Subtract', '_vfneg','Negate']),
     'Floating-Point|Single-Width Floating-Point Multiply/Divide': c => 'Float|'        +mapn(c,['_vfdiv','Divide', '_vfrdiv','Divide', '_vfmul','Multiply', '_vfrmul','Multiply']),
@@ -782,7 +782,7 @@ function newCPU(link=true) {
     
     'Load/store|Load': 0,
     'Load/store|Store': 1,
-    'Load/store|Indexed aka gather': 2,
+    'Load/store|Indexed': 2,
     'Load/store|Fault-only-first load': 3,
     
     'Conversion|Integer widen': 0,

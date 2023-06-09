@@ -366,8 +366,8 @@ async function loadRVV() {
     'Loads and Stores|Unit-stride Fault-Only-First Loads': 'Load/store|Fault-only-first load',
     
     'Mask|count population in mask': 'Mask|Population count',
-    'Mask|Element Index': 'Mask|Element indices',
-    'Mask|Iota': 'Mask|Compression indices',
+    'Mask|Element Index': 'Initialize|Element indices',
+    'Mask|Iota': 'Initialize|Compression indices',
     'Mask|Find-first-set mask bit': 'Mask|Find first set',
     'Mask|Set-including-first mask bit': 'Mask|Set including first',
     'Mask|Set-before-first mask bit': 'Mask|Set before first',

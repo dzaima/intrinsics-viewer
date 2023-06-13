@@ -376,7 +376,7 @@ async function loadRVV() {
     'Mask|Mask-Register Logical': c => 'Mask|' + mapn(c,['_vmandn','Logical|ANDN', '_vmnand','Logical|~AND', '_vmxnor','Logical|XNOR', '_vmand','Logical|AND', '_vmclr','Zero', '_vmset','One', '_vmnor','Logical|NOR', '_vmnot','Logical|NOT', '_vmorn','Logical|ORN', '_vmxor','Logical|XOR', '_vmmv','Move', '_vmor','Logical|OR']),
     
     'Permutation|Integer and Floating-Point Scalar Move': c => mapn(c,['_s_x_','Initialize|Set first', '_x_s_','Permutation|Extract first', '_s_f_','Initialize|Set first', '_f_s_','Permutation|Extract first']),
-    'Permutation|Register Gather': c => 'Permutation|Shuffle|' + mapn(c,['_vrgatherei16','16-bit indices', '_vrgather','8-bit indices']),
+    'Permutation|Register Gather': c => 'Permutation|' + mapn(c,['_vrgatherei16','Shuffle|16-bit indices', '_vrgather_vv_','Shuffle|Equal-width', '_vrgather_vx_','Broadcast one']),
     // 'Permutation|Compress': 'Permutation|Compress',
     'Permutation|Slide1up and Slide1down': c => 'Permutation|Slide|' + mapn(c,['slide1up','Up 1', 'slide1down','Down 1']),
     'Permutation|Slideup':                 'Permutation|Slide|Up N',

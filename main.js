@@ -424,7 +424,7 @@ async function loadRVV() {
     
     'Integer Arithmetic|Integer Merge': 'Permutation|Merge',
     'Integer Arithmetic|Integer Divide': 'Integer|Divide',
-    'Integer Arithmetic|Integer Add-with-Carry / Subtract-with-Borrow': 'Integer|Add with Carry / Subtract with Borrow',
+    'Integer Arithmetic|Integer Add-with-Carry / Subtract-with-Borrow': c => 'Integer|Carry / Borrow|'+mapn(c,['_vadc_','Add', '_vsbc_','Subtract', '_vmadc_','Add carry-out', '_vmsbc_','Subtract borrow-out']),
     'Integer Arithmetic|Single-Width Integer Multiply-Add': 'Integer|Multiply-add|Same-width',
     'Integer Arithmetic|Widening Integer Multiply-Add': 'Integer|Multiply-add|Widening',
     

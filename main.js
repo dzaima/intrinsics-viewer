@@ -399,7 +399,7 @@ async function loadRVV() {
     'Fixed-Point Arithmetic|Narrowing Fixed-Point Clip': 'Fixed-point|Narrowing clip',
     'Fixed-Point Arithmetic|Single-Width Averaging Add and Subtract': 'Fixed-point|Averaging add & subtract',
     'Fixed-Point Arithmetic|Single-Width Fractional Multiply with Rounding and Saturation': 'Fixed-point|Fractional rounding & saturating multiply',
-    'Fixed-Point Arithmetic|Single-Width Saturating Add and Subtract': 'Fixed-point|Saturating add & subtract',
+    'Fixed-Point Arithmetic|Single-Width Saturating Add and Subtract': c => 'Integer|'+mapn(c,['_vsadd_','Add|Saturating signed', '_vsaddu_','Add|Saturating unsigned', '_vssub_','Subtract|Saturating signed', '_vssubu_','Subtract|Saturating unsigned']),
     'Fixed-Point Arithmetic|Single-Width Scaling Shift': 'Fixed-point|Scaling shift',
     
     'Floating-Point|Floating-Point Absolute Value': 'Float|Absolute',

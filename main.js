@@ -1112,18 +1112,18 @@ async function loadLink(prependSearch = false) {
   if (hash[0]=='0') {
     let json = JSON.parse(dec(hash.slice(1)));
     
+    if (prependSearch) {
+      if (!searchFieldEl.value.includes(json.s)) searchFieldEl.value = json.s + searchFieldEl.value;
+    } else {
+      searchFieldEl.value = json.s;
+    }
+    
     cpuListEl.value = json.u;
     await newCPU(false);
     
     [...json.i].forEach((c,i) => {
       query_searchIn[i][1].checked = c=='1';
     });
-    
-    if (prependSearch) {
-      if (!searchFieldEl.value.includes(json.s)) searchFieldEl.value = json.s + searchFieldEl.value;
-    } else {
-      searchFieldEl.value = json.s;
-    }
     
     function selTree(t, vs) {
       let set = new Set(vs);

@@ -969,7 +969,7 @@ function toPage(page) {
         desc = [mkRetLine(fn), ' ', mkFnLine(fn)];
       } else {
         desc = [mkRetLine(fn), ' ', h('name',fn.name), '(\n', ...fn.args.map((a,i)=>{
-          return mkch('span', ['  ', h('type',a.type), ' '+a.name, ','.repeat(i!=c.args.length-1), a.info? h('comm',' // '+a.info) : '', '\n']);
+          return mkch('span', ['  ', h('type',a.type), ' '+a.name, ','.repeat(i!=fn.args.length-1), a.info? h('comm',' // '+a.info) : '', '\n']);
         }), ')'];
       }
       if (c.nameAlts && c.nameAlts.length) {

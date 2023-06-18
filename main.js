@@ -321,14 +321,14 @@ async function loadArm() {
 }
 
 async function loadRVV() {
-  let j = JSON.parse(await loadFile("data/rvv.json"));
+  let j = JSON.parse(await loadFile("data/rvv_base.json"));
   j = j.filter(c=>!c.categories.some(c=>c.endsWith("|masked")));
   
   let doc = Object.fromEntries((await loadFile("data/v-spec.html"))
     .split(/<h[234] id="/).slice(1)
     .map(c => [c.substring(0,c.indexOf('"')), c.substring(c.indexOf('\n'))]));
   
-  let udsObj = JSON.parse(await loadFile("data/rvv_undisturbed.json"))
+  let udsObj = JSON.parse(await loadFile("data/rvv_policies.json"))
   let udsMap = udsObj.data;
   let udsDef = udsObj.def;
   let udsTypes = udsObj.types;
@@ -394,8 +394,8 @@ async function loadRVV() {
     'Miscellaneous Vector|Reinterpret Cast Conversion|Reinterpret between different SEW under the same LMUL': 'Conversion|Reinterpret|Same LMUL',
     'Miscellaneous Vector|Reinterpret Cast Conversion|Reinterpret between different type under the same SEW/LMUL': 'Conversion|Reinterpret|Same LMUL & width',
     'Miscellaneous Vector|Reinterpret Cast Conversion|Reinterpret between vector boolean types and LMUL=1 (m1) vector integer types': 'Conversion|Reinterpret|Boolean',
-    'Miscellaneous Vector|Extraction': 'Permutation|Extract',
-    'Miscellaneous Vector|Insertion': 'Permutation|Insert',
+    'Miscellaneous Vector|Extraction': c => 'Permutation|' + (/x\d(_|$)/.test(c.name)? 'Tuple|' : '') + 'Extract',
+    'Miscellaneous Vector|Insertion':  c => 'Permutation|' + (/x\d(_|$)/.test(c.name)? 'Tuple|' : '') + 'Insert',
     'Miscellaneous Vector|LMUL Extension': 'Permutation|LMUL extend',
     'Miscellaneous Vector|LMUL Truncation': 'Permutation|LMUL truncate',
     
@@ -568,7 +568,8 @@ async function loadRVV() {
     let udsVal = udsMap[c.name.substring(8)];
     if (udsVal === undefined) udsVal = udsDef;
     if (udsVal) {
-      // messy logic for deciding how to transform the arguments for the masking; tested via generating invocations of all the results and running them through clang version 17.0.0 (++20230608042049+46aba711ab83-1~exp1~20230608042149.985)
+      // messy logic for deciding how to transform the arguments for the masking
+      // tested via generating invocations of all the results and running them through clang version 17.0.0 (++20230618042319+44e63ffe2bf7-1~exp1~20230618042435.1005)
       let nameParts = c.name.split('_');
       let mainType = /^vf?w?red/.test(nameParts[3])? nameParts[5] : nameParts[nameParts.length-1];
       let maskW = undefined;
@@ -576,6 +577,7 @@ async function loadRVV() {
         maskW = mainType.substring(1);
       } else {
         let [a,b] = mainType.split("m");
+        b = b.split('x')[0];
         if (b[0]=='f') b = 1 / +b.substring(1);
         maskW = +a.substring(1) / +b;
       }

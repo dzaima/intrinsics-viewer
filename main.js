@@ -9,8 +9,8 @@ let pages1El = document.getElementById("pages-1");
 let pages2El = document.getElementById("pages-2");
 let pages3El = document.getElementById("pages-3");
 
-let is0;
-let is1;
+let entries_all = [];
+let entries_ccpu = [];
 let curr_archObj, curr_categoryObj, curr_cpu;
 let query_archs = [];
 let query_categories = [];
@@ -745,13 +745,12 @@ function makeTree(tree, ob, update) {
 
 
 
-function newCPU(link=true) {
-  if (!is0) return;
+async function newCPU(link=true) {
   let cpu = cpuListEl.selectedOptions[0].value;
-  curr_cpu = cpu;
-  is1 = is0.filter(c=>c.cpu.includes(cpu));
+  await setCPU(cpu);
+  entries_ccpu = entries_all.filter(c=>c.cpu.includes(cpu));
   
-  let archs = unique(is1.map(c=>c.archs).flat());
+  let archs = unique(entries_ccpu.map(c=>c.archs).flat());
   let orderArch = {
     'all|SSE': 0,
     'all|AVX+AVX2': 1,
@@ -878,7 +877,7 @@ function newCPU(link=true) {
   archListEl.append(curr_archObj.obj);
   
   
-  let categories = unique(is1.map(c=>c.categories).flat());
+  let categories = unique(entries_ccpu.map(c=>c.categories).flat());
   categoryListEl.textContent = '';
   let categoryGroups = group(categories.map(c => c.split("|")), 'all', orderCategory);
   query_categories = categories;
@@ -1033,7 +1032,7 @@ function updateSearch(link=true) {
   let archStore = untree(curr_archObj);
   let categoryStore = untree(curr_categoryObj);
   
-  query_found = is1.filter((c) => {
+  query_found = entries_ccpu.filter((c) => {
     let a = [];
     if (sInst) a.push(c.implInstrRaw);
     if (sDesc) a.push(c.desc);
@@ -1088,13 +1087,13 @@ function updateLink() {
   history.pushState({}, "", "#0"+enc(json));
 }
 
-function loadLink(prependSearch = false) {
+async function loadLink(prependSearch = false) {
   let hash = decodeURIComponent(location.hash.slice(1));
   if (hash[0]=='0') {
     let json = JSON.parse(dec(hash.slice(1)));
     
     cpuListEl.value = json.u;
-    newCPU(false);
+    await newCPU(false);
     
     [...json.i].forEach((c,i) => {
       query_searchIn[i][1].checked = c=='1';
@@ -1125,30 +1124,53 @@ function loadLink(prependSearch = false) {
   }
 }
 
+let cpuLoaderX86_64 = {msg: 'x86-64', load: loadIntel};
+let cpuLoaderARM    = {msg: 'ARM',    load: loadArm};
+let cpuLoaderRISCV  = {msg: 'RISC-V', load: loadRVV};
+let knownCPUs = [
+  ['x86-64',  cpuLoaderX86_64],
+  ['Arm MVE', cpuLoaderARM],
+  ['armv7',   cpuLoaderARM],
+  ['aarch32', cpuLoaderARM],
+  ['aarch64', cpuLoaderARM],
+  ['risc-v',  cpuLoaderRISCV],
+];
+let knownCpuMap = Object.fromEntries(knownCPUs);
+
 function prettyType(t) {
   let c = t.type;
   c = c.replace(/ +(\**) *$/, "$1");
   c = c.replace(/(.+) const\b/, "const $1");
   t.type = c;
 }
+async function setCPU(name) {
+  curr_cpu = name;
+  let loader = knownCpuMap[curr_cpu];
+  
+  if (loader.started) return;
+  loader.started = true;
+  console.log("parsing "+loader.msg);
+  resultCountEl.textContent = "loading…";
+  
+  let is = await loader.load();
+  is.forEach(c => {
+    if (c.archs.length==0 || c.categories.length==0) throw new Error(c);
+    c.args.forEach(prettyType);
+    prettyType(c.ret);
+  });
+  
+  entries_all = entries_all.concat(is);
+  console.log("parsed "+loader.msg);
+  
+  unique(entries_all.map(c=>c.cpu).flat()).forEach(foundCPU => {
+    if (!knownCpuMap[foundCPU]) console.log("Warning: CPU not listed ahead-of-time: "+foundCPU);
+  });
+}
 
 (async () => {
   try {
-    let i1 = await loadIntel();
-    console.log("intel parsed");
-    let i2 = await loadArm();
-    console.log("arm parsed");
-    let i3 = await loadRVV();
-    console.log("rvv parsed");
-    is0 = [...i1, ...i2, ...i3];
-    is0.forEach(c => {
-      if (c.archs.length==0 || c.categories.length==0) throw new Error(c);
-      c.args.forEach(prettyType);
-      prettyType(c.ret);
-    });
-    let cpus = unique(is0.map(c=>c.cpu).flat());
-    cpus.forEach((c, i) => {
-      cpuListEl.append(new Option(c, c));
+    knownCPUs.forEach(([n,f]) => {
+      cpuListEl.append(new Option(n, n));
     });
     
     loadLink(true);
@@ -1158,7 +1180,7 @@ function prettyType(t) {
   }
 })();
 
-window.onhashchange=() => loadLink();
+window.onhashchange = ()=>loadLink();
 
 
 

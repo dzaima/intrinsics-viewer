@@ -1,7 +1,7 @@
 ## x86-64, ARM, and RISC-V V intrinsics viewer
 
 ### Usage:
-1. `make download`
+1. `make download` (or some of `make download-x86`, `make download-arm`, `make download-riscv`)
 2. open `index.html`
 
 ### Search functionality

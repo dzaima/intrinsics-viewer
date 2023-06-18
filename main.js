@@ -8,6 +8,7 @@ let resultCountEl = document.getElementById("result-count");
 let pages1El = document.getElementById("pages-1");
 let pages2El = document.getElementById("pages-2");
 let pages3El = document.getElementById("pages-3");
+let centerInfoEl = document.getElementById("center-info");
 
 let entries_all = [];
 let entries_ccpu = [];
@@ -28,8 +29,13 @@ async function loadFile(path) {
 
 let idCounter = 0;
 async function loadIntel() {
-  let src = await loadFile("data/intel_intrinsics-1.xml");
-  let perfSrc = await loadFile("data/intel_perf2-1.js");
+  let src, perfSrc;
+  try {
+    src = await loadFile("data/intel_intrinsics-1.xml");
+    perfSrc = await loadFile("data/intel_perf2-1.js");
+  } catch(e) {
+    return null;
+  }
   let perf = JSON.parse(perfSrc.substring(perfSrc.indexOf('{')).replace(/,\s*}/g,'}').replace(/,\s*]/g,']').replace(/\{l:"/g, '{"l":"').replace(/",t:"/g, '","t":"'));
   
   let type = (c) => {
@@ -213,8 +219,13 @@ async function loadIntel() {
   return res;
 }
 async function loadArm() {
-  let intrinsics = JSON.parse(await loadFile("data/arm_intrinsics-1.json"));
-  let operations = JSON.parse(await loadFile("data/arm_operations-1.json"));
+  let intrinsics, operations;
+  try {
+    intrinsics = JSON.parse(await loadFile("data/arm_intrinsics-1.json"));
+    operations = JSON.parse(await loadFile("data/arm_operations-1.json"));
+  } catch (e) {
+    return null;
+  }
   let operationMap = {};
   operations.forEach(c => {
     operationMap[c.item.id] = c.item.content;
@@ -321,14 +332,23 @@ async function loadArm() {
 }
 
 async function loadRVV() {
-  let j = JSON.parse(await loadFile("data/rvv_base.json"));
+  let baseFile, docFile, policiesFile;
+  try {
+    baseFile = await loadFile("data/rvv_base.json");
+    docFile = await loadFile("data/v-spec.html");
+    policiesFile = await loadFile("data/rvv_policies.json");
+  } catch (e) {
+    return null;
+  }
+  let j = JSON.parse(baseFile);
   j = j.filter(c=>!c.categories.some(c=>c.endsWith("|masked")));
   
-  let doc = Object.fromEntries((await loadFile("data/v-spec.html"))
+  let doc = Object.fromEntries(
+    docFile
     .split(/<h[234] id="/).slice(1)
     .map(c => [c.substring(0,c.indexOf('"')), c.substring(c.indexOf('\n'))]));
   
-  let udsObj = JSON.parse(await loadFile("data/rvv_policies.json"))
+  let udsObj = JSON.parse(policiesFile);
   let udsMap = udsObj.data;
   let udsDef = udsObj.def;
   let udsTypes = udsObj.types;
@@ -1147,24 +1167,36 @@ async function setCPU(name) {
   curr_cpu = name;
   let loader = knownCpuMap[curr_cpu];
   
-  if (loader.started) return;
+  let noDataMsg = "Data files for this CPU not available";
+  if (loader.started) {
+    if (loader.noData) centerInfoEl.textContent = noDataMsg;
+    return;
+  }
   loader.started = true;
   console.log("parsing "+loader.msg);
+  centerInfoEl.textContent = "Loading…";
   resultCountEl.textContent = "loading…";
+  resultListEl.textContent = '';
   
   let is = await loader.load();
-  is.forEach(c => {
-    if (c.archs.length==0 || c.categories.length==0) throw new Error(c);
-    c.args.forEach(prettyType);
-    prettyType(c.ret);
-  });
-  
-  entries_all = entries_all.concat(is);
-  console.log("parsed "+loader.msg);
-  
-  unique(entries_all.map(c=>c.cpu).flat()).forEach(foundCPU => {
-    if (!knownCpuMap[foundCPU]) console.log("Warning: CPU not listed ahead-of-time: "+foundCPU);
-  });
+  if (is === null) {
+    loader.noData = true;
+    centerInfoEl.textContent = noDataMsg;
+  } else {
+    is.forEach(c => {
+      if (c.archs.length==0 || c.categories.length==0) throw new Error(c);
+      c.args.forEach(prettyType);
+      prettyType(c.ret);
+    });
+    centerInfoEl.textContent = "";
+    
+    entries_all = entries_all.concat(is);
+    console.log("parsed "+loader.msg);
+    
+    unique(entries_all.map(c=>c.cpu).flat()).forEach(foundCPU => {
+      if (!knownCpuMap[foundCPU]) console.log("Warning: CPU not listed ahead-of-time: "+foundCPU);
+    });
+  }
 }
 
 (async () => {

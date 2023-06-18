@@ -1,4 +1,7 @@
-download: data/arm_intrinsics-1.json data/arm_operations-1.json data/intel_intrinsics-1.xml data/intel_perf2-1.js data/rvv.json data/rvv_policies.json data/v-spec.html
+download: download-x86 download-arm download-riscv
+download-x86: data/intel_intrinsics-1.xml data/intel_perf2-1.js
+download-arm: data/arm_intrinsics-1.json data/arm_operations-1.json
+download-riscv: data/rvv.json data/rvv_policies.json data/v-spec.html
 
 data/intel_perf2-1.js:
 	mkdir -p data

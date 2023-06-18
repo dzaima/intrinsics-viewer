@@ -221,11 +221,13 @@ async function loadIntel() {
 async function loadArm() {
   let intrinsics, operations;
   try {
-    intrinsics = JSON.parse(await loadFile("data/arm_intrinsics-1.json"));
-    operations = JSON.parse(await loadFile("data/arm_operations-1.json"));
+    intrinsics = await loadFile("data/arm_intrinsics-1.json");
+    operations = await loadFile("data/arm_operations-1.json");
   } catch (e) {
     return null;
   }
+  intrinsics = JSON.parse(intrinsics);
+  operations = JSON.parse(operations);
   let operationMap = {};
   operations.forEach(c => {
     operationMap[c.item.id] = c.item.content;
@@ -1205,7 +1207,7 @@ async function setCPU(name) {
       cpuListEl.append(new Option(n, n));
     });
     
-    loadLink(true);
+    await loadLink(true);
   } catch (e) {
     document.getElementById('search-table').insertAdjacentElement('afterEnd', mkch('span', "Failed to load:\n"+e.stack, {cl: ['mono','code-ws']}));
     throw e;
@@ -1236,7 +1238,7 @@ function dec(str) {
   try {
     return new TextDecoder("utf-8").decode(inflate(b64ToArr(str)));
   } catch (e) {
-    return "failed to decode - full link not copied?";
+    throw new Error("failed to decode - full link not copied?");
   }
 }
 

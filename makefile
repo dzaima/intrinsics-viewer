@@ -1,4 +1,4 @@
-download: data/arm_intrinsics-1.json data/arm_operations-1.json data/intel_intrinsics-1.xml data/intel_perf2-1.js data/rvv.json data/v-spec.html
+download: data/arm_intrinsics-1.json data/arm_operations-1.json data/intel_intrinsics-1.xml data/intel_perf2-1.js data/rvv.json data/rvv_undisturbed.json data/v-spec.html
 
 data/intel_perf2-1.js:
 	mkdir -p data
@@ -19,6 +19,9 @@ data/arm_operations-1.json:
 data/rvv.json:
 	mkdir -p data
 	curl -L 'https://github.com/dzaima/rvv-intrinsic-doc/releases/download/v1/data.json' > data/rvv.json
+data/rvv_undisturbed.json:
+	mkdir -p data
+	curl -L 'https://github.com/dzaima/rvv-intrinsic-doc/releases/download/v1/rvv_undisturbed.json' > data/rvv_undisturbed.json
 
 data/v-spec.html:
 	mkdir -p data

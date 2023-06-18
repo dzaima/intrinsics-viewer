@@ -322,9 +322,17 @@ async function loadArm() {
 
 async function loadRVV() {
   let j = JSON.parse(await loadFile("data/rvv.json"));
+  j = j.filter(c=>!c.categories.some(c=>c.endsWith("|masked")));
+  
   let doc = Object.fromEntries((await loadFile("data/v-spec.html"))
     .split(/<h[234] id="/).slice(1)
     .map(c => [c.substring(0,c.indexOf('"')), c.substring(c.indexOf('\n'))]));
+  
+  let udsObj = JSON.parse(await loadFile("data/rvv_undisturbed.json"))
+  let udsMap = udsObj.data;
+  let udsDef = udsObj.def;
+  let udsTypes = udsObj.types;
+  
   
   function mapn(c, l) {
     let n = c.name;
@@ -529,7 +537,14 @@ async function loadRVV() {
     docMap[k] = val;
   }
   
+  let implicitMask = [ // categories with implicit mask
+    'Permutation|Slide|Up N',
+    'Integer|Multiply-add',
+    'Float|Fused multiply-add',
+    'Float|Widen|Fused multiply-add',
+  ];
   j.forEach(c => {
+    c.categories = c.categories.map(c => c.endsWith("|non-masked")? c.substring(0,c.length-11): c);
     c.id = idCounter++;
     
     function applyCategory(f, t) {
@@ -549,6 +564,55 @@ async function loadRVV() {
       }
       return c;
     });
+    
+    let udsVal = udsMap[c.name.substring(8)];
+    if (udsVal === undefined) udsVal = udsDef;
+    if (udsVal) {
+      // messy logic for deciding how to transform the arguments for the masking; tested via generating invocations of all the results and running them through clang version 17.0.0 (++20230608042049+46aba711ab83-1~exp1~20230608042149.985)
+      let nameParts = c.name.split('_');
+      let mainType = /^vf?w?red/.test(nameParts[3])? nameParts[5] : nameParts[nameParts.length-1];
+      let maskW = undefined;
+      if (mainType[0]=='b') {
+        maskW = mainType.substring(1);
+      } else {
+        let [a,b] = mainType.split("m");
+        if (b[0]=='f') b = 1 / +b.substring(1);
+        maskW = +a.substring(1) / +b;
+      }
+      let mask = {type: "vbool"+maskW+"_t", name: 'mask'};
+      
+      let maskedOff;
+      let isvptr = (i) => c.args[i].type[0]=='v' && c.args[i].type.endsWith("*");
+      let args0, args1;
+      if (isvptr(0)) {
+        maskedOff = [];
+        let i = -1;
+        while (isvptr(++i)) maskedOff.push({type: c.args[i].type.slice(0,-1).trim(), name: "maskedoff"+i});
+        args0 = c.args.slice(0,i);
+        args1 = c.args.slice(i);
+      } else {
+        maskedOff = [{type: c.ret.type, name: 'maskedoff'}];
+        if (implicitMask.some(m => c.categories[0].startsWith(m))) maskedOff = [];
+        args0 = [];
+        args1 = c.args;
+      }
+      
+      let alts = [];
+      for (let i = 0; i < udsTypes.length; i++) {
+        if (udsVal & (1<<(udsTypes.length-i-1))) {
+          let nargs;
+          let ty = udsTypes[i];
+          switch(ty) { default: throw 0;
+            case '_tumu': case '_tum':
+            case '_mu': nargs = [...args0, mask, ...maskedOff, ...args1]; break;
+            case '_m':  nargs = [...args0, mask,               ...args1]; break;
+            case '_tu': nargs = [...args0,       ...maskedOff, ...args1]; break;
+          }
+          alts.push({name: c.name+ty, short: ty, ret: c.ret, args: nargs});
+        }
+      }
+      if (alts) c.nameAlts = alts;
+    }
     
     if (c.implDesc) {
       let match = c.implDesc.match(/\.\.\/rvv-intrinsic-api.md#+(.+)/);
@@ -870,20 +934,20 @@ function toPage(page) {
   
   resultListEl.textContent = '';
   resultListEl.append(...query_found.slice(page*perPage, (page+1)*perPage).map(c=>{
-    let mkRetLine = () => h('type',c.ret.type);
-    let mkFnLine = () => mkch('span', [h('name',c.name), '(', ...c.args.flatMap(c=>[h('type', c.type), ' '+c.name, ', ']).slice(0,-1), ')']);
+    let mkRetLine = (fn) => h('type',fn.ret.type);
+    let mkFnLine = (fn) => mkch('span', [h('name',fn.name), '(', ...fn.args.flatMap(c=>[h('type', c.type), ' '+c.name, ', ']).slice(0,-1), ')']);
     let r = mkch('tr', [
-      mkch('td', [mkRetLine()]),
-      mkch('td', [mkFnLine()]),
+      mkch('td', [mkRetLine(c)]),
+      mkch('td', [mkFnLine(c)]),
       // mkch('td', [c.archs.map(c=>c.split(/\|/g).slice(-1)[0]).join("+")]),
     ]);
-    r.onclick = () => {
+    function displayFn(fn) {
       let a0 = c.archs;
       let a1 = a0;
       if (a0.length>1) a1 = a1.filter(c=>!c.endsWith("|KNCNI"));
       let a2 = a1.map(c=>esc(c.split(/\|/g).slice(-1)[0])).join(' + ');
       if (a0.length != a1.length) a2+= " / KNCNI";
-      let text = `<br>`;
+      let text = ``;
       text+= `<br>Architecture: <span class="mono">${a2}</span>`;
       text+= `<br>Categor${c.categories.length>1?"ies":"y"}: <span class="mono">${c.categories.map(c=>esc(c.replace(/\|/g,'→'))).join(', ')}</span>`;
       text+= `<br><br>Description:<div class="desc">${c.desc}</div>`;
@@ -901,16 +965,26 @@ function toPage(page) {
       ]));
       
       let desc;
-      if (c.args.length>7 || c.args==0) {
-        desc = [mkRetLine(), ' ', mkFnLine()];
+      if (fn.args.length>7 || fn.args==0) {
+        desc = [mkRetLine(fn), ' ', mkFnLine(fn)];
       } else {
-        desc = [mkRetLine(), ' ', h('name',c.name), '(\n', ...c.args.map((a,i)=>{
+        desc = [mkRetLine(fn), ' ', h('name',fn.name), '(\n', ...fn.args.map((a,i)=>{
           return mkch('span', ['  ', h('type',a.type), ' '+a.name, ','.repeat(i!=c.args.length-1), a.info? h('comm',' // '+a.info) : '', '\n']);
         }), ')'];
       }
-      
+      if (c.nameAlts && c.nameAlts.length) {
+        let mkvar = (fn, short) => mkch('span', short, {cl: ['mono', 'var-link'], onclick: () => displayFn(fn)});
+        descPlaceEl.insertAdjacentElement('afterBegin', mkch('span', [
+          'Variations: ',
+          mkvar(c, 'base'),
+          ...c.nameAlts.flatMap(fn => [', ', mkvar(fn, fn.short)])
+        ]));
+        descPlaceEl.insertAdjacentElement('afterBegin', mk('br'));
+      }
+      descPlaceEl.insertAdjacentElement('afterBegin', mk('br'));
       descPlaceEl.insertAdjacentElement('afterBegin', mkch('span', desc, {cl: ['mono', 'code-ws']}));
-    }
+    };
+    r.onclick = () => displayFn(c);
     return r;
   }));
 }
@@ -959,11 +1033,16 @@ function updateSearch(link=true) {
   
   query_found = is1.filter((c) => {
     let a = [];
-    if (sName) { a.push(c.name); a.push(c.ret.type); c.args.forEach(c => a.push(c.type)); }
     if (sInst) a.push(c.implInstrRaw);
     if (sDesc) a.push(c.desc);
     if (sOper) a.push(c.implDesc);
     if (sCatg) a.push(c.categories.join(' '));
+    if (sName) {
+      a.push(c.name);
+      a.push(c.ret.type);
+      c.args.forEach(c => a.push(c.type));
+      if (c.nameAlts) c.nameAlts.forEach(c => a.push(c.name));
+    }
     a = a.filter(c=>c).map(c=>c.toLowerCase());
     let searchMatch = (
          (partsOn.length==0   ||  partsOn.every (p =>  a.some(cv => cv.includes(p))))
@@ -1052,24 +1131,29 @@ function prettyType(t) {
 }
 
 (async () => {
-  let i1 = await loadIntel();
-  console.log("intel parsed");
-  let i2 = await loadArm();
-  console.log("arm parsed");
-  let i3 = await loadRVV();
-  console.log("rvv parsed");
-  is0 = [...i1, ...i2, ...i3];
-  is0.forEach(c => {
-    if (c.archs.length==0 || c.categories.length==0) throw new Error(c);
-    c.args.forEach(prettyType);
-    prettyType(c.ret);
-  });
-  let cpus = unique(is0.map(c=>c.cpu).flat());
-  cpus.forEach((c, i) => {
-    cpuListEl.append(new Option(c, c));
-  });
-  
-  loadLink(true);
+  try {
+    let i1 = await loadIntel();
+    console.log("intel parsed");
+    let i2 = await loadArm();
+    console.log("arm parsed");
+    let i3 = await loadRVV();
+    console.log("rvv parsed");
+    is0 = [...i1, ...i2, ...i3];
+    is0.forEach(c => {
+      if (c.archs.length==0 || c.categories.length==0) throw new Error(c);
+      c.args.forEach(prettyType);
+      prettyType(c.ret);
+    });
+    let cpus = unique(is0.map(c=>c.cpu).flat());
+    cpus.forEach((c, i) => {
+      cpuListEl.append(new Option(c, c));
+    });
+    
+    loadLink(true);
+  } catch (e) {
+    document.getElementById('search-table').insertAdjacentElement('afterEnd', mkch('span', "Failed to load:\n"+e.stack, {cl: ['mono','code-ws']}));
+    throw e;
+  }
 })();
 
 window.onhashchange=() => loadLink();

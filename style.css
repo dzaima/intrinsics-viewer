@@ -92,17 +92,17 @@ table {
 }
 #search-table td:nth-child(1) { text-align: right; overflow: hidden; }
 #search-table td { overflow: hidden; white-space: nowrap; }
-.mono {
-  font-family: DejaVu Sans Mono, monospace;
-}
-.code-ws {
-  white-space: pre-wrap;
-}
 #search-table td {
   font-family: DejaVu Sans Mono, monospace;
   padding-left: 0.5em;
   padding-right: 0.5em;
 }
+
+
+.mono { font-family: DejaVu Sans Mono, monospace; }
+.code-ws { white-space: pre-wrap; }
+.var-link { cursor: pointer; }
+body.dark .var-link { color: #A6E22C; }
 
 #pagination-place {
   display: inline-block;

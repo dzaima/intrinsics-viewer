@@ -405,7 +405,7 @@ async function loadRVV() {
     'Mask|Set-before-first mask bit': 'Mask|Set before first',
     'Mask|Set-only-first mask bit': 'Mask|Set only first',
     'Mask|Mask Load/Store': 'Load/store|Mask',
-    'Mask|Mask-Register Logical': c => 'Mask|' + mapn(c,['_vmandn','Logical|ANDN', '_vmnand','Logical|~AND', '_vmxnor','Logical|XNOR', '_vmand','Logical|AND', '_vmclr','Zero', '_vmset','One', '_vmnor','Logical|NOR', '_vmnot','Logical|NOT', '_vmorn','Logical|ORN', '_vmxor','Logical|XOR', '_vmmv','Move', '_vmor','Logical|OR']),
+    'Mask|Mask-Register Logical': c => 'Mask|' + mapn(c,['_vmandn','Logical|ANDN', '_vmnand','Logical|~AND', '_vmxnor','Logical|XNOR', '_vmand','Logical|AND', '_vmclr','Zero', '_vmset','One', '_vmnor','Logical|NOR', '_vmnot','Logical|NOT', '_vmorn','Logical|ORN', '_vmxor','Logical|XOR', '_vmmv','Hint', '_vmor','Logical|OR']),
     
     'Permutation|Integer and Floating-Point Scalar Move': c => mapn(c,['_s_x_','Initialize|Set first', '_x_s_','Permutation|Extract first', '_s_f_','Initialize|Set first', '_f_s_','Permutation|Extract first']),
     'Permutation|Register Gather': c => 'Permutation|' + mapn(c,['_vrgatherei16','Shuffle|16-bit indices', '_vrgather_vv_','Shuffle|Equal-width', '_vrgather_vx_','Broadcast one']),
@@ -884,10 +884,11 @@ async function newCPU(link=true) {
     'Conversion|Integer to float': 4,
     'Conversion|Float to integer': 5,
     
-    'Bitwise|AND': 0,
-    'Bitwise|OR': 1,
-    'Bitwise|XOR': 2,
-    'Bitwise|NOT': 3,
+    'Bitwise|Shift left': 0,
+    'Bitwise|AND': 1,
+    'Bitwise|OR': 2,
+    'Bitwise|XOR': 3,
+    'Bitwise|NOT': 4,
   };
   let openByDefault = new Set([
     'all',

@@ -234,8 +234,8 @@ async function loadArm() {
   });
   
   let categoryMap = {
-    'Logical|NAND': 'Logical|~AND',
-    'Logical|NOR': 'Logical|~OR',
+    'Logical|NAND': 'Logical|NAND',
+    'Logical|NOR': 'Logical|NOR',
     'Logical|Bitwise NOT': 'Logical|NOT',
     'Logical|Logical NOT': 'Logical|NOT',
     'Logical|Exclusive OR': 'Logical|XOR',
@@ -405,7 +405,7 @@ async function loadRVV() {
     'Mask|Set-before-first mask bit': 'Mask|Set before first',
     'Mask|Set-only-first mask bit': 'Mask|Set only first',
     'Mask|Mask Load/Store': 'Load/store|Mask',
-    'Mask|Mask-Register Logical': c => 'Mask|' + mapn(c,['_vmandn','Logical|ANDN', '_vmnand','Logical|~AND', '_vmxnor','Logical|XNOR', '_vmand','Logical|AND', '_vmclr','Zero', '_vmset','One', '_vmnor','Logical|NOR', '_vmnot','Logical|NOT', '_vmorn','Logical|ORN', '_vmxor','Logical|XOR', '_vmmv','Hint', '_vmor','Logical|OR']),
+    'Mask|Mask-Register Logical': c => 'Mask|' + mapn(c,['_vmandn','Logical|ANDN', '_vmnand','Logical|NAND', '_vmxnor','Logical|XNOR', '_vmand','Logical|AND', '_vmclr','Zero', '_vmset','One', '_vmnor','Logical|NOR', '_vmnot','Logical|NOT', '_vmorn','Logical|ORN', '_vmxor','Logical|XOR', '_vmmv','Hint', '_vmor','Logical|OR']),
     
     'Permutation|Integer and Floating-Point Scalar Move': c => mapn(c,['_s_x_','Initialize|Set first', '_x_s_','Permutation|Extract first', '_s_f_','Initialize|Set first', '_f_s_','Permutation|Extract first']),
     'Permutation|Register Gather': c => 'Permutation|' + mapn(c,['_vrgatherei16','Shuffle|16-bit indices', '_vrgather_vv_','Shuffle|Equal-width', '_vrgather_vx_','Broadcast one']),

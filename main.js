@@ -399,7 +399,7 @@ async function loadRVV() {
     
     'Mask|count population in mask': 'Mask|Population count',
     'Mask|Element Index': 'Initialize|Element indices',
-    'Mask|Iota': 'Initialize|Compression indices',
+    'Mask|Iota': 'Initialize|Cumulative indices',
     'Mask|Find-first-set mask bit': 'Mask|Find first set',
     'Mask|Set-including-first mask bit': 'Mask|Set including first',
     'Mask|Set-before-first mask bit': 'Mask|Set before first',

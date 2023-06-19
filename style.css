@@ -141,6 +141,18 @@ body.dark .operation table.tableblock {
   background-color: #171715;
 }
 
+/* ARM header */
+.arm-header {
+  display: block;
+  margin-top: 0.5em;
+  font-size: 1.1em;
+}
+ul {
+  margin-block-start: 0em;
+  padding-inline-start: 2em;
+}
+
+
 
 
 body.dark  { background-color: #1D1D1B; color: #D3D3D3; }

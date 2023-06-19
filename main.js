@@ -309,6 +309,8 @@ async function loadArm() {
     if (c.name.startsWith('vmaxnmq_') || c.name.startsWith('vmaxnm_')) category = "Arithmetic|Maximum";
     
     let categories = [category];
+    let nativeOpNEON = (c.Operation || "").startsWith("Neon");
+    let nativeOperation = c.Operation? operationMap[c.Operation].replace(/^<h4>Operation<\/h4>/, "<br>").replace(/<h4>/g,'<span class="arm-header">').replace(/<\/h4>/g, '</span>') : "";
     
     return {
       raw: c,
@@ -319,10 +321,10 @@ async function loadArm() {
       args: args,
       name: c.name,
       
-      desc: c.description,
+      desc: c.description + (nativeOpNEON? "" : "<br>"+nativeOperation),
       header: undefined,
       
-      implDesc: c.Operation? operationMap[c.Operation] : undefined,
+      implDesc: nativeOpNEON? nativeOperation : undefined,
       implInstr: implInstr,
       implInstrRaw: implInstrRaw,
       
@@ -559,12 +561,13 @@ async function loadRVV() {
     docMap[k] = val;
   }
   
-  let implicitMask = [ // categories with implicit mask
+  let implicitMasked = [ // categories where a maskedoff argument isn't added separately
     'Permutation|Slide|Up N',
     'Integer|Multiply-add',
     'Float|Fused multiply-add',
     'Float|Widen|Fused multiply-add',
   ];
+  let implicitCount = 0;
   j.forEach(c => {
     c.categories = c.categories.map(c => c.endsWith("|non-masked")? c.substring(0,c.length-11): c);
     c.id = idCounter++;
@@ -616,7 +619,7 @@ async function loadRVV() {
         args1 = c.args.slice(i);
       } else {
         maskedOff = [{type: c.ret.type, name: 'maskedoff'}];
-        if (implicitMask.some(m => c.categories[0].startsWith(m))) maskedOff = [];
+        if (implicitMasked.some(m => c.categories[0].startsWith(m))) { maskedOff = []; implicitCount++; }
         args0 = [];
         args1 = c.args;
       }
@@ -648,7 +651,8 @@ async function loadRVV() {
         if (docVal) c.implDesc = '<!--'+c.implDesc+'--><div style="font-family:sans-serif;white-space:normal">'+docVal+'</div>';
       }
     }
-  })
+  });
+  if (implicitCount!=828) console.warn("Unexpected out of intrinsics with implicit maskedoff argument: "+implicitCount);
   return j;
 }
 
@@ -1196,7 +1200,7 @@ async function setCPU(name) {
     console.log("parsed "+loader.msg);
     
     unique(entries_all.map(c=>c.cpu).flat()).forEach(foundCPU => {
-      if (!knownCpuMap[foundCPU]) console.log("Warning: CPU not listed ahead-of-time: "+foundCPU);
+      if (!knownCpuMap[foundCPU]) console.warn("Warning: CPU not listed ahead-of-time: "+foundCPU);
     });
   }
 }

@@ -431,7 +431,7 @@ async function loadRVV() {
     'Fixed-Point Arithmetic|Narrowing Fixed-Point Clip': 'Fixed-point|Narrowing clip',
     'Fixed-Point Arithmetic|Single-Width Averaging Add and Subtract': 'Fixed-point|Averaging add & subtract',
     'Fixed-Point Arithmetic|Single-Width Fractional Multiply with Rounding and Saturation': 'Fixed-point|Fractional rounding & saturating multiply',
-    'Fixed-Point Arithmetic|Single-Width Saturating Add and Subtract': c => 'Integer|'+mapn(c,['_vsadd_','Add|Saturating signed', '_vsaddu_','Add|Saturating unsigned', '_vssub_','Subtract|Saturating signed', '_vssubu_','Subtract|Saturating unsigned']),
+    'Fixed-Point Arithmetic|Single-Width Saturating Add and Subtract': c => { let p=mapn(c,['_vsadd_','Add|Saturating signed', '_vsaddu_','Add|Saturating unsigned', '_vssub_','Subtract|Saturating signed', '_vssubu_','Subtract|Saturating unsigned']); return ['Integer|','Fixed-point|'].map(c=>c+p); },
     'Fixed-Point Arithmetic|Single-Width Scaling Shift': 'Fixed-point|Scaling shift',
     
     'Floating-Point|Floating-Point Absolute Value': 'Float|Absolute',
@@ -572,22 +572,10 @@ async function loadRVV() {
     c.categories = c.categories.map(c => c.endsWith("|non-masked")? c.substring(0,c.length-11): c);
     c.id = idCounter++;
     
-    function applyCategory(f, t) {
-      t = t? "|"+t : "";
-      if (typeof f === 'string') return f+t;
-      return f(c)+t;
-    }
-    
-    c.categories = c.categories.map(c => {
-      c = c.replace(/(^|\|)Vector /g, "$1");
-      if (categoryMap[c]) {
-        c = applyCategory(categoryMap[c]);
-      } else {
-        let p = c.split("|");
-        let f = categoryMap[p.slice(0,-1).join("|")];
-        if (f) c = applyCategory(f, p[p.length-1]);
-      }
-      return c;
+    c.categories = c.categories.flatMap(ct => {
+      ct = ct.replace(/(^|\|)Vector /g, "$1");
+      let n = categoryMap[ct];
+      return n===undefined? ct : (typeof n === 'string')? n : n(c);
     });
     
     let udsVal = udsMap[c.name.substring(8)];

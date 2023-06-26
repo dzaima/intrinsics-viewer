@@ -237,42 +237,24 @@ async function loadIntel() {
   {
     let map = new Map();
     res0.forEach(n => {
-      let p = map.get(n.name);
-      if (p) {
-        if (p.desc==n.desc && p.implInstrRaw==n.implInstrRaw && p.implDesc==n.implDesc && (!p.implTimes) == (!n.implTimes) && [p,n].some(c=>c.archs.length==1 && c.archs[0].endsWith("|KNCNI"))) {
-          p.archs = p.archs.concat(n.archs);
-          return;
-        }
-        // console.log("imperfect duplicate? "+n.name);
-      } else {
-        map.set(n.name, n);
-      }
-      res1.push(n);
-    });
-  }
-  
-  let res2 = [];
-  {
-    let map = new Map();
-    res1.forEach(n => {
-      if (!n.archs.length || !n.archs[0].includes("AVX512")) { res2.push(n); return; }
+      if (!n.archs.length || !(n.archs[0].includes("AVX512") || n.archs[0].includes("KNCNI"))) { res1.push(n); return; }
       let key = n.archs[0] + ';' + n.name.replace(/_maskz?_/, "_");
       let l = map.get(key);
       if (!l) {
         map.set(key, l = []);
-        l.push(res2.length);
-        res2.push("??");
+        l.push(res1.length);
+        res1.push("??");
       }
       l.push(n);
     });
     map.forEach((v,k) => {
       let pos = v[0];
       if (v.length==2) {
-        res2[pos] = v[1];
+        res1[pos] = v[1];
       } else {
         let v1 = v.slice(1);
         v1.sort((a,b) => a.name.length-b.name.length);
-        res2[pos] = v1[0];
+        res1[pos] = v1[0];
         let v2 = v1[0].variations = v1.slice(1);
         v1.map((c,i) => {
           c.short = c.name.includes("_mask_")? "mask" : c.name.includes("_maskz_")? "maskz" : "base";
@@ -282,7 +264,7 @@ async function loadIntel() {
     });
   }
   
-  return res2;
+  return res1;
 }
 async function loadArm() {
   let intrinsics, operations;

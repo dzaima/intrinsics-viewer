@@ -1,5 +1,36 @@
 let argIndexing = 1;
 
+/*
+intrinsic entry:
+{
+  raw: whatever original form of the object,
+  cpu: ["CPU"],
+  id: idCounter++,
+  
+  ret: {type:"return type",name:"return name"},
+  args: [... {type:"type",name:"name"}],
+  name: "intrinsic_function_name",
+  
+  desc: "description",
+  header: "header_name.h",
+  
+  implDesc: "operation section",
+  implInstr: "if immediate is 2:  vadd a,b,b<br>else:<br>  vmul a,b,imm",
+  implInstrRaw: "vadd a,b,b\nvmul a,b,imm",
+  implTimes: {...someArch: {l:"latency",t:"reciprocal throughput"}},
+  
+  short: "var0", // defaults to "base"
+  variations: [...{
+    short: "var",
+    args, name, ret, // same structure as outside
+    desc, implInstr, implInstrRaw, implDesc, implTimes, // optional, same structure as outside
+  }]
+  
+  archs: [..."arch|paths"],
+  categories: [..."category|paths"],
+}
+*/
+
 let searchFieldEl = document.getElementById("search-field");
 let cpuListEl = document.getElementById("cpu-list");
 let archListEl = document.getElementById("arch-list");
@@ -20,7 +51,6 @@ let query_categories = [];
 let query_found = [];
 let query_currPage = 0;
 let perPage = 37;
-
 
 async function loadFile(path) {
   let f = await fetch(path);
@@ -202,23 +232,57 @@ async function loadIntel() {
       categories: filter("category").map(c=>c.textContent),
     };
   });
-  let res = [];
-  let map = new Map();
-  res0.forEach(n => {
-    let p = map.get(n.name);
-    if (p) {
-      if (p.desc==n.desc && p.implInstrRaw==n.implInstrRaw && p.implDesc==n.implDesc && (!p.implTimes) == (!n.implTimes) && [p,n].some(c=>c.archs.length==1 && c.archs[0].endsWith("|KNCNI"))) {
-        p.archs = p.archs.concat(n.archs);
-        return;
-      }
-      // console.log("imperfect duplicate? "+n.name);
-    } else {
-      map.set(n.name, n);
-    }
-    res.push(n);
-  });
   
-  return res;
+  let res1 = [];
+  {
+    let map = new Map();
+    res0.forEach(n => {
+      let p = map.get(n.name);
+      if (p) {
+        if (p.desc==n.desc && p.implInstrRaw==n.implInstrRaw && p.implDesc==n.implDesc && (!p.implTimes) == (!n.implTimes) && [p,n].some(c=>c.archs.length==1 && c.archs[0].endsWith("|KNCNI"))) {
+          p.archs = p.archs.concat(n.archs);
+          return;
+        }
+        // console.log("imperfect duplicate? "+n.name);
+      } else {
+        map.set(n.name, n);
+      }
+      res1.push(n);
+    });
+  }
+  
+  let res2 = [];
+  {
+    let map = new Map();
+    res1.forEach(n => {
+      if (!n.archs.length || !n.archs[0].includes("AVX512")) { res2.push(n); return; }
+      let key = n.archs[0] + ';' + n.name.replace(/_maskz?_/, "_");
+      let l = map.get(key);
+      if (!l) {
+        map.set(key, l = []);
+        l.push(res2.length);
+        res2.push("??");
+      }
+      l.push(n);
+    });
+    map.forEach((v,k) => {
+      let pos = v[0];
+      if (v.length==2) {
+        res2[pos] = v[1];
+      } else {
+        let v1 = v.slice(1);
+        v1.sort((a,b) => a.name.length-b.name.length);
+        res2[pos] = v1[0];
+        let v2 = v1[0].variations = v1.slice(1);
+        v1.map((c,i) => {
+          c.short = c.name.includes("_mask_")? "mask" : c.name.includes("_maskz_")? "maskz" : "base";
+          if (c.short=="base" && i!=0) throw 0;
+        });
+      }
+    });
+  }
+  
+  return res2;
 }
 async function loadArm() {
   let intrinsics, operations;
@@ -952,16 +1016,16 @@ function toPage(page) {
   
   resultListEl.textContent = '';
   resultListEl.append(...query_found.slice(page*perPage, (page+1)*perPage).map(ins=>{
-    let insBase = ins;
     let mkRetLine = (fn) => h('type',fn.ret.type);
     let mkFnLine = (fn) => mkch('span', [h('name',fn.name), '(', ...fn.args.flatMap(c=>[h('type', c.type), ' '+c.name, ', ']).slice(0,-1), ')']);
+    let insBase = ins;
     let r = mkch('tr', [
       mkch('td', [mkRetLine(insBase)]),
       mkch('td', [mkFnLine(insBase)]),
       // mkch('td', [c.archs.map(c=>c.split(/\|/g).slice(-1)[0]).join("+")]),
     ]);
     function displayFn(fn) {
-      let a0 = ins.archs;
+      let a0 = fn.archs || ins.archs;
       let a1 = a0;
       if (a0.length>1) a1 = a1.filter(c=>!c.endsWith("|KNCNI"));
       let a2 = a1.map(c=>esc(c.split(/\|/g).slice(-1)[0])).join(' + ');
@@ -998,7 +1062,7 @@ function toPage(page) {
         let mkvar = (fn, short) => mkch('span', short, {cl: ['mono', 'var-link'], onclick: () => displayFn(fn)});
         descPlaceEl.insertAdjacentElement('afterBegin', mkch('span', [
           'Variations: ',
-          mkvar(ins, 'base'),
+          mkvar(ins, ins.short || 'base'),
           ...ins.variations.flatMap(fn => [', ', mkvar(fn, fn.short)])
         ]));
         descPlaceEl.insertAdjacentElement('afterBegin', mk('br'));

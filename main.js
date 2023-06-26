@@ -316,7 +316,7 @@ async function loadArm() {
   };
   
   let optMap = (c, f) => c===undefined? c : f(c);
-  let res = intrinsics.map(c=>{
+  let res0 = intrinsics.map(c=>{
     let implInstr = optMap(c.instructions, c=>c.map(c => {
       return esc(c.preamble+"\n  "+c.list.map(c => c.base_instruction.toLowerCase()+" "+c.operands).join("\n  "));
     }).join("<br>"));
@@ -383,7 +383,45 @@ async function loadArm() {
       categories: categories,
     };
   });
-  return res;
+  
+  let res1 = [];
+  {
+    let map = new Map();
+    res0.forEach(n => {
+      if (!n.archs.length || !n.archs[0].includes("sve")) { res1.push(n); return; }
+      let key = n.archs[0] + ';' + n.name.replace(/_[mxz]$/, "");
+      let l = map.get(key);
+      if (!l) {
+        map.set(key, l = []);
+        l.push(res1.length);
+        res1.push("??");
+      }
+      l.push(n);
+    });
+    map.forEach((v,k) => {
+      let pos = v[0];
+      if (v.length==2) {
+        res1[pos] = v[1];
+      } else {
+        let v1 = v.slice(1);
+        v1.sort((a,b) => {
+          let d = a.name.length-b.name.length;
+          if (d) return d;
+          return a<b;
+        });
+        res1[pos] = v1[0];
+        let v2 = v1[0].variations = v1.slice(1);
+        v1.map((c,i) => {
+          let f = c.name.match(/(_[mxz])$/);
+          c.short = f? f[1] : "base";
+          if (c.short=="base" && i!=0) throw new Error("base not first");
+        });
+      }
+    });
+  }
+  
+  
+  return res1;
 }
 
 async function loadRVV() {

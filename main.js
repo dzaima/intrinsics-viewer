@@ -238,7 +238,7 @@ async function loadIntel() {
     let map = new Map();
     res0.forEach(n => {
       if (!n.archs.length || !(n.archs[0].includes("AVX512") || n.archs[0].includes("KNCNI"))) { res1.push(n); return; }
-      let key = n.archs[0] + ';' + n.name.replace(/_maskz?_/, "_");
+      let key = n.archs[0] + ';' + n.name.replace(/_mask[z23]?_/, "_");
       let l = map.get(key);
       if (!l) {
         map.set(key, l = []);
@@ -254,11 +254,13 @@ async function loadIntel() {
       } else {
         let v1 = v.slice(1);
         v1.sort((a,b) => a.name.length-b.name.length);
+        if (v1.length>1 && v1[0].name.length==v1[1].name.length) throw new Error("equal first lengths");
         res1[pos] = v1[0];
         let v2 = v1[0].variations = v1.slice(1);
         v1.map((c,i) => {
-          c.short = c.name.includes("_mask_")? "mask" : c.name.includes("_maskz_")? "maskz" : "base";
-          if (c.short=="base" && i!=0) throw 0;
+          let f = c.name.match(/_(mask[z23]?)_/);
+          c.short = f? f[1] : "base";
+          if (c.short=="base" && i!=0) throw new Error("base not first");
         });
       }
     });

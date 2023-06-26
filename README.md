@@ -28,7 +28,7 @@ term          | checkbox    | description
 `desc:`       | description | description
 `inst:`       | instruction | instruction
 `oper:`       | operation   | operation
-`cat:`        | caregory    | category (`|`-separated)
+`cat:`        | caregory    | category (`\|`-separated)
 `var=[name]:` | —           | search in specific variation, e.g. `var=base:arg:bool`
 
 ### Search examples
@@ -39,7 +39,7 @@ General:
 
 x86-64 AVX-512:
 
-- `!name:_mask_ !name:_maskz_ name:_mm512`: keep non-masked 512-bit intrinsics
+- `var=base:name:mask name:_mm512`: 512-bit intrinsics with "mask" in the name that's not in a variation
 
 ARM NEON:
 

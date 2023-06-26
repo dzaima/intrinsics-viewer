@@ -1,3 +1,5 @@
+let argIndexing = 1;
+
 let searchFieldEl = document.getElementById("search-field");
 let cpuListEl = document.getElementById("cpu-list");
 let archListEl = document.getElementById("arch-list");
@@ -626,7 +628,7 @@ async function loadRVV() {
           alts.push({name: c.name+ty, short: ty, ret: c.ret, args: nargs});
         }
       }
-      if (alts) c.nameAlts = alts;
+      if (alts) c.variations = alts;
     }
     
     if (c.implDesc) {
@@ -949,32 +951,36 @@ function toPage(page) {
   }
   
   resultListEl.textContent = '';
-  resultListEl.append(...query_found.slice(page*perPage, (page+1)*perPage).map(c=>{
+  resultListEl.append(...query_found.slice(page*perPage, (page+1)*perPage).map(ins=>{
+    let insBase = ins;
     let mkRetLine = (fn) => h('type',fn.ret.type);
     let mkFnLine = (fn) => mkch('span', [h('name',fn.name), '(', ...fn.args.flatMap(c=>[h('type', c.type), ' '+c.name, ', ']).slice(0,-1), ')']);
     let r = mkch('tr', [
-      mkch('td', [mkRetLine(c)]),
-      mkch('td', [mkFnLine(c)]),
+      mkch('td', [mkRetLine(insBase)]),
+      mkch('td', [mkFnLine(insBase)]),
       // mkch('td', [c.archs.map(c=>c.split(/\|/g).slice(-1)[0]).join("+")]),
     ]);
     function displayFn(fn) {
-      let a0 = c.archs;
+      let a0 = ins.archs;
       let a1 = a0;
       if (a0.length>1) a1 = a1.filter(c=>!c.endsWith("|KNCNI"));
       let a2 = a1.map(c=>esc(c.split(/\|/g).slice(-1)[0])).join(' + ');
       if (a0.length != a1.length) a2+= " / KNCNI";
       let text = ``;
       text+= `<br>Architecture: <span class="mono">${a2}</span>`;
-      text+= `<br>Categor${c.categories.length>1?"ies":"y"}: <span class="mono">${c.categories.map(c=>esc(c.replace(/\|/g,'→'))).join(', ')}</span>`;
-      text+= `<br><br>Description:<div class="desc">${c.desc}</div>`;
-      if (c.implInstr) text+= `<br>Instruction:<pre>${c.implInstr}</pre>`;
-      if (c.implDesc) text+= `<br>Operation:<pre class="operation">${c.implDesc}</pre>`;
-      if (c.implTimes) text+= `<br>Performance:<table class="perf-table"></table>`;
+      text+= `<br>Categor${ins.categories.length>1?"ies":"y"}: <span class="mono">${ins.categories.map(c=>esc(c.replace(/\|/g,'→'))).join(', ')}</span>`;
+      text+= `<br><br>Description:<div class="desc">${fn.desc||ins.desc}</div>`;
+      let implInstr = fn.implInstr || ins.implInstr
+      let implDesc = fn.implDesc || ins.implDesc
+      let implTimes = fn.implTimes || ins.implTimes
+      if (implInstr) text+= `<br>Instruction:<pre>${implInstr}</pre>`;
+      if (implDesc) text+= `<br>Operation:<pre class="operation">${implDesc}</pre>`;
+      if (implTimes) text+= `<br>Performance:<table class="perf-table"></table>`;
       descPlaceEl.innerHTML = text;
       
-      if (c.implTimes) descPlaceEl.getElementsByClassName("perf-table")[0].append(mkch('tbody', [
+      if (implTimes) descPlaceEl.getElementsByClassName("perf-table")[0].append(mkch('tbody', [
         mkch('tr', ['Architecture', 'Latency', 'Throughput (CPI)'].map(c=>mkch('th',[c]))),
-        ...c.implTimes.map(c => {
+        ...implTimes.map(c => {
           let [[k,v]] = Object.entries(c);
           return mkch('tr', [k, v.l, v.t].map(e => mkch('td', [e])));
         })
@@ -988,19 +994,19 @@ function toPage(page) {
           return mkch('span', ['  ', h('type',a.type), ' '+a.name, ','.repeat(i!=fn.args.length-1), a.info? h('comm',' // '+a.info) : '', '\n']);
         }), ')'];
       }
-      if (c.nameAlts && c.nameAlts.length) {
+      if (ins.variations && ins.variations.length) {
         let mkvar = (fn, short) => mkch('span', short, {cl: ['mono', 'var-link'], onclick: () => displayFn(fn)});
         descPlaceEl.insertAdjacentElement('afterBegin', mkch('span', [
           'Variations: ',
-          mkvar(c, 'base'),
-          ...c.nameAlts.flatMap(fn => [', ', mkvar(fn, fn.short)])
+          mkvar(ins, 'base'),
+          ...ins.variations.flatMap(fn => [', ', mkvar(fn, fn.short)])
         ]));
         descPlaceEl.insertAdjacentElement('afterBegin', mk('br'));
       }
       descPlaceEl.insertAdjacentElement('afterBegin', mk('br'));
       descPlaceEl.insertAdjacentElement('afterBegin', mkch('span', desc, {cl: ['mono', 'code-ws']}));
     };
-    r.onclick = () => displayFn(c);
+    r.onclick = () => displayFn(ins);
     return r;
   }));
 }
@@ -1015,16 +1021,149 @@ let query_searchIn = [
 let query_searchInObj = Object.fromEntries(query_searchIn);
 
 function updateSearch(link=true) {
-  let parts = searchFieldEl.value.toLowerCase().split(/ /g);
-  let partsOn = parts.filter(c=>!c.startsWith('!'));
-  let partsOff = parts.filter(c=>c.startsWith('!')).map(c=>c.substring(1));
+  try {
+    updateSearch0(link);
+  } catch (e) {
+    toCenterInfo(e);
+  }
+}
+function updateSearch0(link) {
+  let parts = []; // space-split parts of [' ',"raw text"] or ['"',"exact text"] or ['/',/regex/]
+  { // split the input into parts
+    let s = searchFieldEl.value.toLowerCase();
+    let i = 0;
+    while (i < s.length) {
+      let c0 = s[i];
+      if (c0=='"' || c0=='/') {
+        i++;
+        let p = "";
+        while (i<s.length && s[i]!=c0) {
+          if (s[i]=='\\') {
+            if (c0=='/') p+= '\\';
+            i++;
+          }
+          p+= s[i++];
+        }
+        i++;
+        try {
+          parts.push([c0,c0=='/'? new RegExp(p) : p]);
+        } catch (e) {
+          toCenterInfo(e);
+          return;
+        }
+      } else {
+        let i0 = i;
+        while (i<s.length && s[i]!=' ' && s[i]!='"' && s[i]!='/') i++;
+        if (i0!=i) parts.push([' ',s.substring(i0, i)]);
+        if (i<s.length && s[i]==' ') i++;
+      }
+    }
+  }
+  
+  const P_NAME = 0;
+  const P_RET = 1;
+  const P_ARG = 2;
+  const P_ARGN = 3;
+  const P_DESC = 4;
+  const P_INST = 5;
+  const P_OPER = 6;
+  const P_TYPE = 7;
+  const P_CAT = 8;
+  const P_ARGn = (n) => P_CAT + n*2;
+  const P_ARGnN = (n) => P_CAT + n*2 + 1;
+  let query;
+  { // convert to query
+    let i = 0;
+    let queryAnd = [];
+    let gsvar = undefined;
+    let sfldMap = sfld => {
+      if (sfld===undefined) return undefined;
+      let r = new Array(100).fill(false);
+      for (c of sfld) {
+        switch (c) {
+          case "name": r[P_NAME] = true; break;
+          case "ret":  r[P_RET]  = true; break;
+          case "type": r[P_TYPE] = true; break;
+          case "arg":  r[P_ARG]  = true; break;
+          case "argn": r[P_ARGN] = true; break;
+          case "desc": r[P_DESC] = true; break;
+          case "inst": r[P_INST] = true; break;
+          case "oper": r[P_OPER] = true; break;
+          case "cat":  r[P_CAT]  = true; break;
+          default:
+            let m;
+            if (m = c.match(/^arg(\d+)$/))  { let n=m[1]-argIndexing; if(n<0) throw "Bad argument number"; r[P_ARGn (n)] = true; break; }
+            if (m = c.match(/^arg(\d+)n$/)) { let n=m[1]-argIndexing; if(n<0) throw "Bad argument number"; r[P_ARGnN(n)] = true; break; }
+            throw 'Unknown field named "'+c+'"';
+        }
+      }
+      return r;
+    }
+    function proc() {
+      let [pt, pv] = parts[i++];
+      if (pt=='"') return {type:"exact", val:pv};
+      else if (pt=='/') return {type:"regex", val:pv};
+      else if (!pv.includes('!') && !pv.includes(':') && pv.startsWith("var=")) {
+        if (!gsvar) gsvar = [];
+        gsvar.push(pv.substring(4));
+        return undefined;
+      } else {
+        let negate = undefined;
+        let sfld = undefined;
+        let svar = undefined;
+        if (pv.startsWith('!')) {
+          negate = true;
+          pv = pv.substring(1);
+        }
+        while (true) {
+          let ci = pv.indexOf(':');
+          if (ci==-1) break;
+          let v = pv.substring(0,ci);
+          if (v.startsWith("var=")) {
+            svar = svar || [];
+            svar.push(v.substring(4));
+          } else {
+            sfld = sfld || [];
+            sfld.push(v);
+          }
+          pv = pv.substring(ci+1);
+        }
+        
+        let val;
+        if (pv.length==0 && i<parts.length) {
+          val = proc();
+        } else {
+          val = {type:"exact", val: pv};
+        }
+        if (negate===undefined && sfld===undefined && svar===undefined) return val;
+        return {type:"upd", negate, sfld, sfldMap: sfldMap(sfld), svar, val};
+      }
+      i++;
+    }
+    while (i < parts.length) queryAnd.push(proc());
+    queryAnd = queryAnd.filter(c=>c);
+    
+    let sfld = Object.entries({
+      name: query_searchInObj.name.checked,
+      ret:  query_searchInObj.name.checked,
+      arg:  query_searchInObj.name.checked,
+      desc: query_searchInObj.desc.checked,
+      inst: query_searchInObj.inst.checked,
+      oper: query_searchInObj.oper.checked,
+      cat:  query_searchInObj.catg.checked
+    }).filter(([a,b])=>b).map(([a,b])=>a);
+    query = {
+      type: "upd",
+      sfld,
+      sfldMap: sfldMap(sfld),
+      svar: gsvar,
+      val: {type: "and", val: queryAnd}
+    }
+    // console.log(query);
+  }
+  
   let categorySet = new Set(query_categories);
   let archSet = new Set(query_archs);
-  let sName = query_searchInObj.name.checked;
-  let sDesc = query_searchInObj.desc.checked;
-  let sInst = query_searchInObj.inst.checked;
-  let sOper = query_searchInObj.oper.checked;
-  let sCatg = query_searchInObj.catg.checked;
   
   function untree(c) {
     let objs = [];
@@ -1047,33 +1186,61 @@ function updateSearch(link=true) {
   let archStore = untree(curr_archObj);
   let categoryStore = untree(curr_categoryObj);
   
-  query_found = entries_ccpu.filter((c) => {
-    let a = [];
-    if (sInst) a.push(c.implInstrRaw);
-    if (sDesc) a.push(c.desc);
-    if (sOper) a.push(c.implDesc);
-    if (sCatg) a.push(c.categories.join(' '));
-    if (sName) {
-      a.push(c.name);
-      a.push(c.ret.type);
-      c.args.forEach(c => a.push(c.type));
-      if (c.nameAlts) c.nameAlts.forEach(c => a.push(c.name));
+  query_found = entries_ccpu.filter((ins) => {
+    let vars = ins.variations? [ins, ...ins.variations] : [ins];
+    function match(part, state) {
+      switch(part.type) {
+        default:
+          throw new Error("Unhandled type "+part.type);
+        case "exact":
+          return state.where().some(c => c.includes(part.val));
+        case "regex":
+          return state.where().some(c => part.val.test(c));
+        case "and":
+          return part.val.every(c => match(c, state));
+        case "upd":
+          let nstate = {...state};
+          if (part.svar) nstate.svar = part.svar;
+          if (part.sfldMap) nstate.sfldMap = part.sfldMap;
+          if (part.sfld || part.svar) {
+            let cached = undefined;
+            function get() {
+              if (cached) return cached;
+              let m = nstate.sfldMap;
+              let r = [];
+              if (m[P_INST]) r.push(ins.implInstrRaw);
+              if (m[P_DESC]) r.push(ins.desc);
+              if (m[P_OPER]) r.push(ins.implDesc);
+              if (m[P_CAT]) r.push(...ins.categories);
+              if (nstate.svar) vars = vars.filter(c => nstate.svar.includes(c.short || "base"));
+              vars.forEach(c => {
+                if (m[P_NAME]) r.push(c.name);
+                if (m[P_TYPE] || m[P_RET]) r.push(c.ret.type);
+                c.args.forEach((c,i) => {
+                  if (m[P_ARG]  || m[P_ARGn (i)] || m[P_TYPE]) r.push(c.type);
+                  if (m[P_ARGN] || m[P_ARGnN(i)])              r.push(c.name); // apparently this was a very hot perf spot, which is why there's this funky P_ constant business
+                });
+              })
+              r = r.filter(c=>c).map(c=>c.toLowerCase());
+              return cached = r;
+            }
+            nstate.where = () => get();
+          }
+          let r = match(part.val, nstate);
+          return part.negate? !r : r;
+          break;
+      }
     }
-    a = a.filter(c=>c).map(c=>c.toLowerCase());
-    let searchMatch = (
-         (partsOn.length==0   ||  partsOn.every (p =>  a.some(cv => cv.includes(p))))
-      && (partsOff.length==0  ||  partsOff.every(p => !a.some(cv => cv.includes(p))))
-    );
+    if (query.svar && !vars.some(c => query.svar.includes(c.short || "base"))) return false;
+    if (!match(query, {})) return false;
     
-    if (!searchMatch) return false;
+    let categoryMatch = ins.categories.some(c => categorySet.has(c));
+    let archMatch = ins.archs.some(c => archSet.has(c));
     
-    let categoryMatch = c.categories.some(c => categorySet.has(c));
-    let archMatch = c.archs.some(c => archSet.has(c));
+    if (ins.archs      && categoryMatch)     archStore.add(ins.archs,      ins.id);
+    if (ins.categories &&     archMatch) categoryStore.add(ins.categories, ins.id);
     
-    if (c.archs      && categoryMatch)     archStore.add(c.archs,      c.id);
-    if (c.categories &&     archMatch) categoryStore.add(c.categories, c.id);
-    
-    return searchMatch && categoryMatch && archMatch;
+    return categoryMatch && archMatch;
   });
   
   archStore.write();
@@ -1081,6 +1248,7 @@ function updateSearch(link=true) {
   
   toPage(0);
   resultCountEl.textContent = query_found.length+" result"+(query_found.length==1?"":"s");
+  clearCenterInfo();
   
   if (link) updateLink();
 }
@@ -1158,32 +1326,38 @@ function prettyType(t) {
   c = c.replace(/(.+) const\b/, "const $1");
   t.type = c;
 }
+function toCenterInfo(text) {
+  resultListEl.textContent = '';
+  centerInfoEl.textContent = text;
+}
+function clearCenterInfo() {
+  centerInfoEl.textContent = '';
+}
 async function setCPU(name) {
   curr_cpu = name;
   let loader = knownCpuMap[curr_cpu];
   
   let noDataMsg = "Data files for this CPU not available";
   if (loader.started) {
-    if (loader.noData) centerInfoEl.textContent = noDataMsg;
+    if (loader.noData) toCenterInfo(noDataMsg);
     return;
   }
   loader.started = true;
   console.log("parsing "+loader.msg);
-  centerInfoEl.textContent = "Loading…";
   resultCountEl.textContent = "loading…";
-  resultListEl.textContent = '';
+  toCenterInfo("Loading…");
   
   let is = await loader.load();
   if (is === null) {
     loader.noData = true;
-    centerInfoEl.textContent = noDataMsg;
+    toCenterInfo(noDataMsg);
   } else {
     is.forEach(c => {
       if (c.archs.length==0 || c.categories.length==0) throw new Error(c);
       c.args.forEach(prettyType);
       prettyType(c.ret);
     });
-    centerInfoEl.textContent = "";
+    clearCenterInfo();
     
     entries_all = entries_all.concat(is);
     console.log("parsed "+loader.msg);

@@ -49,6 +49,7 @@ let curr_archObj, curr_categoryObj, curr_cpu;
 let query_archs = [];
 let query_categories = [];
 let query_found = [];
+let query_selVar = undefined;
 let query_currPage = 0;
 let perPage = 37;
 
@@ -1003,6 +1004,9 @@ function toPage(page) {
     let mkRetLine = (fn) => h('type',fn.ret.type);
     let mkFnLine = (fn) => mkch('span', [h('name',fn.name), '(', ...fn.args.flatMap(c=>[h('type', c.type), ' '+c.name, ', ']).slice(0,-1), ')']);
     let insBase = ins;
+    if (ins.variations && query_selVar) {
+      insBase = ins.variations.find(c=>c.short==query_selVar) || insBase;
+    }
     let r = mkch('tr', [
       mkch('td', [mkRetLine(insBase)]),
       mkch('td', [mkFnLine(insBase)]),
@@ -1054,7 +1058,7 @@ function toPage(page) {
       descPlaceEl.insertAdjacentElement('afterBegin', mk('br'));
       descPlaceEl.insertAdjacentElement('afterBegin', mkch('span', desc, {cl: ['mono', 'code-ws']}));
     };
-    r.onclick = () => displayFn(ins);
+    r.onclick = () => displayFn(insBase);
     return r;
   }));
 }
@@ -1119,11 +1123,11 @@ function updateSearch0(link) {
   const P_CAT = 8;
   const P_ARGn = (n) => P_CAT + n*2;
   const P_ARGnN = (n) => P_CAT + n*2 + 1;
+  let gsvar = undefined;
   let query;
   { // convert to query
     let i = 0;
     let queryAnd = [];
-    let gsvar = undefined;
     let sfldMap = sfld => {
       if (sfld===undefined) return undefined;
       let r = new Array(100).fill(false);
@@ -1233,6 +1237,7 @@ function updateSearch0(link) {
   }
   let archStore = untree(curr_archObj);
   let categoryStore = untree(curr_categoryObj);
+  query_selVar = gsvar && gsvar.length==1? gsvar[0] : undefined;
   
   query_found = entries_ccpu.filter((ins) => {
     let vars = ins.variations? [ins, ...ins.variations] : [ins];

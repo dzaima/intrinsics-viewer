@@ -41,11 +41,6 @@ let cpuLoaderARM    = {msg: 'ARM',    loadPath: "./arch/arm.js"};
 let cpuLoaderRISCV  = {msg: 'RISC-V', loadPath: "./arch/riscv.js"};
 let cpuLoaderWasm   = {msg: 'wasm'   ,loadPath: "./arch/wasm.js"};
 let knownCPUs = [
-  {key:'x86-64',  hash:'x86',     load:cpuLoaderX86_64},
-  {key:'Arm MVE', hash:'arm-mve', load:cpuLoaderARM},
-  {key:'armv7',   hash:'armv7',   load:cpuLoaderARM},
-  {key:'aarch32', hash:'aarch32', load:cpuLoaderARM},
-  {key:'aarch64', hash:'aarch64', load:cpuLoaderARM},
   {key:'risc-v',  hash:'riscv',   load:cpuLoaderRISCV},
   {key:'wasm',    hash:'wasm',    load:cpuLoaderWasm},
 ].map(cpu => { cpu.json = JSON.stringify({u: cpu.key, a: cpu.key=='risc-v'? ['v'] : undefined}); return cpu; });

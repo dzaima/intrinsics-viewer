@@ -12,7 +12,7 @@ Searching is done by finding entries that match all space-separated things. Thin
 - the above, in a specific field: `ret:int8`, `arg:/int\d+_t/`, etc (if no field is specified, the checkboxes are used);
 - the above, negated: `!ret:void`, `!add`, `!name:maskz`, etc.
 
-Additionally, `var=[name]` will default the whole search to a specific variation
+Additionally, `var=[name]` will default the whole search to a specific variation.
 
 ### Searchable fields
 
@@ -36,6 +36,7 @@ term          | checkbox    | description
 General:
 
 - `arg:*`: intrinsics taking pointer arguments
+- `!arg1n:`: intrinsics taking no arguments
 
 x86-64 AVX-512:
 

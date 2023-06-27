@@ -1430,7 +1430,6 @@ function updateLink() {
     i: query_searchIn.map(c=>c[1].checked?"1":"0").join('')
   }
   let json = JSON.stringify(obj);
-  console.log(json);
   history.pushState({}, "", "#0"+enc(json));
 }
 

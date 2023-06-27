@@ -1060,9 +1060,9 @@ function toPage(page) {
       text+= `<br>Architecture: <span class="mono">${a2}</span>`;
       text+= `<br>Categor${ins.categories.length>1?"ies":"y"}: <span class="mono">${ins.categories.map(c=>esc(c.replace(/\|/g,'→'))).join(', ')}</span>`;
       text+= `<br><br>Description:<div class="desc">${fn.desc||ins.desc}</div>`;
-      let implInstr = fn.implInstr || ins.implInstr
-      let implDesc = fn.implDesc || ins.implDesc
-      let implTimes = fn.implTimes || ins.implTimes
+      let implInstr = fn.implInstr;
+      let implDesc = fn.implDesc || ins.implDesc;
+      let implTimes = fn.implTimes || ins.implTimes;
       if (implInstr) text+= `<br>Instruction:<pre>${implInstr}</pre>`;
       if (implDesc) text+= `<br>Operation:<pre class="operation">${implDesc}</pre>`;
       if (implTimes) text+= `<br>Performance:<table class="perf-table"></table>`;

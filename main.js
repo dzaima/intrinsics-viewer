@@ -665,6 +665,13 @@ async function loadRVV() {
     }
     docMap[k] = val;
   }
+  docMap['set-vl-and-vtype-functions'] = ["Returns a number less than or equal to <code>avl</code>, specifying how many elements of the given type should be processed.", "<pre>vlmax = LMUL*VLEN/SEW;\nif (avl ≤ vlmax) return avl;\nelse if (vlmax < avl ≤ vlmax*2) return some number in [ceil(avl/2), vlmax] inclusive\nelse return vlmax;</pre>"];
+  docMap['set-vl-to-vlmax-with-specific-vtype'] = ["Returns the maximum number of elements of the specified type to process.", "<pre>vlmax = LMUL*VLEN/SEW;\nreturn vlmax;</pre>"];
+  docMap['reinterpret-cast-conversion-functions'] = [undefined, ""];
+  docMap['vector-lmul-extension-and-truncation-functions'] = c => [c.name.includes("vlmul_ext")? "Returns a vector whose low part is the argument, and the upper part is undefined." : "Returns a low portion of the argument.", ""];
+  docMap['vector-initialization-functions'] = "Returns an undefined vector value of the specified type.";
+  docMap['vector-insertion-functions'] = c => [c.name.includes("x")? "Creates a copy of the tuple with a specific element replaced." : "Inserts a lower-LMUL vector to part of a higher-LMUL one. This is equivalent to writing over part of the register group of the <code>desc</code> argument.", ""];
+  docMap['vector-extraction-functions'] = c => [c.name.includes("x")? "Extracts an element of the tuple." : "Extracts a part of the register group of <code>src</code>.", ""];
   
   let implicitMasked = [ // categories where a maskedoff argument isn't added separately
     'Permutation|Slide|Up N',
@@ -741,11 +748,25 @@ async function loadRVV() {
         if (c.categories[0].includes("Slide|Down")) m1+= "D";
         if (c.categories[0].includes("Slide|Up")) m1+= "U";
         let docVal = docMap[m1];
-        if (docVal) c.implDesc = '<!--'+c.implDesc+'--><div style="font-family:sans-serif;white-space:normal">'+docVal+'</div>';
+        if (docVal) {
+          if (typeof docVal === 'function') docVal = docVal(c);
+          if (typeof docVal !== 'string') {
+            let [desc, oper] = docVal;
+            let overload = c.desc.match(/Overloaded name: <code>\w+<\/code><br>/);
+            if (desc!==undefined) c.desc = (overload? overload[0] : "") + desc;
+            docVal = oper.replace(/\b(LMUL|SEW)\b.*/, ln => {
+              let [el,mul] = c.name.split('_').slice(-1)[0].split('m');
+              return ln+` // LMUL = ${mul[0]=='f'? "1/"+mul.substring(1) : mul}, SEW = ${el.substring(1)}`;
+            });
+          }
+          c.implDesc = !docVal? undefined : '<!--'+c.implDesc+'--><div style="font-family:sans-serif;white-space:normal">'+docVal+'</div>';
+        } else {
+          console.warn("missing doc for "+m1);
+        }
       }
     }
   });
-  if (implicitCount!=828) console.warn("Unexpected out of intrinsics with implicit maskedoff argument: "+implicitCount);
+  if (implicitCount!=828) console.warn("Unexpected count of intrinsics with implicit maskedoff argument: "+implicitCount);
   return j;
 }
 

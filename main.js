@@ -1537,7 +1537,7 @@ async function setCPU(name) {
         prepType(v.ret);
         v.nameSearch = searchStr(v.name);
         v.descSearch = searchStr(v.desc);
-        v.implInstrSearch = searchStr(v.implInstrSearch);
+        v.implInstrSearch = searchStr(v.implInstr);
         v.implDescSearch = searchStr(v.implDesc);
       });
       

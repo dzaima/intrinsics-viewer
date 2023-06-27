@@ -1160,12 +1160,13 @@ let query_searchInObj = Object.fromEntries(query_searchIn);
 
 function updateSearch(link=true) {
   try {
-    updateSearch0(link);
+    updateSearch0();
+    if (link) updateLink();
   } catch (e) {
     toCenterInfo(e);
   }
 }
-function updateSearch0(link) {
+function updateSearch0() {
   let parts = []; // space-split parts of [' ',"raw text"] or ['"',"exact text"] or ['/',/regex/]
   { // split the input into parts
     let s = searchFieldEl.value.toLowerCase();
@@ -1389,8 +1390,6 @@ function updateSearch0(link) {
   toPage(0);
   resultCountEl.textContent = query_found.length+" result"+(query_found.length==1?"":"s");
   clearCenterInfo();
-  
-  if (link) updateLink();
 }
 
 function updateLink() {

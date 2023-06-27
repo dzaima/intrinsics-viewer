@@ -685,6 +685,7 @@ async function loadRVV() {
   j.forEach(c => {
     c.categories = c.categories.map(c => c.endsWith("|non-masked")? c.substring(0,c.length-11): c);
     c.id = idCounter++;
+    c.cpu = [c.cpu];
     
     c.categories = c.categories.flatMap(ct => {
       ct = ct.replace(/(^|\|)Vector /g, "$1");

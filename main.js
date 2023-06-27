@@ -6,7 +6,7 @@ intrinsic entry:
   raw: whatever original form of the object,
   cpu: ["CPU"],
   id: idCounter++,
-  ref: "unique string",
+  ref: "unique string within this CPU",
   
   ret: {type:"return type",name:"return name"},
   args: [... {type:"type",name:"name"}],
@@ -1419,7 +1419,7 @@ function updateLink() {
   let entval = undefined;
   if (curr_entry) {
     let [eb,ev] = curr_entry;
-    entval = eb.cpu+'!'+eb.ref+(eb===ev? '' : '!'+ev.short);
+    entval = eb.cpu[0]+'!'+eb.ref+(eb===ev? '' : '!'+ev.short);
   }
   let obj = {
     u: curr_cpu,
@@ -1450,9 +1450,11 @@ async function loadLink(prependSearch = false) {
       cpuListEl.value = cpu;
       await setCPU(cpu);
       let ent = entries_all.find(c=>c.ref==ref);
-      let svar;
-      if (varl.length && ent.variations) svar = ent.variations.find(c=>c.short===varl[0]);
-      displayEnt(ent, svar || ent, false);
+      if (ent) {
+        let svar;
+        if (varl.length && ent.variations) svar = ent.variations.find(c=>c.short===varl[0]);
+        displayEnt(ent, svar || ent, false);
+      }
     }
     
     cpuListEl.value = json.u;
@@ -1530,24 +1532,26 @@ async function setCPU(name) {
         v.implDescSearch = searchStr(v.implDesc);
       });
       
-      c.ref = c.ret.type+';'+c.archs.join(';')+';'+c.name;
+      let ref = c.name.replace(/^(__riscv_|_mm)/,"");
+      if (c.cpu[0]==='x86-64') ref = c.ret.type+';'+c.archs.join(';')+';'+ref;
+      c.ref = ref;
     });
     
-    let badEntry = entries_all.find(c => !c.name || !c.ret.type || c.args.some(c => !c.type || !c.name));
+    let badEntry = is.find(c => !c.name || !c.ret.type || c.args.some(c => !c.type || !c.name));
     if (badEntry) console.warn("Warning: bad entry present: "+badEntry.name);
     
-    let refs = query_found.map(c=>c.ref);
-    if (new Set(refs).size != refs.length) console.warn("Warning: non-unique refs");
+    let refs = is.map(c=>c.ref);
+    if (new Set(refs).size != refs.length) console.warn("Warning: non-unique refs in "+name);
     
-    
-    clearCenterInfo();
     
     entries_all = entries_all.concat(is);
-    console.log("parsed "+loader.msg);
     
     unique(entries_all.map(c=>c.cpu).flat()).forEach(foundCPU => {
       if (!knownCpuMap[foundCPU]) console.warn("Warning: CPU not listed ahead-of-time: "+foundCPU);
     });
+    
+    console.log("parsed "+loader.msg);
+    clearCenterInfo();
   }
 }
 

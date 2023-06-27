@@ -40,11 +40,6 @@ let cpuLoaderX86_64 = {msg: 'x86-64', loadPath: "./extra/x86.js"};
 let cpuLoaderARM    = {msg: 'ARM',    loadPath: "./extra/arm.js"};
 let cpuLoaderRISCV  = {msg: 'RISC-V', loadPath: "./extra/riscv.js"};
 let knownCPUs = [
-  ['x86-64',  cpuLoaderX86_64],
-  ['Arm MVE', cpuLoaderARM],
-  ['armv7',   cpuLoaderARM],
-  ['aarch32', cpuLoaderARM],
-  ['aarch64', cpuLoaderARM],
   ['risc-v',  cpuLoaderRISCV],
 ];
 

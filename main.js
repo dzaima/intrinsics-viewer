@@ -17,14 +17,14 @@ intrinsic entry:
   
   implDesc: "operation section",
   implInstr: "if immediate is 2:  vadd a,b,b<br>else:<br>  vmul a,b,imm",
-  implInstrRaw: "vadd a,b,b\nvmul a,b,imm",
+  implInstrSearch: "vadd a,b,b\nvmul a,b,imm", // implInstr for searching; will be lowercased automatically
   implTimes: {...someArch: {l:"latency",t:"reciprocal throughput"}},
   
   short: "var0", // defaults to "base"
   variations: [...{
     short: "var",
     args, name, ret, // same structure as outside
-    desc, implInstr, implInstrRaw, implDesc, implTimes, // optional, same structure as outside
+    desc, implInstr, implInstrSearch, implDesc, implTimes, // optional, same structure as outside
   }]
   
   archs: [..."arch|paths"],
@@ -241,7 +241,7 @@ async function loadIntel() {
       
       implDesc: implDesc,
       implInstr: implInstrList.join("<br>"),
-      implInstrRaw: implInstrList.join("\n"),
+      implInstrSearch: implInstrList.join("\n"),
       implTimes: implTimes,
       
       archs: archs,
@@ -335,7 +335,7 @@ async function loadArm() {
     let implInstr = optMap(c.instructions, c=>c.map(c => {
       return esc(c.preamble+"\n  "+c.list.map(c => c.base_instruction.toLowerCase()+" "+c.operands).join("\n  "));
     }).join("<br>"));
-    let implInstrRaw = optMap(c.instructions, c=>c.map(c => {
+    let implInstrSearch = optMap(c.instructions, c=>c.map(c => {
       return c.list.map(c => c.base_instruction.toLowerCase()+" "+c.operands).join("\n");
     }).join("\n"));
     
@@ -343,6 +343,7 @@ async function loadArm() {
       let i = c.lastIndexOf(' ');
       return ({type: c.substring(0, i), name: c.substring(i+1)});
     });
+    if (args.length==1 && args[0].type=='void') args = [];
     
     if (c.Arguments_Preparation) {
       let argMap = Object.fromEntries(args.map(c=>[c.name, c]));
@@ -392,7 +393,7 @@ async function loadArm() {
       
       implDesc: nativeOpNEON? nativeOperation : undefined,
       implInstr: implInstr,
-      implInstrRaw: implInstrRaw,
+      implInstrSearch: implInstrSearch,
       
       archs: [c.SIMD_ISA],
       categories: categories,
@@ -1325,20 +1326,21 @@ function updateSearch0(link) {
               if (cached) return cached;
               let m = nstate.sfldMap;
               let r = [];
-              if (m[P_INST]) r.push(ins.implInstrRaw);
-              if (m[P_DESC]) r.push(ins.desc);
-              if (m[P_OPER]) r.push(ins.implDesc);
-              if (m[P_CAT]) r.push(...ins.categories);
+              const addOpt   = v => { if (v!==undefined) r.push(v); };
+              const addLower = v => r.push(v.toLowerCase());
+              if (m[P_INST]) addOpt(ins.implInstrSearch);
+              if (m[P_DESC]) addOpt(ins.descSearch);
+              if (m[P_OPER]) addOpt(ins.implDescSearch);
+              if (m[P_CAT]) addLower(...ins.categories);
               if (nstate.svar) vars = vars.filter(c => nstate.svar.includes(c.short || "base"));
               vars.forEach(c => {
-                if (m[P_NAME]) r.push(c.name);
-                if (m[P_TYPE] || m[P_RET]) r.push(c.ret.type);
+                if (m[P_NAME]) addLower(c.name);
+                if (m[P_TYPE] || m[P_RET]) addLower(c.ret.type);
                 c.args.forEach((c,i) => {
-                  if (m[P_ARG]  || m[P_ARGn (i)] || m[P_TYPE]) r.push(c.type);
-                  if (m[P_ARGN] || m[P_ARGnN(i)])              r.push(c.name); // apparently this was a very hot perf spot, which is why there's this funky P_ constant business
+                  if (m[P_ARG]  || m[P_ARGn (i)] || m[P_TYPE]) addLower(c.type);
+                  if (m[P_ARGN] || m[P_ARGnN(i)])              addLower(c.name); // apparently this was a very hot perf spot, which is why there's this funky P_ constant business
                 });
               })
-              r = r.filter(c=>c).map(c=>c.toLowerCase());
               return cached = r;
             }
             nstate.where = () => get();
@@ -1467,7 +1469,7 @@ async function setCPU(name) {
   loader.started = true;
   console.log("parsing "+loader.msg);
   resultCountEl.textContent = "loading…";
-  toCenterInfo("Loading "+name+"…");
+  toCenterInfo("Loading "+loader.msg+"…");
   
   let is = await loader.load();
   if (is === null) {
@@ -1479,9 +1481,18 @@ async function setCPU(name) {
       c.args.forEach(prettyType);
       prettyType(c.ret);
       c.ref = c.ret.type+';'+c.archs.join(';')+';'+c.name;
+      let searchStr = c => c && c.length? c.toLowerCase() : undefined;
+      c.implInstrSearch = searchStr(c.implInstrSearch);
+      c.implDescSearch = searchStr(c.implDesc);
+      c.descSearch = searchStr(c.desc);
     });
+    
+    let badEntry = entries_all.find(c => !c.name || !c.ret.type || c.args.some(c => !c.type || !c.name));
+    if (badEntry) console.warn("Warning: bad entry present: "+badEntry.name);
+    
     let refs = query_found.map(c=>c.ref);
     if (new Set(refs).size != refs.length) console.warn("Warning: non-unique refs");
+    
     
     clearCenterInfo();
     

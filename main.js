@@ -6,6 +6,7 @@ intrinsic entry:
   raw: whatever original form of the object,
   cpu: ["CPU"],
   id: idCounter++,
+  ref: "unique string",
   
   ret: {type:"return type",name:"return name"},
   args: [... {type:"type",name:"name"}],
@@ -45,7 +46,7 @@ let centerInfoEl = document.getElementById("center-info");
 
 let entries_all = [];
 let entries_ccpu = [];
-let curr_archObj, curr_categoryObj, curr_cpu;
+let curr_archObj, curr_categoryObj, curr_cpu, curr_entry;
 let query_archs = [];
 let query_categories = [];
 let query_found = [];
@@ -1006,9 +1007,60 @@ function deltaPage(n) {
   if (p<0 || p>=calcPages()) return;
   toPage(p);
 }
+
+const hl = (h, text) => mkch('span', [text], {cl:'h-'+h});
+let mkRetLine = (fn) => hl('type',fn.ret.type);
+let mkFnLine = (fn) => mkch('span', [hl('name',fn.name), '(', ...fn.args.flatMap(c=>[hl('type', c.type), ' '+c.name, ', ']).slice(0,-1), ')']);
+function displayEnt(ins, fn) {
+  curr_entry = [ins, fn];
+  let a0 = fn.archs || ins.archs;
+  let a1 = a0;
+  if (a0.length>1) a1 = a1.filter(c=>!c.endsWith("|KNCNI"));
+  let a2 = a1.map(c=>esc(c.split(/\|/g).slice(-1)[0])).join(' + ');
+  if (a0.length != a1.length) a2+= " / KNCNI";
+  let text = ``;
+  text+= `<br>Architecture: <span class="mono">${a2}</span>`;
+  text+= `<br>Categor${ins.categories.length>1?"ies":"y"}: <span class="mono">${ins.categories.map(c=>esc(c.replace(/\|/g,'→'))).join(', ')}</span>`;
+  text+= `<br><br>Description:<div class="desc">${fn.desc||ins.desc}</div>`;
+  let implInstr = fn.implInstr;
+  let implDesc = fn.implDesc || ins.implDesc;
+  let implTimes = fn.implTimes || ins.implTimes;
+  if (implInstr) text+= `<br>Instruction:<pre>${implInstr}</pre>`;
+  if (implDesc) text+= `<br>Operation:<pre class="operation">${implDesc}</pre>`;
+  if (implTimes) text+= `<br>Performance:<table class="perf-table"></table>`;
+  descPlaceEl.innerHTML = text;
+  
+  if (implTimes) descPlaceEl.getElementsByClassName("perf-table")[0].append(mkch('tbody', [
+    mkch('tr', ['Architecture', 'Latency', 'Throughput (CPI)'].map(c=>mkch('th',[c]))),
+    ...implTimes.map(c => {
+      let [[k,v]] = Object.entries(c);
+      return mkch('tr', [k, v.l, v.t].map(e => mkch('td', [e])));
+    })
+  ]));
+  
+  let desc;
+  if (fn.args.length>7 || fn.args==0) {
+    desc = [mkRetLine(fn), ' ', mkFnLine(fn)];
+  } else {
+    desc = [mkRetLine(fn), ' ', hl('name',fn.name), '(\n', ...fn.args.map((a,i)=>{
+      return mkch('span', ['  ', hl('type',a.type), ' '+a.name, ','.repeat(i!=fn.args.length-1), a.info? hl('comm',' // '+a.info) : '', '\n']);
+    }), ')'];
+  }
+  if (ins.variations && ins.variations.length) {
+    let mkvar = (fn, short) => mkch('span', short, {cl: ['mono', 'var-link'], onclick: () => displayEnt(ins, fn)});
+    descPlaceEl.insertAdjacentElement('afterBegin', mkch('span', [
+      'Variations: ',
+      mkvar(ins, ins.short || 'base'),
+      ...ins.variations.flatMap(fn => [', ', mkvar(fn, fn.short)])
+    ]));
+    descPlaceEl.insertAdjacentElement('afterBegin', mk('br'));
+  }
+  descPlaceEl.insertAdjacentElement('afterBegin', mk('br'));
+  descPlaceEl.insertAdjacentElement('afterBegin', mkch('span', desc, {cl: ['mono', 'code-ws']}));
+  updateLink();
+}
 function toPage(page) {
   query_currPage = page;
-  const h = (h, text) => mkch('span', [text], {cl:'h-'+h});
   
   let pages = calcPages();
   
@@ -1039,8 +1091,6 @@ function toPage(page) {
   
   resultListEl.textContent = '';
   resultListEl.append(...query_found.slice(page*perPage, (page+1)*perPage).map(ins=>{
-    let mkRetLine = (fn) => h('type',fn.ret.type);
-    let mkFnLine = (fn) => mkch('span', [h('name',fn.name), '(', ...fn.args.flatMap(c=>[h('type', c.type), ' '+c.name, ', ']).slice(0,-1), ')']);
     let insBase = ins;
     if (ins.variations && query_selVar) {
       insBase = ins.variations.find(c=>c.short==query_selVar) || insBase;
@@ -1050,53 +1100,15 @@ function toPage(page) {
       mkch('td', [mkFnLine(insBase)]),
       // mkch('td', [c.archs.map(c=>c.split(/\|/g).slice(-1)[0]).join("+")]),
     ]);
-    function displayFn(fn) {
-      let a0 = fn.archs || ins.archs;
-      let a1 = a0;
-      if (a0.length>1) a1 = a1.filter(c=>!c.endsWith("|KNCNI"));
-      let a2 = a1.map(c=>esc(c.split(/\|/g).slice(-1)[0])).join(' + ');
-      if (a0.length != a1.length) a2+= " / KNCNI";
-      let text = ``;
-      text+= `<br>Architecture: <span class="mono">${a2}</span>`;
-      text+= `<br>Categor${ins.categories.length>1?"ies":"y"}: <span class="mono">${ins.categories.map(c=>esc(c.replace(/\|/g,'→'))).join(', ')}</span>`;
-      text+= `<br><br>Description:<div class="desc">${fn.desc||ins.desc}</div>`;
-      let implInstr = fn.implInstr;
-      let implDesc = fn.implDesc || ins.implDesc;
-      let implTimes = fn.implTimes || ins.implTimes;
-      if (implInstr) text+= `<br>Instruction:<pre>${implInstr}</pre>`;
-      if (implDesc) text+= `<br>Operation:<pre class="operation">${implDesc}</pre>`;
-      if (implTimes) text+= `<br>Performance:<table class="perf-table"></table>`;
-      descPlaceEl.innerHTML = text;
-      
-      if (implTimes) descPlaceEl.getElementsByClassName("perf-table")[0].append(mkch('tbody', [
-        mkch('tr', ['Architecture', 'Latency', 'Throughput (CPI)'].map(c=>mkch('th',[c]))),
-        ...implTimes.map(c => {
-          let [[k,v]] = Object.entries(c);
-          return mkch('tr', [k, v.l, v.t].map(e => mkch('td', [e])));
-        })
-      ]));
-      
-      let desc;
-      if (fn.args.length>7 || fn.args==0) {
-        desc = [mkRetLine(fn), ' ', mkFnLine(fn)];
+    r.onclick = () => {
+      if (curr_entry && curr_entry[0]===insBase && curr_entry[1]===insBase) {
+        descPlaceEl.innerText = "";
+        curr_entry = undefined;
+        updateLink();
       } else {
-        desc = [mkRetLine(fn), ' ', h('name',fn.name), '(\n', ...fn.args.map((a,i)=>{
-          return mkch('span', ['  ', h('type',a.type), ' '+a.name, ','.repeat(i!=fn.args.length-1), a.info? h('comm',' // '+a.info) : '', '\n']);
-        }), ')'];
+        displayEnt(insBase, insBase);
       }
-      if (ins.variations && ins.variations.length) {
-        let mkvar = (fn, short) => mkch('span', short, {cl: ['mono', 'var-link'], onclick: () => displayFn(fn)});
-        descPlaceEl.insertAdjacentElement('afterBegin', mkch('span', [
-          'Variations: ',
-          mkvar(ins, ins.short || 'base'),
-          ...ins.variations.flatMap(fn => [', ', mkvar(fn, fn.short)])
-        ]));
-        descPlaceEl.insertAdjacentElement('afterBegin', mk('br'));
-      }
-      descPlaceEl.insertAdjacentElement('afterBegin', mk('br'));
-      descPlaceEl.insertAdjacentElement('afterBegin', mkch('span', desc, {cl: ['mono', 'code-ws']}));
-    };
-    r.onclick = () => displayFn(insBase);
+    }
     return r;
   }));
 }
@@ -1349,8 +1361,14 @@ function updateLink() {
     if (x.check.indeterminate) return [...x.ch.flatMap(ser), ...x.leaf.filter(c=>c.check.checked).map(c=>c.key)];
     return x.check.checked? [x.key] : [];
   }
+  let entval = undefined;
+  if (curr_entry) {
+    let [eb,ev] = curr_entry;
+    entval = eb.cpu+'!'+eb.ref+(eb===ev? '' : '!'+ev.short);
+  }
   let obj = {
     u: curr_cpu,
+    e: entval,
     a: ser(curr_archObj),
     c: ser(curr_categoryObj),
     s: searchFieldEl.value,
@@ -1370,6 +1388,16 @@ async function loadLink(prependSearch = false) {
       if (!searchFieldEl.value.includes(json.s)) searchFieldEl.value = json.s + searchFieldEl.value;
     } else {
       searchFieldEl.value = json.s;
+    }
+    
+    if (json.e) {
+      let [cpu,ref,...varl] = json.e.split('!');
+      cpuListEl.value = cpu;
+      await newCPU(false);
+      let ent = entries_all.find(c=>c.ref==ref);
+      let svar;
+      if (varl.length && ent.variations) svar = ent.variations.find(c=>c.short===varl[0]);
+      displayEnt(ent, svar || ent);
     }
     
     cpuListEl.value = json.u;
@@ -1447,7 +1475,11 @@ async function setCPU(name) {
       if (c.archs.length==0 || c.categories.length==0) throw new Error(c);
       c.args.forEach(prettyType);
       prettyType(c.ret);
+      c.ref = c.ret.type+';'+c.archs.join(';')+';'+c.name;
     });
+    let refs = query_found.map(c=>c.ref);
+    if (new Set(refs).size != refs.length) console.warn("Warning: non-unique refs");
+    
     clearCenterInfo();
     
     entries_all = entries_all.concat(is);
@@ -1501,7 +1533,7 @@ function dec(str) {
 }
 
 function arrToB64(arr) {
-  var bytestr = "";
+  let bytestr = "";
   arr.forEach(c => bytestr+= String.fromCharCode(c));
   return btoa(bytestr).replace(/\+/g, "@").replace(/=+/, "");
 }

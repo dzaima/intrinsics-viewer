@@ -1434,16 +1434,12 @@ function updateLink() {
   history.pushState({}, "", "#0"+enc(json));
 }
 
-async function loadLink(prependSearch = false) {
+async function loadLink() {
   let hash = decodeURIComponent(location.hash.slice(1));
   if (hash[0]=='0') {
     let json = JSON.parse(dec(hash.slice(1)));
     if (json.s === undefined) json.s = "";
-    if (prependSearch) {
-      if (!searchFieldEl.value.includes(json.s)) searchFieldEl.value = json.s + searchFieldEl.value;
-    } else {
-      searchFieldEl.value = json.s;
-    }
+    searchFieldEl.value = json.s;
     
     if (json.e) {
       let [cpu,ref,...varl] = json.e.split('!');
@@ -1561,14 +1557,14 @@ async function setCPU(name) {
       cpuListEl.append(new Option(n, n));
     });
     
-    await loadLink(true);
+    await loadLink();
   } catch (e) {
     document.getElementById('search-table').insertAdjacentElement('afterEnd', mkch('span', "Failed to load:\n"+e.stack, {cl: ['mono','code-ws']}));
     throw e;
   }
 })();
 
-window.onhashchange = ()=>loadLink();
+window.onhashchange = () => loadLink();
 
 
 

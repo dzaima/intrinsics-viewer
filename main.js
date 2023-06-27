@@ -61,7 +61,7 @@ let pages3El = document.getElementById("pages-3");
 let centerInfoEl = document.getElementById("center-info");
 
 let entries_all = [];
-let entries_ccpu = [];
+let entries_ccpu = undefined;
 let curr_archObj, curr_categoryObj, curr_cpu, curr_entry;
 let query_archs = [];
 let query_categories = [];
@@ -890,7 +890,8 @@ function makeTree(tree, ob, update) {
 
 async function newCPU() {
   let cpu = cpuListEl.selectedOptions[0].value;
-  await setCPU(cpu);
+  entries_ccpu = undefined;
+  if (!await setCPU(cpu)) return false;
   entries_ccpu = entries_all.filter(c=>c.cpu.includes(cpu));
   
   let archs = unique(entries_ccpu.map(c=>c.archs).flat());
@@ -1032,6 +1033,7 @@ async function newCPU() {
   categoryListEl.append(curr_categoryObj.obj);
   
   updateSearch(false);
+  return true;
 }
 
 
@@ -1183,6 +1185,7 @@ function updateSearch(link=true) {
   }
 }
 function updateSearch0() {
+  if (!entries_ccpu) return;
   let parts = []; // space-split parts of [' ',"raw text"] or ['"',"exact text"] or ['/',/regex/]
   { // split the input into parts
     let s = searchFieldEl.value.toLowerCase();
@@ -1409,6 +1412,7 @@ function updateSearch0() {
 
 function updateLink() {
   function ser(x) {
+    if (x===undefined) return ["all"];
     if (x.check.indeterminate) return [...x.ch.flatMap(ser), ...x.leaf.filter(c=>c.check.checked).map(c=>c.key)];
     return x.check.checked? [x.key] : [];
   }
@@ -1444,7 +1448,7 @@ async function loadLink() {
     if (json.e) {
       let [cpu,ref,...varl] = json.e.split('!');
       cpuListEl.value = cpu;
-      await setCPU(cpu);
+      if (!await setCPU(cpu)) return;
       let ent = entries_all.find(c=>c.ref==ref);
       if (ent) {
         let svar;
@@ -1454,7 +1458,7 @@ async function loadLink() {
     }
     
     cpuListEl.value = json.u;
-    await newCPU();
+    if (!await newCPU()) return;
     
     [...json.i].forEach((c,i) => {
       query_searchIn[i][1].checked = c=='1';
@@ -1492,10 +1496,13 @@ async function setCPU(name) {
   curr_cpu = name;
   let loader = knownCpuMap[curr_cpu];
   
-  let noDataMsg = "Data files for this CPU not available";
+  let noDataMsg = "Data files for CPU "+name+" not available";
   if (loader.started) {
-    if (loader.noData) toCenterInfo(noDataMsg);
-    return;
+    if (loader.noData) {
+      toCenterInfo(noDataMsg);
+      return false;
+    }
+    return true;
   }
   loader.started = true;
   console.log("parsing "+loader.msg);
@@ -1506,6 +1513,7 @@ async function setCPU(name) {
   if (is === null) {
     loader.noData = true;
     toCenterInfo(noDataMsg);
+    return false;
   } else {
     const searchStr = c => c && c.length? c.toLowerCase() : undefined;
     function prepType(t) {
@@ -1548,6 +1556,7 @@ async function setCPU(name) {
     
     console.log("parsed "+loader.msg);
     clearCenterInfo();
+    return true;
   }
 }
 

@@ -1,3 +1,5 @@
+'use strict';
+
 let argIndexing = 1;
 
 /*
@@ -198,7 +200,7 @@ async function loadIntel() {
     let instrs = filter("instruction");
     let implInstrList = instrs.map(c => {
       let res = c.getAttribute("name").toLowerCase();
-      if (c.hasAttribute("form")) res+= " "+c.getAttribute("form")
+      if (c.hasAttribute("form")) res+= " "+c.getAttribute("form");
       return esc(res);
     });
     if (e.getAttribute("sequence")==="TRUE") {
@@ -821,7 +823,7 @@ function makeCheckbox(display, key, updated, group) {
       });
     }
     updated();
-  }})
+  }});
   check.checked = true;
   
   let count = mkch('span', ['?']);
@@ -833,7 +835,7 @@ function makeCheckbox(display, key, updated, group) {
       t.textContent = group.hidden? ">" : "∨";
     }}),
     label,
-  ], {cl: 'flex-horiz'})
+  ], {cl: 'flex-horiz'});
   
   return {check: check, obj: row, key: key, setCount: (n) => {
     if (n) label.classList.remove('cht-off');
@@ -874,7 +876,7 @@ function makeTree(tree, ob, update) {
     
     let indent = mkch('div', [contents], {cl:'indent'});
     if (!ob.has(tree.name)) indent.hidden = true;
-    let check = makeCheckbox(tree.name, key, updateFn, indent)
+    let check = makeCheckbox(tree.name, key, updateFn, indent);
     
     return {check: check.check, obj: mkch('div', [check.obj, indent]), ch:chRes, leaf:leafRes, setCount: check.setCount, key:key};
   }
@@ -1119,7 +1121,7 @@ function toPage(page) {
   } else {
     let nL = page<3;
     let nR = page>=pages-3;
-    let n = nL||nR
+    let n = nL||nR;
     pages1El.append(...range(0, n? 5 : 3).map(makeBtn));
     if (!n) pages2El.append(...range(page-2, page+3).map(makeBtn));
     pages3El.append(...range(pages-(n? 5 : 3), pages).map(makeBtn));
@@ -1231,7 +1233,7 @@ function updateSearch0() {
     let sfldMap = sfld => {
       if (sfld===undefined) return undefined;
       let r = new Array(100).fill(false);
-      for (c of sfld) {
+      for (let c of sfld) {
         switch (c) {
           case "name": r[P_NAME] = true; break;
           case "ret":  r[P_RET]  = true; break;
@@ -1340,7 +1342,7 @@ function updateSearch0() {
   query_selVar = gsvar && gsvar.length==1? gsvar[0] : undefined;
   
   query_found = entries_ccpu.filter((ins) => {
-    let vars = ins.variations? [ins, ...ins.variations] : [ins];
+    let vars = ins.variationsIncl;
     function match(part, state) {
       switch(part.type) {
         default:
@@ -1371,12 +1373,11 @@ function updateSearch0() {
               vars.forEach(c => {
                 if (m[P_NAME]) r.push(c.nameSearch);
                 if (m[P_TYPE] || m[P_RET]) r.push(c.ret.typeSearch);
-                let cc = c;
                 c.args.forEach((c,i) => {
                   if (m[P_ARG]  || m[P_ARGn (i)] || m[P_TYPE]) r.push(c.typeSearch);
                   if (m[P_ARGN] || m[P_ARGnN(i)])              r.push(c.nameSearch); // apparently this was a very hot perf spot, which is why there's this funky P_ constant business
                 });
-              })
+              });
               return cached = r;
             }
             nstate.where = () => get();
@@ -1400,7 +1401,6 @@ function updateSearch0() {
   
   archStore.write();
   categoryStore.write();
-  
   toPage(0);
   resultCountEl.textContent = query_found.length+" result"+(query_found.length==1?"":"s");
   clearCenterInfo();
@@ -1517,8 +1517,8 @@ async function setCPU(name) {
     }
     is.forEach(c => {
       if (c.archs.length==0 || c.categories.length==0) { console.warn("No categories or architectures for "+c.name); }
-      
-      [c, ...(c.variations || [])].forEach(v => {
+      c.variationsIncl = [c, ...(c.variations || [])];
+      c.variationsIncl.forEach(v => {
         v.args.forEach(prepType);
         prepType(v.ret);
         v.nameSearch = searchStr(v.name);
@@ -1597,7 +1597,7 @@ function arrToB64(arr) {
   return btoa(bytestr).replace(/\+/g, "@").replace(/=+/, "");
 }
 function b64ToArr(str) {
-  return new Uint8Array([...atob(decodeURIComponent(str).replace(/@/g, "+"))].map(c=>c.charCodeAt()))
+  return new Uint8Array([...atob(decodeURIComponent(str).replace(/@/g, "+"))].map(c=>c.charCodeAt()));
 }
 
 function deflate(arr) {

@@ -41,11 +41,6 @@ let cpuLoaderX86_64 = {msg: 'x86-64', load: loadIntel};
 let cpuLoaderARM    = {msg: 'ARM',    load: loadArm};
 let cpuLoaderRISCV  = {msg: 'RISC-V', load: loadRVV};
 let knownCPUs = [
-  ['x86-64',  cpuLoaderX86_64],
-  ['Arm MVE', cpuLoaderARM],
-  ['armv7',   cpuLoaderARM],
-  ['aarch32', cpuLoaderARM],
-  ['aarch64', cpuLoaderARM],
   ['risc-v',  cpuLoaderRISCV],
 ];
 

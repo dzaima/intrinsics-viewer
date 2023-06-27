@@ -1158,6 +1158,19 @@ let query_searchIn = [
 ];
 let query_searchInObj = Object.fromEntries(query_searchIn);
 
+function benchmarkSearch(seconds = 1) {
+  let t0 = +new Date();
+  let t1;
+  let n = 0;
+  let limitMS = seconds * 1000;
+  while (1) {
+    t1 = +new Date();
+    if (t1-t0 > limitMS) break;
+    updateSearch0();
+    n++;
+  }
+  console.log("average over "+n+" iterations: "+((t1-t0)/n).toFixed(3)+"ms");
+}
 function updateSearch(link=true) {
   try {
     updateSearch0();
@@ -1356,11 +1369,12 @@ function updateSearch0() {
               if (m[P_CAT]) addLower(...ins.categories);
               if (nstate.svar) vars = vars.filter(c => nstate.svar.includes(c.short || "base"));
               vars.forEach(c => {
-                if (m[P_NAME]) addLower(c.name);
-                if (m[P_TYPE] || m[P_RET]) addLower(c.ret.type);
+                if (m[P_NAME]) r.push(c.nameSearch);
+                if (m[P_TYPE] || m[P_RET]) r.push(c.ret.typeSearch);
+                let cc = c;
                 c.args.forEach((c,i) => {
-                  if (m[P_ARG]  || m[P_ARGn (i)] || m[P_TYPE]) addLower(c.type);
-                  if (m[P_ARGN] || m[P_ARGnN(i)])              addLower(c.name); // apparently this was a very hot perf spot, which is why there's this funky P_ constant business
+                  if (m[P_ARG]  || m[P_ARGn (i)] || m[P_TYPE]) r.push(c.typeSearch);
+                  if (m[P_ARGN] || m[P_ARGnN(i)])              r.push(c.nameSearch); // apparently this was a very hot perf spot, which is why there's this funky P_ constant business
                 });
               })
               return cached = r;
@@ -1464,12 +1478,6 @@ async function loadLink(prependSearch = false) {
 
 let knownCpuMap = Object.fromEntries(knownCPUs);
 
-function prettyType(t) {
-  let c = t.type;
-  c = c.replace(/ +(\**) *$/, "$1");
-  c = c.replace(/(.+) const\b/, "const $1");
-  t.type = c;
-}
 function toCenterInfo(text) {
   resultListEl.textContent = '';
   centerInfoEl.textContent = text;
@@ -1496,15 +1504,28 @@ async function setCPU(name) {
     loader.noData = true;
     toCenterInfo(noDataMsg);
   } else {
+    const searchStr = c => c && c.length? c.toLowerCase() : undefined;
+    function prepType(t) {
+      let c = t.type;
+      c = c.replace(/ +(\**) *$/, "$1");
+      c = c.replace(/(.+) const\b/, "const $1");
+      t.type = c;
+      t.typeSearch = searchStr(t.type);
+      t.nameSearch = searchStr(t.name);
+    }
     is.forEach(c => {
-      if (c.archs.length==0 || c.categories.length==0) throw new Error(c);
-      c.args.forEach(prettyType);
-      prettyType(c.ret);
+      if (c.archs.length==0 || c.categories.length==0) { console.warn("No categories or architectures for "+c.name); }
+      
+      [c, ...(c.variations || [])].forEach(v => {
+        v.args.forEach(prepType);
+        prepType(v.ret);
+        v.nameSearch = searchStr(v.name);
+        v.descSearch = searchStr(v.desc);
+        v.implInstrSearch = searchStr(v.implInstrSearch);
+        v.implDescSearch = searchStr(v.implDesc);
+      });
+      
       c.ref = c.ret.type+';'+c.archs.join(';')+';'+c.name;
-      let searchStr = c => c && c.length? c.toLowerCase() : undefined;
-      c.implInstrSearch = searchStr(c.implInstrSearch);
-      c.implDescSearch = searchStr(c.implDesc);
-      c.descSearch = searchStr(c.desc);
     });
     
     let badEntry = entries_all.find(c => !c.name || !c.ret.type || c.args.some(c => !c.type || !c.name));

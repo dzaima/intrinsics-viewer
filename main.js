@@ -32,6 +32,20 @@ intrinsic entry:
 }
 */
 
+let cpuLoaderX86_64 = {msg: 'x86-64', load: loadIntel};
+let cpuLoaderARM    = {msg: 'ARM',    load: loadArm};
+let cpuLoaderRISCV  = {msg: 'RISC-V', load: loadRVV};
+let knownCPUs = [
+  ['x86-64',  cpuLoaderX86_64],
+  ['Arm MVE', cpuLoaderARM],
+  ['armv7',   cpuLoaderARM],
+  ['aarch32', cpuLoaderARM],
+  ['aarch64', cpuLoaderARM],
+  ['risc-v',  cpuLoaderRISCV],
+];
+
+
+
 let searchFieldEl = document.getElementById("search-field");
 let cpuListEl = document.getElementById("cpu-list");
 let archListEl = document.getElementById("arch-list");
@@ -1426,17 +1440,6 @@ async function loadLink(prependSearch = false) {
   }
 }
 
-let cpuLoaderX86_64 = {msg: 'x86-64', load: loadIntel};
-let cpuLoaderARM    = {msg: 'ARM',    load: loadArm};
-let cpuLoaderRISCV  = {msg: 'RISC-V', load: loadRVV};
-let knownCPUs = [
-  ['x86-64',  cpuLoaderX86_64],
-  ['Arm MVE', cpuLoaderARM],
-  ['armv7',   cpuLoaderARM],
-  ['aarch32', cpuLoaderARM],
-  ['aarch64', cpuLoaderARM],
-  ['risc-v',  cpuLoaderRISCV],
-];
 let knownCpuMap = Object.fromEntries(knownCPUs);
 
 function prettyType(t) {

@@ -1,1 +1,3 @@
-data/
+data/*
+!data/rvv-*
+!data/v-spec.html

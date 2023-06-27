@@ -1411,6 +1411,11 @@ function updateLink() {
     if (x.check.indeterminate) return [...x.ch.flatMap(ser), ...x.leaf.filter(c=>c.check.checked).map(c=>c.key)];
     return x.check.checked? [x.key] : [];
   }
+  function ser1(x) {
+    let r = ser(x);
+    if (r.length==1 && r[0]=="all") return undefined;
+    return r;
+  }
   let entval = undefined;
   if (curr_entry) {
     let [eb,ev] = curr_entry;
@@ -1419,13 +1424,13 @@ function updateLink() {
   let obj = {
     u: curr_cpu,
     e: entval,
-    a: ser(curr_archObj),
-    c: ser(curr_categoryObj),
-    s: searchFieldEl.value,
-    p: query_currPage,
+    a: ser1(curr_archObj),
+    c: ser1(curr_categoryObj),
+    s: searchFieldEl.value || undefined,
     i: query_searchIn.map(c=>c[1].checked?"1":"0").join('')
   }
   let json = JSON.stringify(obj);
+  console.log(json);
   history.pushState({}, "", "#0"+enc(json));
 }
 
@@ -1433,7 +1438,7 @@ async function loadLink(prependSearch = false) {
   let hash = decodeURIComponent(location.hash.slice(1));
   if (hash[0]=='0') {
     let json = JSON.parse(dec(hash.slice(1)));
-    
+    if (json.s === undefined) json.s = "";
     if (prependSearch) {
       if (!searchFieldEl.value.includes(json.s)) searchFieldEl.value = json.s + searchFieldEl.value;
     } else {
@@ -1468,8 +1473,8 @@ async function loadLink(prependSearch = false) {
       rec(t);
       t.updateFn(false);
     }
-    selTree(curr_archObj, json.a);
-    selTree(curr_categoryObj, json.c);
+    selTree(curr_archObj, json.a||["all"]);
+    selTree(curr_categoryObj, json.c||["all"]);
     updateSearch(false);
   } else {
     newCPU();

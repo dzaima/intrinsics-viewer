@@ -202,7 +202,9 @@ export const categoryOrder = {
 export const archDefault = ['v'];
 
 export const globalInfo = `
-  <a target="_blank" href="${vSpecFilePath}">RVV specification</a>, <a target="_blank" href="${vkSpecFilePath}">vector crypto specification</a>
+  <a href="info.html">General intrinsics-viewer info, license info</a>
+  <br>
+  <br><a target="_blank" href="${vSpecFilePath}">RVV specification</a>, <a target="_blank" href="${vkSpecFilePath}">vector crypto specification</a>
   <br><a href="https://github.com/riscv-non-isa/rvv-intrinsic-doc/blob/main/doc/rvv-intrinsic-spec.adoc">RVV intrinsics specification</a>
   <br><a href="https://github.com/riscv-non-isa/riscv-c-api-doc/blob/main/src/c-api.adoc">General RISC-V C intrinsics</a> (not present in this viewer)
   <br><br>

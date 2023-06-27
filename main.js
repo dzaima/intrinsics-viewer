@@ -849,7 +849,7 @@ function makeTree(tree, ob, update) {
 
 
 
-async function newCPU(link=true) {
+async function newCPU() {
   let cpu = cpuListEl.selectedOptions[0].value;
   await setCPU(cpu);
   entries_ccpu = entries_all.filter(c=>c.cpu.includes(cpu));
@@ -992,7 +992,7 @@ async function newCPU(link=true) {
   });
   categoryListEl.append(curr_categoryObj.obj);
   
-  updateSearch(link);
+  updateSearch(false);
 }
 
 
@@ -1011,7 +1011,7 @@ function deltaPage(n) {
 const hl = (h, text) => mkch('span', [text], {cl:'h-'+h});
 let mkRetLine = (fn) => hl('type',fn.ret.type);
 let mkFnLine = (fn) => mkch('span', [hl('name',fn.name), '(', ...fn.args.flatMap(c=>[hl('type', c.type), ' '+c.name, ', ']).slice(0,-1), ')']);
-function displayEnt(ins, fn) {
+function displayEnt(ins, fn, link = true) {
   curr_entry = [ins, fn];
   let a0 = fn.archs || ins.archs;
   let a1 = a0;
@@ -1057,7 +1057,7 @@ function displayEnt(ins, fn) {
   }
   descPlaceEl.insertAdjacentElement('afterBegin', mk('br'));
   descPlaceEl.insertAdjacentElement('afterBegin', mkch('span', desc, {cl: ['mono', 'code-ws']}));
-  updateLink();
+  if (link) updateLink();
 }
 function toPage(page) {
   query_currPage = page;
@@ -1393,15 +1393,15 @@ async function loadLink(prependSearch = false) {
     if (json.e) {
       let [cpu,ref,...varl] = json.e.split('!');
       cpuListEl.value = cpu;
-      await newCPU(false);
+      await setCPU(cpu);
       let ent = entries_all.find(c=>c.ref==ref);
       let svar;
       if (varl.length && ent.variations) svar = ent.variations.find(c=>c.short===varl[0]);
-      displayEnt(ent, svar || ent);
+      displayEnt(ent, svar || ent, false);
     }
     
     cpuListEl.value = json.u;
-    await newCPU(false);
+    await newCPU();
     
     [...json.i].forEach((c,i) => {
       query_searchIn[i][1].checked = c=='1';
@@ -1422,7 +1422,7 @@ async function loadLink(prependSearch = false) {
     selTree(curr_categoryObj, json.c);
     updateSearch(false);
   } else {
-    newCPU(false);
+    newCPU();
   }
 }
 
@@ -1464,7 +1464,7 @@ async function setCPU(name) {
   loader.started = true;
   console.log("parsing "+loader.msg);
   resultCountEl.textContent = "loading…";
-  toCenterInfo("Loading…");
+  toCenterInfo("Loading "+name+"…");
   
   let is = await loader.load();
   if (is === null) {

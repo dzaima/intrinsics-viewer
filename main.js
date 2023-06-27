@@ -1015,7 +1015,7 @@ async function newCPU() {
     query_archs = a;
     updateSearch(link);
   });
-  archListEl.append(curr_archObj.obj);
+  if (archs.length > 1) archListEl.append(curr_archObj.obj);
   
   
   let categories = unique(entries_ccpu.map(c=>c.categories).flat());

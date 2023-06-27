@@ -1052,6 +1052,11 @@ function deltaPage(n) {
 const hl = (h, text) => mkch('span', [text], {cl:'h-'+h});
 let mkRetLine = (fn) => hl('type',fn.ret.type);
 let mkFnLine = (fn) => mkch('span', [hl('name',fn.name), '(', ...fn.args.flatMap(c=>[hl('type', c.type), ' '+c.name, ', ']).slice(0,-1), ')']);
+function displayNoEnt(link = true) {
+  descPlaceEl.innerText = "";
+  curr_entry = undefined;
+  if (link) updateLink();
+}
 function displayEnt(ins, fn, link = true) {
   curr_entry = [ins, fn];
   let a0 = fn.archs || ins.archs;
@@ -1143,9 +1148,7 @@ function toPage(page) {
     ]);
     r.onclick = () => {
       if (curr_entry && curr_entry[0]===insBase && curr_entry[1]===insBase) {
-        descPlaceEl.innerText = "";
-        curr_entry = undefined;
-        updateLink();
+        displayNoEnt();
       } else {
         displayEnt(insBase, insBase);
       }
@@ -1455,6 +1458,8 @@ async function loadLink() {
         if (varl.length && ent.variations) svar = ent.variations.find(c=>c.short===varl[0]);
         displayEnt(ent, svar || ent, false);
       }
+    } else {
+      displayNoEnt(false);
     }
     
     cpuListEl.value = json.u;

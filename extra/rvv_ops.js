@@ -108,7 +108,7 @@ const mem_align_comment = (f,l) => {
   let a = eparts(l? f.ret : farg(f,'value'))[0]/8;
   return a==1? `RMELN{}` : `// if the address of any executed ${l?'load':'store'} is not aligned to a${a==8?'n':''} ${a}-byte boundary, an address-misaligned exception may or may not be raised.`
 }
-const mem_loop = (f) => `for (size_t i = 0; i < vl; i++) {`+(f.name.includes("uxei")? ` // unordered might affect memory-mapped data behavior, but otherwise it's still sequential` : ``)
+const mem_loop = (f) => `for (size_t i = 0; i < vl; i++) {`+(f.name.includes("uxei")? ` // note: "unordered" only applies to non-idempotent memory (i.e. memory-mapped), but otherwise the operation is still sequential` : ``)
 
 function red_op(fn, a, b) {
   let n = (t) => fn.name.includes(t);
@@ -206,7 +206,7 @@ let defs = [
   VLMAX{RES{}}
   ${mem_align_comment(f,1)}
   RES{} res;
-  base[0]; // for the side-effect of faulting
+  ${f.short&&f.short.includes('m')?'if (mask[0]) ':''}base%M[0%M]; // for the side-effect of faulting
   // after this point, this instruction will never fault
   
   size_t new_vl = /* implementation-defined 1≤new_vl≤vl such that the below doesn't fault */;
@@ -223,7 +223,7 @@ let defs = [
   VLMAX{FARG{op1}}
   RES{} res;
   for (size_t i = 0; i < vl; i++) {
-    res[i] = MASK{${ocall('trunc', tshort(f.ret), `op1[i] ${opmap(f)} IDX{shift}`)}};${/_vn?sr/.test(f.name)? ' // shifts in '+(f.name.includes('sra')? 'sign bits' : 'zeroes') : ''}
+    res[i] = MASK{${ocall(f.name.includes('_vn')?'trunc':'', tshort(f.ret), `op1[i] ${opmap(f)} IDX{shift}`)}};${/_vn?sr/.test(f.name)? ' // shifts in '+(f.name.includes('sra')? 'sign bits' : 'zeroes') : ''}
   }
   TAILLOOP{};
   return res;`],
@@ -494,7 +494,7 @@ let defs = [
   return res;`],
   
   // reinterpret
-  [/_vreinterpret_/, `return (RES{})src;`],
+  [/_vreinterpret_/, `return reinterpret(RES{}, src);`],
   
   // integer min/max
   [/_v(min|max)u?_[vw][vx]_/, (f) => `
@@ -572,17 +572,17 @@ let defs = [
     MASKWEE{} RMELN{}
     RESE{} t = 0;
     ${eltype(farg(f,'op1'))} a = op1[i];
-    bool norm = !is_subnormal(op1[i]); // false for ±0
-    if (a == -∞)      t |= 1<<0; // ==   1 == 0x001
-    if (a<0 &&  norm) t |= 1<<1; // ==   2 == 0x002; false for ±0.0
-    if (a<0 && !norm) t |= 1<<2; // ==   4 == 0x004; false for ±0.0
-    if (a === -0.0)   t |= 1<<3; // ==   8 == 0x008
-    if (a === +0.0)   t |= 1<<4; // ==  16 == 0x010
-    if (a>0 && !norm) t |= 1<<5; // ==  32 == 0x020; false for ±0.0
-    if (a>0 &&  norm) t |= 1<<6; // ==  64 == 0x040; false for ±0.0
-    if (a == +∞)      t |= 1<<7; // == 128 == 0x080
-    if (isSNaN(a))    t |= 1<<8; // == 256 == 0x100
-    if (isQNaN(a))    t |= 1<<9; // == 512 == 0x200
+    bool sub = is_subnormal(op1[i]); // false for ±0
+    if (a == -∞)     t |= 1<<0; // ==   1 == 0x001
+    if (a<0 && !sub) t |= 1<<1; // ==   2 == 0x002; false for ±0.0
+    if (a<0 &&  sub) t |= 1<<2; // ==   4 == 0x004; false for ±0.0
+    if (a === -0.0)  t |= 1<<3; // ==   8 == 0x008
+    if (a === +0.0)  t |= 1<<4; // ==  16 == 0x010
+    if (a>0 &&  sub) t |= 1<<5; // ==  32 == 0x020
+    if (a>0 && !sub) t |= 1<<6; // ==  64 == 0x040
+    if (a == +∞)     t |= 1<<7; // == 128 == 0x080
+    if (isSNaN(a))   t |= 1<<8; // == 256 == 0x100
+    if (isQNaN(a))   t |= 1<<9; // == 512 == 0x200
     res[i] = t;
   }
   TAILLOOP{};
@@ -788,9 +788,10 @@ case 'uintinf': return helper_text(`
   Reinterprets the argument as an unsigned integer, and, zero-extending, widens it to a signed infinite-precision integer.
   For example, both <code>uintinf((int8_t) -100)</code> and <code>uintinf((uint8_t) 155)</code> become the infinite-precision signed integer <code>155</code>.
 `);
-case 'intinf': return helper_text(`
-  Widens (sign- or zero-extending) the argument to an infinite-precision integer.
-`);
+case 'intinf': return helper_text(`Widens (sign- or zero-extending) the argument to an infinite-precision integer.`);
+case 'isQNaN': return helper_text(`Returns whether the argument is any quiet NaN.`);
+case 'isSNaN': return helper_text(`Returns whether the argument is any signaling NaN.`);
+case 'isNaN': return helper_text(`Returns whether the argument is any NaN - that is, either signaling or quiet.`);
 
 }},
 
@@ -823,12 +824,15 @@ oper: (o, v) => {
   let agnBaseT= (agn,base) => boring(agnBase0(agn, baseeT));
   
   s = s.replace(/%M([=*\[\]])/g, (_,c) => `<span class="op-load">${c}</span>`); // memory ops
-  // s = s.replace(/VLMAX{(.*?)}/g, (_,c) => `assume(vl ≤ vlmax${c?`(${c.replace(/^\D*(\d+)m(f?)(\d+)_t$/, (_,e,f,m) => `e${e}, ${f?'1/':''}${m}`)})`:``});`);
   s = s.replace(/RES{}/g, o.ret.type); // return type
   s = s.replace(/RESE{}/g, eltype(o.ret)); // result element
   s = s.replace(/FARG{(.*?)}/g, (_,c) => farg(fn,c)); // find argument with given name
   s = s.replace(/VLMAXB{}/g, c => { let b = +o.name.split('_b')[1]; return `BORING{vlmax = VLEN/${b};} // equal to VLMAXG{vint8m${b<8? 8/b : 'f'+(b/8)}_t}`});
-  s = s.replace(/VLMAX(G?){(.*?)}/g, (_,g,c) => { let v = `vlmax${c?`(${vparts(c).reduce((e,m) => `e${e}, m${m<1?'f'+(1/m):m}`)})`:``}`; return g? v : boring(`assume(vl ≤ ${v});`); });
+  s = s.replace(/VLMAX(G?){(.*?)}/g, (_,g,c) => {
+    let v = 'vlmax' + (c? '(' + vparts(c).reduce((e,m) => `e${e}, m${m<1?'f'+(1/m):m}`) + ')' : '');
+    // return g? v : boring(`vl = min(vl, ${v});`); // possibly the intention, but idk
+    return g? v : boring(`assume(vl ≤ ${v});`);
+  });
   
   s = s.replace(/TAILLOOP{(.*?)};?/g, (_,c) => boring(`for (size_t i = ${c?c:'vl'}; i < vlmax; i++) res[i] = TAIL{};`));
   s = s.replace(/TAIL{}/g, agnBaseT(tail)); // tail element
@@ -851,7 +855,7 @@ oper: (o, v) => {
   let h = (name, args='') => `<a onclick="rvv_helper('${name}',${args})">${name}</a>`;
   s = s.replace(/clip\(([ui]\d+), /g, (_, t) => h('clip',`'${t}'`)+`(${t}, `);
   s = s.replace(/vlmax(\(e(\d+), m(f?\d+)\))/g, (_,a, e,m) => h('vlmax',`${+e},'${m}'`)+a);
-  s = s.replace(/\b(anything|agnostic|u?intinf)\(/g, (_,c) => h(c)+'(');
+  s = s.replace(/\b(anything|agnostic|u?intinf|is[SQ]?NaN)\(/g, (_,c) => h(c)+'(');
   s = s.replace(/\b(intinf_t)\b/g, (_,c) => h(c));
   
   return s;

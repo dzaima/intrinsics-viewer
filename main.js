@@ -1161,20 +1161,20 @@ function toPage(page) {
   
   resultListEl.textContent = '';
   resultListEl.append(...query_found.slice(page*perPage, (page+1)*perPage).map(ins=>{
-    let insBase = ins;
+    let cvar = ins;
     if (ins.variations && query_selVar) {
-      insBase = ins.variations.find(c=>c.short==query_selVar) || insBase;
+      cvar = ins.variations.find(c=>c.short==query_selVar) || cvar;
     }
     let r = mkch('tr', [
-      mkch('td', [mkRetLine(insBase)]),
-      mkch('td', [mkFnLine(insBase)]),
+      mkch('td', [mkRetLine(cvar)]),
+      mkch('td', [mkFnLine(cvar)]),
       // mkch('td', [c.archs.map(c=>c.split(/\|/g).slice(-1)[0]).join("+")]),
     ]);
     r.onclick = () => {
-      if (curr_entry && curr_entry[0]===insBase && curr_entry[1]===insBase) {
+      if (curr_entry && curr_entry[0]===ins && curr_entry[1]===cvar) {
         displayNoEnt();
       } else {
-        displayEnt(insBase, insBase);
+        displayEnt(ins, cvar);
       }
     }
     return r;

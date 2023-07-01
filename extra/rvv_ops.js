@@ -223,7 +223,7 @@ let defs = [
   VLMAX{FARG{op1}}
   RES{} res;
   for (size_t i = 0; i < vl; i++) {
-    res[i] = MASK{${ocall(f.name.includes('_vn')?'trunc':'', tshort(f.ret), `op1[i] ${opmap(f)} IDX{shift}`)}};${/_vn?sr/.test(f.name)? ' // shifts in '+(f.name.includes('sra')? 'sign bits' : 'zeroes') : ''}
+    res[i] = MASK{${ocall(f.name.includes('_vn')?'trunc':'', tshort(f.ret), `op1[i] ${opmap(f)} (IDX{shift} & ${eparts(farg(f,'op1'))[0]-1})`)}};${/_vn?sr/.test(f.name)? ' // shifts in '+(f.name.includes('sra')? 'sign bits' : 'zeroes') : ''}
   }
   TAILLOOP{};
   return res;`],
@@ -725,7 +725,7 @@ switch(n) {
 case 'clip': {
   let [t] = args;
   return helper_code(`
-  ${t} clip(${t}, intinf_t exact) {
+  ${(t[0]=='u'?'u':'')}int${t.slice(1)}_t clip(${t}, intinf_t exact) {
     if (exact < ${minval(t)}) {
       return ${minval(t)};
       BORING{CSRS[RVV_VXSAT] |= 1;}

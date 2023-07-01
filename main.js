@@ -1437,6 +1437,7 @@ function updateSearch0() {
   clearCenterInfo();
 }
 
+let pushNext = true;
 function updateLink() {
   function ser(x) {
     if (x===undefined) return ["all"];
@@ -1462,8 +1463,18 @@ function updateLink() {
     i: query_searchIn.map(c=>c[1].checked?"1":"0").join('')
   }
   let json = JSON.stringify(obj);
-  history.pushState({}, "", "#0"+enc(json));
+  
+  let historyArgs = [{}, "", "#0"+enc(json)];
+  if (pushNext) {
+    console.log("push");
+    history.pushState(...historyArgs);
+    pushNext = false;
+  } else {
+    console.log("replace");
+    history.replaceState(...historyArgs);
+  }
 }
+addEventListener("popstate", (e) => { pushNext = true; });
 
 async function loadLink() {
   let hash = decodeURIComponent(location.hash.slice(1));

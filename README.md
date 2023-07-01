@@ -4,6 +4,8 @@
 1. `make download` (or some of `make download-x86`, `make download-arm`, `make download-riscv`)
 2. open `index.html`
 
+Alternatively, the RISC-V V intrinsics can be viewed [online](https://dzaima.github.io/intrinsics-viewer).
+
 ### Search
 
 Searching is done by finding entries that match all space-separated things. Things can be:

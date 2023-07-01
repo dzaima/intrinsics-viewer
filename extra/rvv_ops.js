@@ -757,9 +757,9 @@ case 'vlmax': {
   
   return helper_code(`
   // vlmax(e${e}, m${l}):
-  SEW = ${e}; // single element width in bits
-  LMUL = ${l.replace('f','1/')}; // register group size
-  vlmax = LMUL*VLEN/SEW = VLEN${frac<1? '/'+(1/frac) : '*'+frac};
+  EEW = ${e}; // element width in bits
+  EMUL = ${l.replace('f','1/')}; // register group size
+  vlmax = EMUL*VLEN/EEW = VLEN${frac<1? '/'+(1/frac) : '*'+frac};
   
   // examples:
 ${[32,64,128,256,512,1024,65536].filter(v => v*frac>=1).map(v => `  //   VLEN=${(v+':').padEnd(6)} vlmax = ${v*frac}`).join('\n')} - maximum possible

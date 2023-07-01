@@ -759,6 +759,8 @@ async function loadRVV() {
         let newOp = rvvOps.oper(c);
         c.implDesc = newOp? newOp : !docVal? undefined : `<div style="font-family:sans-serif;white-space:normal">${docVal}</div>`;
         
+        if (/_v(a(add|sub)|s(mul|sr[al])|nclip)/.test(c.name)) c.desc+= `<br><br>WARNING: syntax may change: see <a href="https://github.com/riscv-non-isa/rvv-intrinsic-doc/pull/222">https://github.com/riscv-non-isa/rvv-intrinsic-doc/pull/222</a>`;
+        
         // reference spec
         let specRef = specMap[m1];
         if (c.name.includes("_vfmv_s_f_")) specRef = '_floating_point_scalar_move_instructions'; // map specification references pt.2

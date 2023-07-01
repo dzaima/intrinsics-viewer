@@ -101,6 +101,8 @@ table {
 
 .mono { font-family: DejaVu Sans Mono, monospace; }
 .code-ws { white-space: pre-wrap; }
+
+/* variation switches */
 .var-link { cursor: pointer; }
 body.dark .var-link { color: #A6E22C; }
 
@@ -139,6 +141,14 @@ body.dark .operation .note-table {
 }
 body.dark .operation table.tableblock {
   background-color: #171715;
+}
+/* risc-v code example boring/repetitive sections */
+body.dark .boring {
+  color: #999;
+}
+/* memory load/store character highlighting */
+body.dark .op-load {
+  color: #F66;
 }
 
 /* ARM header */
@@ -187,6 +197,7 @@ body.light pre { background-color: #eee; border: 1px #ddd solid; }
 
 a {
   text-decoration: none;
+  cursor: pointer;
 }
 button {
   text-shadow: none;

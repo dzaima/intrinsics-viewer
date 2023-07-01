@@ -70,6 +70,8 @@ let query_selVar = undefined;
 let query_currPage = 0;
 let perPage = 37;
 
+let extra_test = false;
+
 async function loadFile(path) {
   let f = await fetch(path);
   let b = await f.arrayBuffer();
@@ -442,29 +444,27 @@ async function loadArm() {
   return res1;
 }
 
+let rvv_helper = undefined;
 async function loadRVV() {
-  let baseFile, docFile, policiesFile;
+  let specFilePath = "data/v-spec.html";
+  let baseFile, policiesFile, rvvOps;
   try {
     baseFile = await loadFile("data/rvv_base.json");
-    docFile = await loadFile("data/v-spec.html");
     policiesFile = await loadFile("data/rvv_policies.json");
+    rvvOps = new Function(await loadFile("extra/rvv_ops.js"))();
+    // rvvOps = {oper:()=>undefined,helper:()=>undefined};
   } catch (e) {
+    console.log(e);
     return null;
   }
-  let j = JSON.parse(baseFile);
-  j = j.filter(c=>!c.categories.some(c=>c.endsWith("|masked")));
   
-  let doc = Object.fromEntries(
-    docFile
-    .split(/<h[234] id="/).slice(1)
-    .map(c => [c.substring(0,c.indexOf('"')), c.substring(c.indexOf('\n'))]));
+  rvv_helper = (name, ...args) => {
+    let prev_entry = curr_entry;
+    descPlaceEl.innerHTML = `<a class="rvv-helper-back">back</a><pre>${rvvOps.helper(name, ...args)}</pre>`;
+    descPlaceEl.getElementsByClassName('rvv-helper-back')[0].onclick = () => displayEnt(...prev_entry, false);
+  };
   
-  let udsObj = JSON.parse(policiesFile);
-  let udsMap = udsObj.data;
-  let udsDef = udsObj.def;
-  let udsTypes = udsObj.types;
-  
-  
+  // category transformation map
   function mapn(c, l) {
     let n = c.name;
     for (let i = 0; i < l.length-1; i+= 2) {
@@ -472,7 +472,6 @@ async function loadRVV() {
     }
     throw 0;
   }
-  
   function typeConvert(c) {
     let rf = c.ret.type.includes("float");
     let af = c.args[c.args[0].name=='mask'? 1 : 0].type.includes("float");
@@ -485,7 +484,6 @@ async function loadRVV() {
     if ( rf && !af) return 'Conversion|Integer to float';
     if (!rf &&  af) return 'Conversion|Float to integer';
   }
-  
   const categoryMap = {
     'Configuration-Setting and Utility|Set the vl to VLMAX with specific vtype': 'Initialize|Set max vl',
     'Configuration-Setting and Utility|Set vl and vtype': 'Initialize|Set specific vl',
@@ -516,7 +514,6 @@ async function loadRVV() {
     
     'Permutation|Integer and Floating-Point Scalar Move': c => mapn(c,['_s_x_','Initialize|Set first', '_x_s_','Permutation|Extract first', '_s_f_','Initialize|Set first', '_f_s_','Permutation|Extract first']),
     'Permutation|Register Gather': c => 'Permutation|' + mapn(c,['_vrgatherei16','Shuffle|16-bit indices', '_vrgather_vv_','Shuffle|Equal-width', '_vrgather_vx_','Broadcast one']),
-    // 'Permutation|Compress': 'Permutation|Compress',
     'Permutation|Slide1up and Slide1down': c => 'Permutation|Slide|' + mapn(c,['slide1up','Up 1', 'slide1down','Down 1']),
     'Permutation|Slideup':                 'Permutation|Slide|Up N',
     'Permutation|Slidedown':               'Permutation|Slide|Down N',
@@ -580,9 +577,10 @@ async function loadRVV() {
     'Integer Arithmetic|Integer Comparison':                    c => 'Integer|Compare|' +mapn(c,['_vmsltu','Unsigned <', '_vmsleu','Unsigned <=', '_vmsgtu','Unsigned >', '_vmsgeu','Unsigned >=', '_vmseq','==', '_vmsne','!=', '_vmslt','Signed <', '_vmsle','Signed <=', '_vmsgt','Signed >', '_vmsge','Signed >=']),
   };
   
-  const docMap = {
-                                                "set-vl-and-vtype-functions": "",
-                                       "set-vl-to-vlmax-with-specific-vtype": "",
+  // map specification references pt.1
+  const specMap = {
+                                                "set-vl-and-vtype-functions": "sec-vector-config",
+                                       "set-vl-to-vlmax-with-specific-vtype": "sec-vector-config",
                                           "74-vector-unit-stride-operations": "_vector_unit_stride_instructions",
                                     "75-vector-strided-loadstore-operations": "_vector_strided_instructions",
                                     "76-vector-indexed-loadstore-operations": "_vector_indexed_instructions",
@@ -639,41 +637,24 @@ async function loadRVV() {
                                                 "168-vector-iota-operations": "_vector_iota_instruction",
                                        "169-vector-element-index-operations": "_vector_element_index_instruction",
                                         "171-integer-scalar-move-operations": "_integer_scalar_move_instructions",
-                                              "173-vector-slide-operationsU": "_vector_slide1up", // _vector_slide_instructions
-                                              "173-vector-slide-operationsD": "_vector_slide1down_instruction",
-                             "173-vector-slide1up-and-slide1down-functionsD": "_vector_slidedown_instructions",
-                             "173-vector-slide1up-and-slide1down-functionsU": "_vector_slideup_instructions",
+                                              "173-vector-slide-operationsU": "_vector_slideup_instructions",
+                                              "173-vector-slide-operationsD": "_vector_slidedown_instructions",
+                             "173-vector-slide1up-and-slide1down-functionsD": "_vector_slide1down_instruction",
+                             "173-vector-slide1up-and-slide1down-functionsU": "_vector_slide1up",
                                      "174-vector-register-gather-operations": "_vector_register_gather_instructions",
                                             "175-vector-compress-operations": "_vector_compress_instruction",
-                                     "reinterpret-cast-conversion-functions": "",
-                            "vector-lmul-extension-and-truncation-functions": "",
-                                           "vector-initialization-functions": "",
-                                                "vector-insertion-functions": "",
-                                               "vector-extraction-functions": "",
-                                               "vector-extraction-functions": "",
   };
-  for (let k in docMap) {
-    let val = doc[docMap[k]];
-    if (val) {
-      val = val
-        .replace(/<table>/g, '<table class="note-table">')
-        .replace(/<td class="content">/g, '<td>Note: ')
-        .replace(/<td class="icon">\n<div class="title">Note<\/div>\n<\/td>/g, "")
-        .replaceAll(/<pre>([^]*?)<\/pre>/g, (a,c) => {
-          let lns = c.split('\n');
-          let pad = lns.filter(c=>c.length).map(c=>c.match(/[^ ]/).index).reduce((a,b)=>Math.min(a,b),99);
-          return '<pre>'+lns.map(c => c.substring(pad)).join("\n")+'</pre>';
-        });
-    }
-    docMap[k] = val;
-  }
-  docMap['set-vl-and-vtype-functions'] = ["Returns a number less than or equal to <code>avl</code>, specifying how many elements of the given type should be processed.", "<pre>vlmax = LMUL*VLEN/SEW;\nif (avl ≤ vlmax) return avl;\nelse if (vlmax < avl ≤ vlmax*2) return some number in [ceil(avl/2), vlmax] inclusive\nelse return vlmax;</pre>"];
-  docMap['set-vl-to-vlmax-with-specific-vtype'] = ["Returns the maximum number of elements of the specified type to process.", "<pre>vlmax = LMUL*VLEN/SEW;\nreturn vlmax;</pre>"];
-  docMap['reinterpret-cast-conversion-functions'] = [undefined, ""];
-  docMap['vector-lmul-extension-and-truncation-functions'] = c => [c.name.includes("vlmul_ext")? "Returns a vector whose low part is the argument, and the upper part is undefined." : "Returns a low portion of the argument.", ""];
-  docMap['vector-initialization-functions'] = "Returns an undefined vector value of the specified type.";
-  docMap['vector-insertion-functions'] = c => [c.name.includes("x")? "Creates a copy of the tuple with a specific element replaced." : "Inserts a lower-LMUL vector to part of a higher-LMUL one. This is equivalent to writing over part of the register group of the <code>desc</code> argument.", ""];
-  docMap['vector-extraction-functions'] = c => [c.name.includes("x")? "Extracts an element of the tuple." : "Extracts a part of the register group of <code>src</code>.", ""];
+  
+  // mini descriptions & "implementations"
+  let miniDocs = {
+    'set-vl-and-vtype-functions': c => ["Returns a number less than or equal to <code>avl</code>, specifying how many elements of the given type should be processed.", undefined],
+    'set-vl-to-vlmax-with-specific-vtype': c => ["Returns the maximum number of elements of the specified type to process.", undefined],
+    'reinterpret-cast-conversion-functions': c => [undefined, ""],
+    'vector-lmul-extension-and-truncation-functions': c => [c.name.includes("vlmul_ext")? "Returns a vector whose low part is the argument, and the upper part is undefined." : "Returns a low portion of the argument.", ""],
+    'vector-initialization-functions': c => "Returns an undefined vector value of the specified type.",
+    'vector-insertion-functions': c => [c.name.includes("x")? "Creates a copy of the tuple with a specific element replaced." : "Inserts a lower-LMUL vector to part of a higher-LMUL one. This is equivalent to writing over part of the register group of the <code>desc</code> argument.", ""],
+    'vector-extraction-functions': c => [c.name.includes("x")? "Extracts an element of the tuple." : "Extracts a part of the register group of <code>src</code>.", ""],
+  };
   
   let implicitMasked = [ // categories where a maskedoff argument isn't added separately
     'Permutation|Slide|Up N',
@@ -681,20 +662,28 @@ async function loadRVV() {
     'Float|Fused multiply-add',
     'Float|Widen|Fused multiply-add',
   ];
-  let implicitCount = 0;
-  j.forEach(c => {
+  
+  
+  let res = JSON.parse(baseFile);
+  let {data:policyMap, def:policyDef, types:policyTypes} = JSON.parse(policiesFile);
+  let implicitCount = 0; // sanity check counter
+  
+  // process entries
+  res.forEach(c => {
     c.categories = c.categories.map(c => c.endsWith("|non-masked")? c.substring(0,c.length-11): c);
     c.id = idCounter++;
     c.cpu = [c.cpu];
     
+    // transform categories
     c.categories = c.categories.flatMap(ct => {
       ct = ct.replace(/(^|\|)Vector /g, "$1");
       let n = categoryMap[ct];
       return n===undefined? ct : (typeof n === 'string')? n : n(c);
     });
     
-    let udsVal = udsMap[c.name.substring(8)];
-    if (udsVal === undefined) udsVal = udsDef;
+    // process variations
+    let udsVal = policyMap[c.name.substring(8)];
+    if (udsVal === undefined) udsVal = policyDef;
     if (udsVal) {
       // messy logic for deciding how to transform the arguments for the masking
       // tested via generating invocations of all the results and running them through clang version 17.0.0 (++20230618042319+44e63ffe2bf7-1~exp1~20230618042435.1005)
@@ -728,17 +717,20 @@ async function loadRVV() {
       }
       
       let alts = [];
-      for (let i = 0; i < udsTypes.length; i++) {
-        if (udsVal & (1<<(udsTypes.length-i-1))) {
+      for (let i = 0; i < policyTypes.length; i++) {
+        if (udsVal & (1<<(policyTypes.length-i-1))) {
           let nargs;
-          let ty = udsTypes[i];
+          let ty = policyTypes[i];
           switch(ty) { default: throw 0;
             case '_tumu': case '_tum':
             case '_mu': nargs = [...args0, mask, ...maskedOff, ...args1]; break;
             case '_m':  nargs = [...args0, mask,               ...args1]; break;
             case '_tu': nargs = [...args0,       ...maskedOff, ...args1]; break;
           }
-          alts.push({name: c.name+ty, short: ty, ret: c.ret, args: nargs});
+          let obj = {name: c.name+ty, short: ty, ret: c.ret, args: nargs};
+          obj.implDesc = () => rvvOps.oper(c, obj);
+          if (extra_test) rvvOps.oper(c, obj); // make sure oper generation works for all variations
+          alts.push(obj);
         }
       }
       if (alts) c.variations = alts;
@@ -750,22 +742,29 @@ async function loadRVV() {
         let m1 = match[1];
         if (c.categories[0].includes("Slide|Down")) m1+= "D";
         if (c.categories[0].includes("Slide|Up")) m1+= "U";
-        let docVal = docMap[m1];
+        
+        let overload = (c.desc.match(/Overloaded name: <code>\w+<\/code><br>/) || [""])[0];
+        
+        let docVal = miniDocs[m1];
         if (docVal) {
-          if (typeof docVal === 'function') docVal = docVal(c);
-          if (typeof docVal !== 'string') {
+          docVal = docVal(c);
+          if (Array.isArray(docVal)) {
             let [desc, oper] = docVal;
-            let overload = c.desc.match(/Overloaded name: <code>\w+<\/code><br>/);
-            if (desc!==undefined) c.desc = (overload? overload[0] : "") + desc;
-            docVal = oper.replace(/\b(LMUL|SEW)\b.*/, ln => {
-              let [el,mul] = c.name.split('_').slice(-1)[0].split('m');
-              return ln+` // LMUL = ${mul[0]=='f'? "1/"+mul.substring(1) : mul}, SEW = ${el.substring(1)}`;
-            });
+            if (desc!==undefined) c.desc = overload + desc;
+            docVal = oper;
           }
-          c.implDesc = !docVal? undefined : '<!--'+c.implDesc+'--><div style="font-family:sans-serif;white-space:normal">'+docVal+'</div>';
-        } else {
-          console.warn("missing doc for "+m1);
         }
+        
+        // add implementation description aka operation
+        let newOp = rvvOps.oper(c);
+        c.implDesc = newOp? newOp : !docVal? undefined : `<div style="font-family:sans-serif;white-space:normal">${docVal}</div>`;
+        
+        // reference spec
+        let specRef = specMap[m1];
+        if (c.name.includes("_vfmv_s_f_")) specRef = '_floating_point_scalar_move_instructions'; // map specification references pt.2
+        if (c.name.includes("vncvt_x_x_w_")) specRef = '_vector_narrowing_integer_right_shift_instructions';
+        if (c.name.includes("_vwcvt")) specRef = '_vector_widening_integer_addsubtract';
+        if (specRef) c.desc = `<a target="_blank" href="${specFilePath}#${specRef}">Specification</a><br>`+c.desc
       }
     }
   });
@@ -773,7 +772,7 @@ async function loadRVV() {
   
 
   function addCsrOp(ret, name, args, desc, oper) {
-    j.push({
+    res.push({
       cpu: ['risc-v'],
       id: idCounter++,
       ret: {type: ret}, args, name,
@@ -792,7 +791,7 @@ async function loadRVV() {
   addCsrOp("unsigned long", "__riscv_vread_csr", [{type:"enum RVV_CSR",name:"csr"}], "Read a CSR", csrdef+"return CSRS[csr];");
   addCsrOp("void", "__riscv_vwrite_csr", [{type:"enum RVV_CSR",name:"csr"}, {type:"unsigned long", name:"value"}], "Set a CSR", csrdef+"CSRS[csr] = value;");
   
-  return j;
+  return res;
 }
 
 function unique(l) {
@@ -1092,6 +1091,7 @@ function displayEnt(ins, fn, link = true) {
   text+= `<br><br>Description:<div class="desc">${fn.desc||ins.desc}</div>`;
   let implInstr = fn.implInstr;
   let implDesc = fn.implDesc || ins.implDesc;
+  if (typeof implDesc === 'function') implDesc = implDesc();
   let implTimes = fn.implTimes || ins.implTimes;
   if (implInstr) text+= `<br>Instruction:<pre>${implInstr}</pre>`;
   if (implDesc) text+= `<br>Operation:<pre class="operation">${implDesc}</pre>`;
@@ -1560,7 +1560,7 @@ async function setCPU(name) {
         v.nameSearch = searchStr(v.name);
         v.descSearch = searchStr(v.desc);
         v.implInstrSearch = searchStr(v.implInstr);
-        v.implDescSearch = searchStr(v.implDesc);
+        v.implDescSearch = typeof v.implDesc === 'fuction'? undefined : searchStr(v.implDesc);
       });
       
       let ref = c.name.replace(/^(__riscv_|_mm)/,"");

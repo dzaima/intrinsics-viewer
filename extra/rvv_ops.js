@@ -129,8 +129,8 @@ function red_op(fn, a, b) {
 }
 
 let defs = [
-  // same-width & widening float & integer add/sub/mul/div, integer and/or/xor
-  [/_vf?w?(add|sub|mul|div|rem|and|or|xor)(s?u)?_[vw][vxf]_/, (f) => { let minew = Math.min(eparts(farg(f,'op1'))[0], eparts(farg(f,'op2'))[0]); return `
+// same-width & widening float & integer add/sub/mul/div, integer and/or/xor
+[/_vf?w?(add|sub|mul|div|rem|and|or|xor)(s?u)?_[vw][vxf]_/, (f) => { let minew = Math.min(eparts(farg(f,'op1'))[0], eparts(farg(f,'op2'))[0]); return `
   INSTR{VLSET int${minew}${fmtmul(minew * vparts(farg(f,'op1')).reduce((lw,lm)=>lm/lw))}_t; BASE DST, R_op1, R_op2, MASK}
   VLMAX{RES{}}
   RES{} res;
@@ -138,10 +138,11 @@ let defs = [
     res[i] = MASK{${owdq(f.ret, farg(f,'op1'), `op1[i]`)} ${opmap(f)} ${owdq(f.ret, farg(f,'op2'), `IDX{op2}`)}};
   }
   TAILLOOP{};
-  return res;`}],
-  
-  // multiply-add
-  [/_vf?w?n?m(acc|add|sub|sac)(su|us?)?_v[vxf]_/, (f) => `
+  return res;`
+}],
+
+// multiply-add
+[/_vf?w?n?m(acc|add|sub|sac)(su|us?)?_v[vxf]_/, (f) => `
   INSTR{VLSET ${farg(f,'vs2')}; BASE R_vd, R_${hasarg(f,'vs1')?'v':'r'}s1, R_vs2, MASK}
   VLMAX{RES{}}
   RES{} res;
@@ -177,10 +178,11 @@ let defs = [
     }};${f.name.includes('_vf')? ' // fused' : ''}
   }
   TAILLOOP{};
-  return res;`],
-  
-  // load & indexed load
-  [/_vl(s?e|[ou]xei)\d+_v_/, (f) => `
+  return res;`
+],
+
+// load & indexed load
+[/_vl(s?e|[ou]xei)\d+_v_/, (f) => `
   INSTR{VLSET RES{}; BASE DST, (R_base)${hasarg(f,'bindex')?', R_bindex':''}${hasarg(f,'bstride')?', R_bstride':''}, MASK}
   VLMAX{RES{}}
   ${mem_align_comment(f,1)}
@@ -189,19 +191,21 @@ let defs = [
     res[i] = MASK{${mem_ref(f)}};${mem_mask_comment(f)}
   }
   TAILLOOP{};
-  return res;`],
-  
-  // store & indexed store
-  [/_vs(s?e|[ou]xei)\d+_v_/, (f) => `
+  return res;`
+],
+
+// store & indexed store
+[/_vs(s?e|[ou]xei)\d+_v_/, (f) => `
   INSTR{VLSET FARG{value}; BASE R_value, (R_base)${hasarg(f,'bindex')?', R_bindex':''}${hasarg(f,'bstride')?', R_bstride':''}, MASK}
   VLMAX{FARG{value}}
   ${mem_align_comment(f,0)}
   ${mem_loop(f)}
     ${f.short==='_m'?`if (mask[i]) `:``}${mem_ref(f,'value')} %M= value[i];${mem_mask_comment(f)}
-  }`],
-  
-  // mask load/store
-  [/_v[ls]m_v_/, (f) => { let b=+f.name.split('_v_b')[1]; let ld=f.name.includes('_vl'); return `
+  }`
+],
+
+// mask load/store
+[/_v[ls]m_v_/, (f) => { let b=+f.name.split('_v_b')[1]; let ld=f.name.includes('_vl'); return `
   INSTR{VLSET VLMAXBG{}; BASE ${ld? 'DST' : 'R_value'}, (R_base)${hasarg(f,'bindex')?', R_bindex':''}, MASK}
   VLMAXB{}
   VLMAX{}
@@ -211,11 +215,11 @@ let defs = [
     ${ld? `uints[i] = base%M[i%M]` : `base%M[i%M] %M= uints[i]`};
   }
   RMELN{}
-  ${ld? `return (RES{}) uints;` : ``} RMELN{}
-  `}],
-  
-  // fault-only-first
-  [/_vle\d+ff_v/, (f) => `
+  ${ld? `return (RES{}) uints;` : ``} RMELN{}`
+}],
+
+// fault-only-first
+[/_vle\d+ff_v/, (f) => `
   INSTR{VLSET RES{}; BASE DST, (R_base), MASK; csrr R_new_vl,vl}
   VLMAX{RES{}}
   ${mem_align_comment(f,1)}
@@ -230,10 +234,11 @@ let defs = [
   
   for (size_t i = new_vl; i < vl; i++) res[i] = MASK{anything()};
   TAILLOOP{};
-  return res;`],
-  
-  // shift
-  [/_vn?s(ll|ra|rl)_/, (f) => `
+  return res;`
+],
+
+// shift
+[/_vn?s(ll|ra|rl)_/, (f) => `
   INSTR{VLSET RES{}; BASE DST, R_op1, R_shift, MASK}
   VLMAX{FARG{op1}}
   RES{} res;
@@ -241,10 +246,11 @@ let defs = [
     res[i] = MASK{${ocall(f.name.includes('_vn')?'trunc':'', tshort(f.ret), `op1[i] ${opmap(f)} (IDX{shift} & ${eparts(farg(f,'op1'))[0]-1})`)}};${/_vn?sr/.test(f.name)? ' // shifts in '+(f.name.includes('sra')? 'sign bits' : 'zeroes') : ''}
   }
   TAILLOOP{};
-  return res;`],
-  
-  // reverse binary: rsub, rdiv
-  [/_vf?r(sub|div)_v[xf]_/, (f) => `
+  return res;`
+],
+
+// reverse binary: rsub, rdiv
+[/_vf?r(sub|div)_v[xf]_/, (f) => `
   INSTR{VLSET RES{}; BASE DST, R_op1, R_op2, MASK}
   VLMAX{RES{}}
   RES{} res;
@@ -252,10 +258,11 @@ let defs = [
     res[i] = MASK{${owd(f.ret, farg(f,'op2'), `op2`)} ${opmap(f)} ${owd(f.ret, farg(f,'op1'), `op1[i]`)}};
   }
   TAILLOOP{};
-  return res;`],
-  
-  // high half of multiplication
-  [/_vmulh/, (f) => `
+  return res;`
+],
+
+// high half of multiplication
+[/_vmulh/, (f) => `
   INSTR{VLSET RES{}; BASE DST, R_op1, R_op2, MASK}
   VLMAX{RES{}}
   RES{} res;
@@ -263,10 +270,11 @@ let defs = [
     res[i] = MASK{(${owdm(2, farg(f,'op1'), `op1[i]`)} * ${owdm(2, farg(f,'op2'), `IDX{op2}`)}) >> ${farg(f,'op1').match(/\d+/)[0]}};
   }
   TAILLOOP{};
-  return res;`],
-  
-  // sign injection
-  [/_vfsgnj/, (f) => { let w=+f.ret.type.match(/\d+/)[0]; let u='uint'+w+'_t'; let n=f.name.includes('sgnjx')?2:f.name.includes('sgnjn')?1:0; return `
+  return res;`
+],
+
+// sign injection
+[/_vfsgnj/, (f) => { let w=+f.ret.type.match(/\d+/)[0]; let u='uint'+w+'_t'; let n=f.name.includes('sgnjx')?2:f.name.includes('sgnjn')?1:0; return `
   INSTR{VLSET RES{}; BASE DST, R_op1, R_op2, MASK}
   VLMAX{RES{}}
   
@@ -280,10 +288,11 @@ let defs = [
     res[i] = reinterpret(${tshort(f.ret)}, ${['(a & rest) | (b & sign)','(a & rest) | ((~b) & sign)','a ^ (b & sign)'][n]});
   }
   TAILLOOP{};
-  return res;`}],
-  
-  // add-with-carry / subtract-with-borrow
-  [/_v(ad|sb)c_/, (f) => { let a=f.name.includes('_vadc'); let inn=(a?'carry':'borrow')+'in'; return `
+  return res;`
+}],
+
+// add-with-carry / subtract-with-borrow
+[/_v(ad|sb)c_/, (f) => { let a=f.name.includes('_vadc'); let inn=(a?'carry':'borrow')+'in'; return `
   INSTR{VLSET RES{}; BASE DST, R_op1, R_op2, R_${inn}}
   VLMAX{RES{}}
   RES{} res;
@@ -291,10 +300,11 @@ let defs = [
     res[i] = op1[i] ${'+ IDX{op2} +'.replace(/\+/g,a?'+':'-')} (${inn} ? 1 : 0);
   }
   TAILLOOP{};
-  return res;`}],
-  
-  // mask out of add-with-carry / subtract-with-borrow
-  [/_vm(ad|sb)c_/, (f) => { let a=f.name.includes('_vmadc'); let inn = f.args.length==3? '' : (a?'carry':'borrow')+'in'; return `
+  return res;`
+}],
+
+// mask out of add-with-carry / subtract-with-borrow
+[/_vm(ad|sb)c_/, (f) => { let a=f.name.includes('_vmadc'); let inn = f.args.length==3? '' : (a?'carry':'borrow')+'in'; return `
   INSTR{VLSET FARG{op1}; BASE DST, R_op1, R_op2${inn? ', R_'+inn : ''}}
   VLMAX{FARG{op1}}
   RES{} res;
@@ -303,10 +313,11 @@ let defs = [
     res[i] = ${a? 'exact ≥ '+maxval(farg(f,'op1').replace(/^vi/,'vui')) : 'exact < 0'};
   }
   TAILLOOP{};
-  return res;`}],
-  
-  // reductions
-  [/vf?w?red(?!usum)/, (f) => { let [ew, lm] = vparts(farg(f,'vector')); let ovlen = 2**(2*ew) / (lm * 2**ew); return `
+  return res;`
+}],
+
+// reductions
+[/vf?w?red(?!usum)/, (f) => { let [ew, lm] = vparts(farg(f,'vector')); let ovlen = 2**(2*ew) / (lm * 2**ew); return `
   INSTR{VLSET FARG{vector}; BASE DST, R_vector, R_scalar, MASK}
   VLMAX{FARG{vector}}
   RESE{} res = scalar[0];
@@ -320,9 +331,10 @@ let defs = [
   RES{} res_vec;
   res_vec[0] = res;
   BORING{for (size_t i = 1; i < VLMAXG{RES{}}; i++) res[i] = TAIL{};}
-  return res_vec;`}],
-  
-  [/_vfw?redusum/, (f) => { let m=f.short&&f.short.includes('m'); return `
+  return res_vec;`
+}],
+
+[/_vfw?redusum/, (f) => { let m=f.short&&f.short.includes('m'); return `
   INSTR{VLSET FARG{vector}; BASE DST, R_vector, R_scalar, MASK}
   // TL;DR: sum${m?' non-masked':''} elements in some implementation-defined order with
   //   implementation-defined intermediate types (at least RESE{})
@@ -358,10 +370,11 @@ let defs = [
   res_vec[0] = round(RESE{}, process(all_items));
   
   BORING{for (size_t i = 1; i < VLMAXG{RES{}}; i++) res[i] = TAIL{};}
-  return res;`}],
-  
-  // saturating add/sub
-  [/_vs(add|sub)u?_v[vx]_/, (f) => `
+  return res;`
+}],
+
+// saturating add/sub
+[/_vs(add|sub)u?_v[vx]_/, (f) => `
   INSTR{VLSET RES{}; BASE DST, R_op1, R_op2, MASK}
   VLMAX{RES{}}
   RES{} res;
@@ -371,10 +384,11 @@ let defs = [
     res[i] = clip(${tshort(f.ret)}, exact); // may set RVV_VXSAT
   }
   TAILLOOP{};
-  return res;`],
-  
-  // comparison
-  [/_vm[fs](lt|le|gt|ge|eq|ne)u?_/, (f) => { let fl=farg(f,'op1')[1]=='f'; let mf=fl&&f.short; let nt = '=!'.includes(opmap(f)[0])? "isSNaN" : "isNaN"; return `
+  return res;`
+],
+
+// comparison
+[/_vm[fs](lt|le|gt|ge|eq|ne)u?_/, (f) => { let fl=farg(f,'op1')[1]=='f'; let mf=fl&&f.short; let nt = '=!'.includes(opmap(f)[0])? "isSNaN" : "isNaN"; return `
   INSTR{VLSET FARG{op1}; ${(()=>{
     let vv = f.name.includes('_vv_');
     let ge = f.name.includes('vmsge');
@@ -394,10 +408,11 @@ let defs = [
     ${fl? boring(`if (${nt}(op1[i]) || ${nt}(IDX{op2})) ${raise_invalid}`) : ''} RMELN{}
   }
   TAILLOOP{};
-  return res;`}],
-  
-  // broadcast
-  [/_vmv_v_x_|_vfmv_v_f_/, `
+  return res;`
+}],
+
+// broadcast
+[/_vmv_v_x_|_vfmv_v_f_/, `
   INSTR{VLSET RES{}; BASE DST, R_src}
   VLMAX{RES{}}
   RES{} res;
@@ -405,10 +420,11 @@ let defs = [
     res[i] = src;
   }
   TAILLOOP{};
-  return res;`],
-  
-  // set first
-  [/_vmv_s_x_|_vfmv_s_f_/, `
+  return res;`
+],
+
+// set first
+[/_vmv_s_x_|_vfmv_s_f_/, `
   INSTR{VLSET RES{}; BASE DST, R_src}
   VLMAX{RES{}}
   RES{} res;
@@ -418,15 +434,17 @@ let defs = [
   } else {
     res = TAILV{}
   }
-  return res;`],
-  
-  // get first
-  [/_vfmv_f_s_|_vmv_x_s_/, (f) => { let elt=tshort(f.ret); return `
+  return res;`
+],
+
+// get first
+[/_vfmv_f_s_|_vmv_x_s_/, (f) => { let elt=tshort(f.ret); return `
   INSTR{VLSET FARG{src}; BASE DST, R_src${elt=='u8'? '; zext.b DST,DST' : elt=='u16'||elt=='u32'? `; slli DST, DST, ${64-elt.slice(1)}; srli DST, DST, ${64-elt.slice(1)}` : ''}}
-  return src[0];`}],
-  
-  // gather
-  [/vrgather_vx_/, (f) => `
+  return src[0];`
+}],
+
+// gather
+[/vrgather_vx_/, (f) => `
   INSTR{VLSET RES{}; BASE DST, R_op1, R_index, MASK}
   VLMAX{RES{}}
   RES{} res;
@@ -435,8 +453,9 @@ let defs = [
     res[i] = MASK{val};
   }
   TAILLOOP{};
-  return res;`],
-  [/vrgather(ei16)?_vv_/, (f) => `
+  return res;`
+],
+[/vrgather(ei16)?_vv_/, (f) => `
   INSTR{VLSET RES{}; BASE DST, R_op1, R_${hasarg(f,'index')?'index':'op2'}, MASK}
   RES{} res;
   VLMAX{RES{}}
@@ -444,10 +463,11 @@ let defs = [
     res[i] = MASK{index[i] ≥ vlmax ? ${f.ret.type.includes('fl')? '+0.0' : '0'} : op1[index[i]]}; // allows indexing in op1 past vl
   }
   TAILLOOP{};
-  return res;`],
-  
-  // compress
-  [/_vcompress_/, `
+  return res;`
+],
+
+// compress
+[/_vcompress_/, `
   INSTR{VLSET RES{}; BASE DST, R_src, R_mask, MASK}
   VLMAX{RES{}}
   RES{} res;
@@ -459,10 +479,11 @@ let defs = [
     }
   }
   TAILLOOP{c};
-  return res;`],
-  
-  // slide
-  [/vf?slide1(up|down)/, (f) => { let d=f.name.includes("down"); return `
+  return res;`
+],
+
+// slide
+[/vf?slide1(up|down)/, (f) => { let d=f.name.includes("down"); return `
   INSTR{VLSET RES{}; BASE DST, R_src, R_value, MASK}
   VLMAX{RES{}}
   RES{} res;
@@ -475,8 +496,9 @@ let defs = [
     res = TAILV{};
   }
   TAILLOOP{c};
-  return res;`}],
-  [/vslideup/, (f) => { let d=f.name.includes("down"); return `
+  return res;`
+}],
+[/vslideup/, (f) => { let d=f.name.includes("down"); return `
   INSTR{VLSET RES{}; BASE DST, R_src, R_offset, MASK}
   VLMAX{RES{}}
   BORING{offset = min(offset, vl);}
@@ -490,8 +512,9 @@ let defs = [
   }
   
   TAILLOOP{c};
-  return res;`}],
-  [/vslidedown/, (f) => { let d=f.name.includes("down"); return `
+  return res;`
+}],
+[/vslidedown/, (f) => { let d=f.name.includes("down"); return `
   INSTR{VLSET RES{}; BASE DST, R_src, R_offset, MASK}
   VLMAX{RES{}}
   BORING{offset = min(offset, vl);}
@@ -502,10 +525,11 @@ let defs = [
   }
   
   TAILLOOP{};
-  return res;`}],
-  
-  // merge / blend
-  [/_vf?merge_/, `
+  return res;`
+}],
+
+// merge / blend
+[/_vf?merge_/, `
   INSTR{VLSET RES{}; BASE DST, R_op1, R_op2, R_mask}
   VLMAX{RES{}}
   RES{} res;
@@ -513,10 +537,11 @@ let defs = [
     res[i] = mask[i] ? IDX{op2} : op1[i];
   }
   TAILLOOP{};
-  return res;`],
-  
-  // vid
-  [/_vid_/, `
+  return res;`
+],
+
+// vid
+[/_vid_/, `
   INSTR{VLSET RES{}; BASE DST, MASK}
   VLMAX{RES{}}
   RES{} res;
@@ -524,10 +549,11 @@ let defs = [
     res[i] = MASK{i};
   }
   TAILLOOP{};
-  return res;`],
-  
-  // viota
-  [/_viota_/, `
+  return res;`
+],
+
+// viota
+[/_viota_/, `
   INSTR{VLSET RES{}; BASE DST, R_op1, MASK}
   VLMAX{RES{}}
   RES{} res;
@@ -538,13 +564,14 @@ let defs = [
     if (op1[i]) c++;
   }
   TAILLOOP{};
-  return res;`],
-  
-  // reinterpret
-  [/_vreinterpret_/, `return reinterpret(RES{}, src);`],
-  
-  // integer min/max
-  [/_v(min|max)u?_[vw][vx]_/, (f) => `
+  return res;`
+],
+
+// reinterpret
+[/_vreinterpret_/, `return reinterpret(RES{}, src);`],
+
+// integer min/max
+[/_v(min|max)u?_[vw][vx]_/, (f) => `
   INSTR{VLSET RES{}; BASE DST, R_op1, R_op2, MASK}
   VLMAX{RES{}}
   RES{} res;
@@ -552,10 +579,11 @@ let defs = [
     res[i] = MASK{${f.name.includes('min')?'min':'max'}(op1[i], IDX{op2})};
   }
   TAILLOOP{};
-  return res;`],
-  
-  // float min/max
-  [/_vf(min|max)_v[vf]_/, (f) => `
+  return res;`
+],
+
+// float min/max
+[/_vf(min|max)_v[vf]_/, (f) => `
   INSTR{VLSET RES{}; BASE DST, R_op1, R_op2, MASK}
   VLMAX{RES{}}
   RES{} res;
@@ -576,10 +604,11 @@ let defs = [
     }
   }
   TAILLOOP{};
-  return res;`],
-  
-  // unary same-width things
-  [/_vf?neg_|_vfrsqrt7_|_vfsqrt_|_vfrec7_|_vfabs_|_vnot_|_vmv_v_v_/, (f) => {let n=(c)=>f.name.includes(c); return `
+  return res;`
+],
+
+// unary same-width things
+[/_vf?neg_|_vfrsqrt7_|_vfsqrt_|_vfrec7_|_vfabs_|_vnot_|_vmv_v_v_/, (f) => {let n=(c)=>f.name.includes(c); return `
   INSTR{VLSET RES{}; BASE DST, R_${hasarg(f,'op1')?'op1':'src'}, MASK}
   VLMAX{RES{}}
   RES{} res;
@@ -587,10 +616,11 @@ let defs = [
     res[i] = MASK{${ocall(n('vmv')?'':n('neg')?'-':n('not')?'~':n('rsqrt7')?'reciprocal_sqrt_estimate':n('rec7')?'reciprocal_estimate':n('sqrt')?'sqrt':n('abs')?'abs':'??', `op1[i]`)}};${n("7")? ' // 7 MSB of precision' : n('abs')? ' // abs(-0.0) is +0.0' : ''}
   }
   TAILLOOP{};
-  return res;`}],
-  
-  // sign-extend, zero-extend, widen, convert
-  [/[sz]ext|_vf?w?cvtu?_/, (f) => { let op=hasarg(f,'src')?'src':'op1'; let [rw,rq]=eparts(f.ret); let [ow,oq]=eparts(farg(f,op)); return  `
+  return res;`
+}],
+
+// sign-extend, zero-extend, widen, convert
+[/[sz]ext|_vf?w?cvtu?_/, (f) => { let op=hasarg(f,'src')?'src':'op1'; let [rw,rq]=eparts(f.ret); let [ow,oq]=eparts(farg(f,op)); return  `
   INSTR{VLSET ${f.name.includes('ext_')? 'RES{}' : farg(f,hasarg(f,'op1')?'op1':'src')}; BASE DST, R_${hasarg(f,'op1')?'op1':'src'}, MASK}
   VLMAX{${farg(f,op)}}
   ${f.name.includes('_rtz_')?`local_rounding_mode = RTZ; // Round towards zero`:``} RMELN{}
@@ -600,10 +630,11 @@ let defs = [
     res[i] = MASK{${rw==ow || oq=='f'&&rq!='f'? ocall('convert',tshort(f.ret),op+'[i]') : owd(f.ret, '', op+'[i]')}};
   }
   TAILLOOP{};
-  return res;`}],
-  
-  // narrow
-  [/_vf?ncvt_/, (f) => `
+  return res;`
+}],
+
+// narrow
+[/_vf?ncvt_/, (f) => `
   INSTR{VLSET RES{}; BASE DST, R_src, MASK}
   VLMAX{FARG{src}}
   ${f.name.includes('_rod_')?`local_rounding_mode = ROUND_TOWARDS_ODD;`:``} RMELN{}
@@ -613,11 +644,12 @@ let defs = [
     res[i] = MASK{${f.name.includes('_vf')?'round':'trunc'}(${tshort(f.ret)}, op1[i]})};
   }
   TAILLOOP{};
-  return res;`],
-  
-  
-  // float classify
-  [/vfclass/, (f) => `
+  return res;`
+],
+
+
+// float classify
+[/vfclass/, (f) => `
   INSTR{VLSET RES{}; BASE DST, R_op1, MASK}
   VLMAX{RES{}}
   RES{} res;
@@ -639,10 +671,11 @@ let defs = [
     res[i] = t;
   }
   TAILLOOP{};
-  return res;`],
-  
-  // mask bitwise ops
-  [/_mm_|_vm(not|mv|set|clr)_m_/, (f) => `
+  return res;`
+],
+
+// mask bitwise ops
+[/_mm_|_vm(not|mv|set|clr)_m_/, (f) => `
   INSTR{VLSET VLMAXBG{}; BASE DST${hasarg(f,'op1')? ', R_op1' : ''}${f.name.includes('_mm_')? ', R_op2' : ''}}
   ${f.name.includes('vmmv')? '// hints that this will be used as a mask' : ''} RMELN{}
   VLMAXB{}
@@ -661,18 +694,20 @@ let defs = [
       ['vmxnor', '!(op1[i] ^ op2[i])']].find((c)=>f.name.includes(c[0]))[1]};
   }
   TAILLOOP{};
-  return res;`],
-  
-  // mask fancy ops
-  [/_vfirst_m_/, (f) => `
+  return res;`
+],
+
+// mask fancy ops
+[/_vfirst_m_/, (f) => `
   INSTR{VLSET VLMAXBG{}; BASE DST, R_op1, MASK}
   VLMAXB{}
   VLMAX{}
   for (size_t i = 0; i < vl; i++) {
     if (${f.short?'mask[i] && ':''}op1[i]) return i;
   }
-  return -1;`],
-  [/_vcpop_m_/, (f) => `
+  return -1;`
+],
+[/_vcpop_m_/, (f) => `
   INSTR{VLSET VLMAXBG{}; BASE DST, R_op1, MASK}
   VLMAXB{}
   VLMAX{}
@@ -680,8 +715,9 @@ let defs = [
   for (size_t i = 0; i < vl; i++) {
     if (${f.short?'mask[i] && ':''}op1[i]) res++;
   }
-  return res;`],
-  [/vms[bio]f_m_/, (f) => { let n = f.name.includes("vmsbf")? 0 : f.name.includes("vmsif")? 1 : 2; return `
+  return res;`
+],
+[/vms[bio]f_m_/, (f) => { let n = f.name.includes("vmsbf")? 0 : f.name.includes("vmsif")? 1 : 2; return `
   INSTR{VLSET VLMAXBG{}; BASE DST, R_op1, MASK}
   VLMAXB{}
   VLMAX{}
@@ -694,10 +730,11 @@ let defs = [
     ${n!=0?'if (op1[i]) acc = false;':''} RMELN{}
   }
   TAILLOOP{};
-  return res;`}],
-  
-  // averaging add/sub
-  [/_va(add|sub)u?_/, (f) => `
+  return res;`
+}],
+
+// averaging add/sub
+[/_va(add|sub)u?_/, (f) => `
   INSTR{VLSET RES{}; INIT csrwi vxrm, (vxrm); BASE DST, R_op1, R_op2, MASK}
   VLMAX{RES{}}
   RES{} res;
@@ -708,10 +745,11 @@ let defs = [
     res[i] = rounded_shift_right(${eltype(f.ret)}, exact, 1, vxrm);
   }
   TAILLOOP{};
-  return res;`],
-  
-  // rounding shift
-  [/_vssr[al]_/, (f) => `
+  return res;`
+],
+
+// rounding shift
+[/_vssr[al]_/, (f) => `
   INSTR{VLSET RES{}; INIT csrwi vxrm, (vxrm); BASE DST, R_op1, R_shift, MASK}
   VLMAX{RES{}}
   RES{} res;
@@ -721,10 +759,11 @@ let defs = [
     res[i] = rounded_shift_right(${eltype(f.ret)}, op1[i], IDX{shift} & ${eparts(f.ret)[0]-1}, vxrm);
   }
   TAILLOOP{};
-  return res;`],
-  
-  // narrowing clip
-  [/_vnclipu?_/, (f) => `
+  return res;`
+],
+
+// narrowing clip
+[/_vnclipu?_/, (f) => `
   INSTR{VLSET RES{}; INIT csrwi vxrm, (vxrm); BASE DST, R_op1, R_shift, MASK}
   VLMAX{FARG{op1}}
   RES{} res;
@@ -735,10 +774,11 @@ let defs = [
     res[i] = clip(${tshort(f.ret)}, tmp); // may set RVV_VXSAT
   }
   TAILLOOP{};
-  return res;`],
-  
-  // rounding & saturating multiply
-  [/_vsmul_/, (f) => `
+  return res;`
+],
+
+// rounding & saturating multiply
+[/_vsmul_/, (f) => `
   VLMAX{RES{}}
   INSTR{VLSET RES{}; INIT csrwi vxrm, (vxrm); BASE DST, R_op1, R_op2, MASK}
   RES{} res;
@@ -750,10 +790,11 @@ let defs = [
     res[i] = clip(${tshort(f.ret)}, tmp); // may set RVV_VXSAT
   }
   TAILLOOP{};
-  return res;`],
-  
-  // setvl
-  [/_vsetvl_/, (f) => { let t = f.name.split('vsetvl_')[1].replace('e','vint')+'_t'; return `
+  return res;`
+],
+
+// setvl
+[/_vsetvl_/, (f) => { let t = f.name.split('vsetvl_')[1].replace('e','vint')+'_t'; return `
   INSTR{VLSET ${t}}
   vlmax = VLMAXG{${t}};
   if (avl ≤ vlmax) {
@@ -762,8 +803,10 @@ let defs = [
     return /* implementation-defined number in [ceil(avl/2), vlmax] inclusive */
   } else {
     return vlmax;
-  }`}],
-  [/_vsetvlmax_/, (f) => `return VLMAXG{${f.name.split('vsetvlmax_')[1].replace('e','vint')+'_t'}};`],
+  }`
+}],
+[/_vsetvlmax_/, (f) => `return VLMAXG{${f.name.split('vsetvlmax_')[1].replace('e','vint')+'_t'}};`],
+
 ];
 
 let miniHTMLEscape = (c) => c.replace(/&/g, '&amp;').replace(/<(?!span)/g, '&lt;'); // allow intentional inline HTML usage, but escape most things

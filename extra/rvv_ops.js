@@ -379,10 +379,11 @@ let defs = [
     let vv = f.name.includes('_vv_');
     let ge = f.name.includes('vmsge');
     let gt = f.name.includes('vmsgt');
+    let u = f.name.includes('u_v')? 'u' : '';
     if (gt? !vv : !ge) return 'BASE DST, R_op1, R_op2, MASK';
-    if (ge && vv) return 'vmsle.vv DST, R_op2, R_op1, MASK';
-    if (gt && vv) return 'vmslt.vv DST, R_op2, R_op1, MASK';
-    if (ge && !vv) return 'vmslt.vx DST, R_op1, R_op2, MASK; vmnot.m DST, DST'
+    if (ge && vv) return 'vmsle'+u+'.vv DST, R_op2, R_op1, MASK';
+    if (gt && vv) return 'vmslt'+u+'.vv DST, R_op2, R_op1, MASK';
+    if (ge && !vv) return 'vmslt'+u+'.vx DST, R_op1, R_op2, MASK; vmnot.m DST, DST'
     return '???';
   })()}}
   VLMAX{FARG{op1}}
@@ -984,20 +985,40 @@ oper: (o, v) => {
     let ms = defs.filter(c => c[0].test(name));
     if (ms.length != 1) console.warn(`multiple matches for ${fn.name}: ${ms.map(c=>c[0]).join(', ')}`);
     if (instrArr) {
-      let setvl = instrArr.map(c=>c[1]).filter(c => c.includes('vset'))[0];
-      if (setvl && o.implInstrRaw) {
-        let setvl0 = o.implInstrRaw.split('\n').filter(c => c.includes('vset'))[0];
-        let process = (c) => {
-          c = c.split(/, ?e/)[1].replace(/ /g,'');
-          if (v) c = c.replace(/,t.,m./, ''); // variations shouldn't compare their policies with the base
-          return c;
+      
+      // compare vsetvl setup with known
+      if (o.implInstrRaw) {
+        let setvl = instrArr.map(c=>c[1]).filter(c => c.includes('vset'))[0];
+        if (setvl) {
+          let setvl0 = o.implInstrRaw.split('\n').filter(c => c.includes('vset'))[0];
+          let process = (c) => {
+            c = c.split(/, ?e/)[1].replace(/ /g,'');
+            if (v) c = c.replace(/,t.,m./, ''); // variations shouldn't compare their policies with the base
+            return c;
+          }
+          if (process(setvl) != process(setvl0)) throw new Error(`bad setvl for ${fn.name}: known '${process(setvl0)}', generated '${process(setvl)}'`);
         }
-        if (process(setvl) != process(setvl0)) throw new Error(`bad setvl for ${fn.name}: known '${process(setvl0)}', generated '${process(setvl)}'`);
+        if (!v) {
+          let prep = (c) => c.map(c=>c.split(' ')[0]).sort().filter(c=>!/^vf?mv|^sd$/.test(c));
+          let knownStarts = o.implInstrRaw.split('\n');
+          knownStarts = knownStarts.slice(knownStarts.findIndex(c => c.startsWith('vset')));
+          knownStarts = prep(knownStarts);
+          let genStarts = prep(instrArr.map(c=>c[1]));
+          if (knownStarts.join(' ') != genStarts.join(' ')) {
+            if (!/vneg|_vncvt_x_x_w|_vmfg[et]_vv|vmv_x_s_u32/.test(fn.name)) { // assembler pseudoinstruction & zero-extension differences
+              console.warn('mismatched known & generated instr bases for '+fn.name);
+            }
+          }
+        }
       }
+      
+      // verify all arguments of the intrinsic are present somewhere in the result
       let allInstrs = instrArr.map(c=>c[1]).join('');
       fn.args.map(c=>c.name).filter(c=>c!='vl' && c!='mask').forEach(a => {
         if (!allInstrs.includes(a)) throw new Error('argument '+a+' not used in '+fn.name);
       });
+      
+      // make sure masking is included
       if ((mask!=0) != allInstrs.includes('v0.t')) throw new Error('bad mask in '+fn.name);
     }
   }

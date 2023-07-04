@@ -6,14 +6,34 @@ function boring(c) {
   return `<span class="boring">${c}</span>`;
 }
 
-function tnorm(t) { // "int32_t" → "int32_t"; {type:"int32_t"} → "int32_t"
+function tnorm(t) { // 'int32_t' → 'int32_t'; {type:'int32_t'} → 'int32_t'
   return t.type || t;
 }
-function isvec(t) { // int32_t → false; vint32m2_t → true
+function isvec(t) { // int32_t → false; vint32m2_t → true; vint32m2x2_t → true
   return tnorm(t).startsWith("v");
 }
-function eltype(t) { // vint32m2_t → int32_t, int16_t → int16_t
+function istuple(t) { // int32_t → false; vint32m2_t → false; vint32m2x2_t → true
+  return tnorm(t).includes("x");
+}
+
+function xparts(T) { // 'vint32m2x3_t' → [3, 'vint32m2_t']
+  let r = /x(\d+)/;
+  T = tnorm(T);
+  return [T.match(r)[1], T.replace(r,'')];
+}
+function vparts(T) { // [width, lmul]
+  T = tnorm(T);
+  let [_,e,f,m] = T.match(/^\D*(\d+)m(f?)(\d+)_t$/);
+  return [+e, f? 1/m : +m];
+}
+function eparts(T) { // [width, quality]
+  T = eltype(T);
+  return [+T.match(/\d+/)[0], T[0]];
+}
+
+function eltype(t) { // vint32m2_t → int32_t; int16_t → int16_t; vint32m2x2_t → int32_t
   t = tnorm(t);
+  if (istuple(t)) t = xparts(t)[1];
   if (!isvec(t)) return t;
   return t.slice(1).replace(/mf?\d+/,"");
 }
@@ -34,9 +54,17 @@ function tshort(t) { // int32_t → i32, float64_t → f64
 function hasarg(fn, name) {
   return fn.args.find(c => c.name === name) !== undefined;
 }
-function farg(fn, name) { // type of argument with the given name
+function argn(fn, ...names) { // which of the given argument names fn has
+  for (let name of names) {
+    let r = fn.args.find(c => c.name === name);
+    if (r) return r.name;
+  }
+  throw new Error("Expected "+fn.name+" to have an argument named "+name.join(' or '));
+}
+function farg(fn, ...names) { // type of argn(fn, ...names)
+  let name = argn(fn, ...names);
   let r = fn.args.find(c => c.name === name);
-  if (!r) throw new Error("Expected "+fn.name+" to have argument named "+name);
+  if (!r) throw new Error("Expected "+fn.name+" to have an argument named "+name.join(' or '));
   return r.type;
 }
 
@@ -63,16 +91,6 @@ function owdq(R, X, x) { // optionally widen x from eltype X to (quality of X, w
 function owdm(m, X, x) { // widen x from X by factor of m
   let R = X.replace(/\d+/, c => m*c);
   return owd(R, X, x);
-}
-
-function vparts(T) { // [width, lmul]
-  T = tnorm(T);
-  let [_,e,f,m] = T.match(/^\D*(\d+)m(f?)(\d+)_t$/);
-  return [+e, f? 1/m : +m];
-}
-function eparts(T) { // [width, quality]
-  T = eltype(T);
-  return [+T.match(/\d+/)[0], T[0]];
 }
 
 function tfull(t) { // i32 → int32_t
@@ -456,7 +474,7 @@ let defs = [
   return res;`
 ],
 [/vrgather(ei16)?_vv_/, (f) => `
-  INSTR{VLSET RES{}; BASE DST, R_op1, R_${hasarg(f,'index')?'index':'op2'}, MASK}
+  INSTR{VLSET RES{}; BASE DST, R_op1, R_${argn(f,'index','op2')}, MASK}
   RES{} res;
   VLMAX{RES{}}
   for (size_t i = 0; i < vl; i++) {
@@ -609,7 +627,7 @@ let defs = [
 
 // unary same-width things
 [/_vf?neg_|_vfrsqrt7_|_vfsqrt_|_vfrec7_|_vfabs_|_vnot_|_vmv_v_v_/, (f) => {let n=(c)=>f.name.includes(c); return `
-  INSTR{VLSET RES{}; BASE DST, R_${hasarg(f,'op1')?'op1':'src'}, MASK}
+  INSTR{VLSET RES{}; BASE DST, R_${argn(f,'op1','src')}, MASK}
   VLMAX{RES{}}
   RES{} res;
   for (size_t i = 0; i < vl; i++) {
@@ -620,8 +638,8 @@ let defs = [
 }],
 
 // sign-extend, zero-extend, widen, convert
-[/[sz]ext|_vf?w?cvtu?_/, (f) => { let op=hasarg(f,'src')?'src':'op1'; let [rw,rq]=eparts(f.ret); let [ow,oq]=eparts(farg(f,op)); return  `
-  INSTR{VLSET ${f.name.includes('ext_')? 'RES{}' : farg(f,hasarg(f,'op1')?'op1':'src')}; BASE DST, R_${hasarg(f,'op1')?'op1':'src'}, MASK}
+[/[sz]ext|_vf?w?cvtu?_/, (f) => { let op=argn(f,'src','op1'); let [rw,rq]=eparts(f.ret); let [ow,oq]=eparts(farg(f,op)); return  `
+  INSTR{VLSET ${f.name.includes('ext_')? 'RES{}' : farg(f,op)}; BASE DST, R_${op}, MASK}
   VLMAX{${farg(f,op)}}
   ${f.name.includes('_rtz_')?`local_rounding_mode = RTZ; // Round towards zero`:``} RMELN{}
   

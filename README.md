@@ -37,20 +37,20 @@ term          | checkbox    | description
 
 General:
 
-- `arg:*`: intrinsics taking pointer arguments
-- `!arg1n:`: intrinsics taking no arguments
+- `arg:*` - intrinsics taking pointer arguments
+- `!arg1n:` - intrinsics taking no arguments
 
 x86-64 AVX-512:
 
-- `var=base:name:mask name:_mm512`: 512-bit intrinsics with "mask" in the name that's not in a variation
+- `var=base:name:mask name:_mm512` - 512-bit intrinsics with "mask" in the name that's not in a variation
 
 ARM NEON:
 
-- `name:q_`: keep only 128-bit intrinsics
+- `name:q_` - keep only 128-bit intrinsics
 
 RISC-V rvv:
 
-- `var=_m`: maskable intrinsics
-- `var=base arg:vbool` or `var=base:arg:vbool`: non-masked intrinsics taking a boolean vector argument
-- `!name:/_.(8|16|64)m/ !name:/mf?[248]$/ !name:/_b(1|2|4|16|32|64)$/`: discard repetitive intrinsics, keep LMUL=1, 32-bit element
-- `!argn:/vl$/`: intrinsics that don't require a specified VL
+- `var=_m` - maskable intrinsics
+- `var=base arg:vbool` or `var=base:arg:vbool` - non-masked intrinsics taking a boolean vector argument
+- `!name:/_.(8|16|64)m/ !name:/mf?[248]$/ !name:/_b(1|2|4|16|32|64)$/` - discard repetitive intrinsics, keep LMUL=1, 32-bit element
+- `!argn:/vl$/` - intrinsics that don't require a specified VL

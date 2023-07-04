@@ -23,6 +23,7 @@ function xparts(T) { // 'vint32m2x3_t' → [3, 'vint32m2_t']
 }
 function vparts(T) { // [width, lmul]
   T = tnorm(T);
+  if (istuple(T)) T = xparts(T)[1];
   let [_,e,f,m] = T.match(/^\D*(\d+)m(f?)(\d+)_t$/);
   return [+e, f? 1/m : +m];
 }
@@ -33,9 +34,8 @@ function eparts(T) { // [width, quality]
 
 function eltype(t) { // vint32m2_t → int32_t; int16_t → int16_t; vint32m2x2_t → int32_t
   t = tnorm(t);
-  if (istuple(t)) t = xparts(t)[1];
   if (!isvec(t)) return t;
-  return t.slice(1).replace(/mf?\d+/,"");
+  return t.slice(1).replace(/mf?\d+(x\d+)?/,"");
 }
 function maxval(t) { // vint32m2_t → INT32_MAX; uint16_t → INT16_MAX
   t = eltype(t);
@@ -126,12 +126,15 @@ function opmap(fn) {
 const raise_invalid = "fflags[NV] = 1; // Invalid Operation FP flag";
 
 const mem_ref = (fn, eln) => {
-  if (/_v[ls]e/.test(fn.name)) return `base%M[i%M]`;
-  return `%M*(${eln? eltype(farg(fn,eln)) : 'RESE{}'}*)(i*b${/_v[ls][ou]xei/.test(fn.name)? 'index[i]' : 'stride'} + (char*)base)`;
+  let seg = fn.name.match(/seg(\d+)/);
+  if (seg) seg = +seg[1];
+  if (/_v[ls](e|seg)/.test(fn.name)) return `base%M[i${seg? `*${seg} + o` : ''}%M]`;
+  let ptr = `(${eln? eltype(farg(fn,eln)) : 'RESE{}'}*)(i*b${/riscv_v[ls][ou]x/.test(fn.name)? 'index[i]' : 'stride'} + (char*)base)`;
+  return seg? `(${ptr})%M[o%M]` : '%M*'+ptr;
 }
 const mem_mask_comment = (f) => f.short&&f.short.includes("m")? ` // masked-off indices won't fault` : ``;
 const mem_align_comment = (f,l) => {
-  let a = eparts(l? f.ret : farg(f,'value'))[0]/8;
+  let a = eparts(l? f.ret : farg(f,'v_tuple','value'))[0]/8;
   return a==1? `RMELN{}` : `// if the address of any executed ${l?'load':'store'} is not aligned to a${a==8?'n':''} ${a}-byte boundary, an address-misaligned exception may or may not be raised.`
 }
 const mem_loop = (f) => `for (size_t i = 0; i < vl; i++) {`+(f.name.includes("uxei")? ` // note: "unordered" only applies to non-idempotent memory (i.e. memory-mapped), but otherwise the operation is still sequential` : ``)
@@ -199,7 +202,57 @@ let defs = [
   return res;`
 ],
 
-// load & indexed load
+
+// segment load, strided load, indexed load
+[/vl(|s|[ou]x)seg\dei?\d+_/, (f) => { let [x,vt] = xparts(f.ret); return `
+  VLMAX{${vt}}
+  ${mem_align_comment(f,1)}
+  RES{} res;
+  for (int o = 0; o < ${x}; o++) {
+    ${vt} curr;
+    for (size_t i = 0; i < vl; i++) {
+      curr[i] = MASK{${mem_ref(f)}};${mem_mask_comment(f)}
+    }
+    TAILLOOP{};
+    res[o] = curr;
+  }
+  return res;`
+}],
+// segment store, stided store, indexed store
+[/vs(|s|[ou]x)seg\dei?\d+_/, (f) => { let [x,vt] = xparts(farg(f,'v_tuple')); return `
+  VLMAX{${vt}}
+  ${mem_align_comment(f,0)}
+  for (int o = 0; o < ${x}; o++) {
+    ${vt} curr = v_tuple[o];
+    for (size_t i = 0; i < vl; i++) {
+      ${f.short==='_m'?`if (mask[i]) `:``}${mem_ref(f,'v_tuple')} %M= curr[i];${mem_mask_comment(f)}
+    }
+  }
+  return res;`
+}],
+// segment fault-only-first load
+[/vlseg\de\d+ff_/, (f) => { let [x,vt] = xparts(f.ret); return `
+  VLMAX{${vt}}
+  ${mem_align_comment(f,1)}
+  RES{} res;
+  ${f.short&&f.short.includes('m')?'if (mask[0]) ':''}for (int o = 0; o < ${x}; o++) base%M[o%M]; // for the side-effect of faulting
+  // after this point, this instruction will never fault
+  
+  size_t new_vl = /* implementation-defined 1 ≤ new_vl ≤ vl */;
+  for (int o = 0; o < ${x}; o++) {
+    ${vt} curr;
+    for (size_t i = 0; i < new_vl; i++) {
+      curr[i] = MASK{${mem_ref(f)}};
+    }
+    
+    for (size_t i = new_vl; i < vl; i++) curr[i] = MASK{anything()};
+    BORING{for (size_t i = vl; i < vlmax; i++) curr[i] = TAIL{};}
+    res[i] = curr;
+  }
+  return res;`
+}],
+
+// load, strided load, indexed load
 [/_vl(s?e|[ou]xei)\d+_v_/, (f) => `
   INSTR{VLSET RES{}; BASE DST, (R_base)${hasarg(f,'bindex')?', R_bindex':''}${hasarg(f,'bstride')?', R_bstride':''}, MASK}
   VLMAX{RES{}}
@@ -212,7 +265,7 @@ let defs = [
   return res;`
 ],
 
-// store & indexed store
+// store, stided store, indexed store
 [/_vs(s?e|[ou]xei)\d+_v_/, (f) => `
   INSTR{VLSET FARG{value}; BASE R_value, (R_base)${hasarg(f,'bindex')?', R_bindex':''}${hasarg(f,'bstride')?', R_bstride':''}, MASK}
   VLMAX{FARG{value}}
@@ -245,7 +298,7 @@ let defs = [
   ${f.short&&f.short.includes('m')?'if (mask[0]) ':''}base%M[0%M]; // for the side-effect of faulting
   // after this point, this instruction will never fault
   
-  size_t new_vl = /* implementation-defined 1≤new_vl≤vl such that the below doesn't fault */;
+  size_t new_vl = /* implementation-defined 1 ≤ new_vl ≤ vl */;
   for (size_t i = 0; i < new_vl; i++) {
     res[i] = MASK{base%M[i%M]};
   }
@@ -415,7 +468,7 @@ let defs = [
     if (gt? !vv : !ge) return 'BASE DST, R_op1, R_op2, MASK';
     if (ge && vv) return 'vmsle'+u+'.vv DST, R_op2, R_op1, MASK';
     if (gt && vv) return 'vmslt'+u+'.vv DST, R_op2, R_op1, MASK';
-    if (ge && !vv) return 'vmslt'+u+'.vx DST, R_op1, R_op2, MASK; vmnot.m DST, DST'
+    if (ge && !vv) return 'vmslt'+u+'.vx DST, R_op1, R_op2, MASK; vmnot.m DST, DST // better sequences exist if op2 is a constant';
     return '???';
   })()}}
   VLMAX{FARG{op1}}
@@ -969,7 +1022,7 @@ oper: (o, v) => {
   let mask = !vsi("m")? 0 : vsi("mu")? 2 : 1; // 0: no masking; 1: agnostic; 2: undisturbed
   let tail = !vsi("tu"); // 0: undisturbed; 1: agnostic
   let basev = hasarg(fn, "maskedoff")? "maskedoff" : hasarg(fn, "vd")? "vd" : fn.name.includes("slideup")? "dest" : "";
-  let baseeM = basev? basev+"[i]" : "";
+  let baseeM = basev? basev+(farg(fn,basev).includes('x')? '[o]' : '')+'[i]' : '';
   let baseeT = fn.ret.type.includes("bool")? "" : baseeM;
   
   let agnBase0 = (agn,base) => agn? (base? `agnostic(${base})` : "anything()") : `${base}`;
@@ -1020,7 +1073,11 @@ oper: (o, v) => {
   s = s.replace(/^( *)MASKWEE{}.*\n/gm, (_,c) => !mask? "" : boring(`${c}if (!mask[i]) {\n${c}  res[i] = ${agnBaseM(mask==1)};\n${c}  continue;\n${c}}\n`)); // mask write early exit
   s = s.replace(/BORING{(.*?)}/g, (_,c) => boring(c));
   s = s.replace(/IDX{(.*?)}/g, (_,c) => isvec(farg(fn,c))? c+"[i]" : c);
-  s = s.replace(/MASK{(.*?)}/g, (_,c) => !mask? c : `${boring(`mask[i] ?`)} ${c} ${boring(':')} ${agnBaseM(mask==1)}`);
+  s = s.replace(/MASK{(.*?)}/g, (_,c) => {
+    if (!mask) return c;
+    if (c == agnBase0(mask==1, baseeM)) return c; // prevent pointless things like `mask[i] ? anything() : anything()`
+    return `${boring(`mask[i] ?`)} ${c} ${boring(':')} ${agnBaseM(mask==1)}`
+  });
   
   s = s.replace(/\/\/.*|\/\*.*?\*\//g, c => boring(c));
   while (1) {
@@ -1087,6 +1144,6 @@ oper: (o, v) => {
   return {
     oper: s,
     instrSearch: !instrArr? undefined : instrArr.map(c=>c[1]).join('\n'),
-    instrHTML: !instrArr? undefined : instrArr.map(([i,c]) => i? c : boring(c)).join('\n'),
+    instrHTML: !instrArr? undefined : instrArr.map(([i,c]) => i? c.replace(/\/\/.*/, boring) : boring(c)).join('\n'),
   };
 }};

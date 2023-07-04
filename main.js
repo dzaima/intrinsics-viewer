@@ -449,7 +449,7 @@ async function loadRVV() {
   let specFilePath = "data/v-spec.html";
   let baseFile, policiesFile, rvvOps;
   try {
-    baseFile = await loadFile("data/rvv_base.json");
+    baseFile = await loadFile("data/rvv_base-1.json");
     policiesFile = await loadFile("data/rvv_policies.json");
     rvvOps = new Function(await loadFile("extra/rvv_ops.js"))();
     // rvvOps = {oper:()=>undefined,helper:()=>undefined};
@@ -672,7 +672,7 @@ async function loadRVV() {
   res.forEach(c => {
     c.categories = c.categories.map(c => c.endsWith("|non-masked")? c.substring(0,c.length-11): c);
     c.id = idCounter++;
-    c.cpu = [c.cpu];
+    c.implInstr = c.implInstrRaw? c.implInstrRaw.replace(/\n/g, '<br>') : undefined;
     
     // transform categories
     c.categories = c.categories.flatMap(ct => {
@@ -686,9 +686,11 @@ async function loadRVV() {
     if (udsVal === undefined) udsVal = policyDef;
     if (udsVal) {
       // messy logic for deciding how to transform the arguments for the masking
-      // tested via generating invocations of all the results and running them through clang version 17.0.0 (++20230618042319+44e63ffe2bf7-1~exp1~20230618042435.1005)
+      // tested via generating invocations of all the results and running them through clang version 17.0.0 (++20230624042319+ee2bf319bc05-1~exp1~20230624042420.1017)
       let nameParts = c.name.split('_');
-      let mainType = /^vf?w?red/.test(nameParts[3])? nameParts[5] : nameParts[nameParts.length-1];
+      let mainType = nameParts.filter(c => /^([iuf]\d+mf?\d+(x\d+)?|b\d+)$/.test(c))[0];
+      if (!mainType) throw new Error("Couldn't find mask type for "+c.name);
+      
       let maskW = undefined;
       if (mainType[0]=='b') {
         maskW = mainType.substring(1);
@@ -728,7 +730,8 @@ async function loadRVV() {
             case '_tu': nargs = [...args0,       ...maskedOff, ...args1]; break;
           }
           let obj = {name: c.name+ty, short: ty, ret: c.ret, args: nargs};
-          obj.implDesc = () => rvvOps.oper(c, obj);
+          obj.implDesc = () => rvvOps.oper(c, obj).oper;
+          obj.implInstr = () => rvvOps.oper(c, obj).instrHTML;
           if (extra_test) rvvOps.oper(c, obj); // make sure oper generation works for all variations
           alts.push(obj);
         }
@@ -755,11 +758,13 @@ async function loadRVV() {
           }
         }
         
-        // add implementation description aka operation
+        // add implementation description aka operation, and new instr if available
         let newOp = rvvOps.oper(c);
-        c.implDesc = newOp? newOp : !docVal? undefined : `<div style="font-family:sans-serif;white-space:normal">${docVal}</div>`;
-        
-        if (/_v(a(add|sub)|s(mul|sr[al])|nclip)/.test(c.name)) c.desc+= `<br><br>WARNING: syntax may change: see <a href="https://github.com/riscv-non-isa/rvv-intrinsic-doc/pull/222">https://github.com/riscv-non-isa/rvv-intrinsic-doc/pull/222</a>`;
+        c.implDesc = newOp? newOp.oper : !docVal? undefined : `<div style="font-family:sans-serif;white-space:normal">${docVal}</div>`;
+        if (newOp && newOp.instrHTML) {
+          c.implInstrSearch = newOp.instrSearch;
+          c.implInstr = () => rvvOps.oper(c).instrHTML;
+        }
         
         // reference spec
         let specRef = specMap[m1];
@@ -775,7 +780,6 @@ async function loadRVV() {
 
   function addCsrOp(ret, name, args, desc, oper) {
     res.push({
-      cpu: ['risc-v'],
       id: idCounter++,
       ret: {type: ret}, args, name,
       desc, implDesc: oper,
@@ -793,6 +797,9 @@ async function loadRVV() {
   addCsrOp("unsigned long", "__riscv_vread_csr", [{type:"enum RVV_CSR",name:"csr"}], "Read a CSR", csrdef+"return CSRS[csr];");
   addCsrOp("void", "__riscv_vwrite_csr", [{type:"enum RVV_CSR",name:"csr"}, {type:"unsigned long", name:"value"}], "Set a CSR", csrdef+"CSRS[csr] = value;");
   
+  res.forEach(c => {
+    c.cpu = ['risc-v'];
+  });
   return res;
 }
 
@@ -1012,6 +1019,11 @@ async function newCPU() {
     'Fold|Widening integer sum': 4,
     
     'Mask|Logical': 0,
+    'Mask|Find first set': 1,
+    'Mask|Population count': 2,
+    'Mask|Set before first': 3,
+    'Mask|Set including first': 4,
+    'Mask|Set only first': 5,
     
     'Load/store|Load': 0,
     'Load/store|Store': 1,
@@ -1091,10 +1103,15 @@ function displayEnt(ins, fn, link = true) {
   text+= `<br>Architecture: <span class="mono">${a2}</span>`;
   text+= `<br>Categor${ins.categories.length>1?"ies":"y"}: <span class="mono">${ins.categories.map(c=>esc(c.replace(/\|/g,'→'))).join(', ')}</span>`;
   text+= `<br><br>Description:<div class="desc">${fn.desc||ins.desc}</div>`;
+  
   let implInstr = fn.implInstr;
+  if (typeof implInstr === 'function') implInstr = implInstr();
+  
   let implDesc = fn.implDesc || ins.implDesc;
   if (typeof implDesc === 'function') implDesc = implDesc();
+  
   let implTimes = fn.implTimes || ins.implTimes;
+  
   if (implInstr) text+= `<br>Instruction:<pre>${implInstr}</pre>`;
   if (implDesc) text+= `<br>Operation:<pre class="operation">${implDesc}</pre>`;
   if (implTimes) text+= `<br>Performance:<table class="perf-table"></table>`;
@@ -1284,7 +1301,7 @@ function updateSearch0() {
       }
       return r;
     }
-    function proc() {
+    function proc() { // get next query part from the parts list
       let [pt, pv] = parts[i++];
       if (pt=='"') return {type:"exact", val:pv};
       else if (pt=='/') return {type:"regex", val:pv};
@@ -1466,11 +1483,9 @@ function updateLink() {
   
   let historyArgs = [{}, "", "#0"+enc(json)];
   if (pushNext) {
-    console.log("push");
     history.pushState(...historyArgs);
     pushNext = false;
   } else {
-    console.log("replace");
     history.replaceState(...historyArgs);
   }
 }
@@ -1572,8 +1587,8 @@ async function setCPU(name) {
         prepType(v.ret);
         v.nameSearch = searchStr(v.name);
         v.descSearch = searchStr(v.desc);
-        v.implInstrSearch = searchStr(v.implInstr);
-        v.implDescSearch = typeof v.implDesc === 'fuction'? undefined : searchStr(v.implDesc);
+        if (!v.implInstrSearch && typeof v.implInstr!=='function') v.implInstrSearch = searchStr(v.implInstr);
+        if (!v.implDescSearch && typeof v.implDesc!=='function')  v.implDescSearch = searchStr(v.implDesc);
       });
       
       let ref = c.name.replace(/^(__riscv_|_mm)/,"");

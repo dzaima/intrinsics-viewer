@@ -75,6 +75,10 @@ function eparts(T) { // [width, quality]
   return [+T.match(/\d+/)[0], T[0]];
 }
 
+function tfull(t) { // i32 → int32_t
+  let [tw, tq] = eparts(t);
+  return `${tq=='u'?'u':''}int${tw}_t`
+}
 
 function opmap(fn) {
   let name = fn.name.split('_')[3];
@@ -642,37 +646,40 @@ let defs = [
   
   // averaging add/sub
   [/_va(add|sub)u?_/, (f) => `
+  INSTR{VLSET RES{}; INIT csrwi vxrm, (vxrm); BASE DST, R_op1, R_op2, MASK}
   VLMAX{RES{}}
   RES{} res;
   
   for (size_t i = 0; i < vl; i++) {
     MASKWEE{} RMELN{}
     intinf_t exact = intinf(op1[i]) ${opmap(f)} intinf(IDX{op2});
-    res[i] = rounded_shift_right(exact, 1); // based on RVV_VXRM
+    res[i] = rounded_shift_right(${eltype(f.ret)}, exact, 1, vxrm);
   }
   TAILLOOP{};
   return res;`],
   
   // rounding shift
   [/_vssr[al]_/, (f) => `
+  INSTR{VLSET RES{}; INIT csrwi vxrm, (vxrm); BASE DST, R_op1, R_shift, MASK}
   VLMAX{RES{}}
   RES{} res;
   
   for (size_t i = 0; i < vl; i++) {
     MASKWEE{} RMELN{}
-    res[i] = rounded_shift_right(op1[i], IDX{shift} & ${eparts(f.ret)[0]-1}); // based on RVV_VXRM
+    res[i] = rounded_shift_right(${eltype(f.ret)}, op1[i], IDX{shift} & ${eparts(f.ret)[0]-1}, vxrm);
   }
   TAILLOOP{};
   return res;`],
   
   // narrowing clip
   [/_vnclipu?_/, (f) => `
+  INSTR{VLSET RES{}; INIT csrwi vxrm, (vxrm); BASE DST, R_op1, R_shift, MASK}
   VLMAX{FARG{op1}}
   RES{} res;
   
   for (size_t i = 0; i < vl; i++) {
     MASKWEE{} RMELN{}
-    ${eltype(farg(f,'op1'))} tmp = rounded_shift_right(op1[i], IDX{shift} & ${eparts(f.ret)[0]-1}); // based on RVV_VXRM
+    ${eltype(farg(f,'op1'))} tmp = rounded_shift_right(${eltype(farg(f,'op1'))}, op1[i], IDX{shift} & ${eparts(f.ret)[0]-1}, vxrm);
     res[i] = clip(${tshort(f.ret)}, tmp); // may set RVV_VXSAT
   }
   TAILLOOP{};
@@ -681,12 +688,13 @@ let defs = [
   // rounding & saturating multiply
   [/_vsmul_/, (f) => `
   VLMAX{RES{}}
+  INSTR{VLSET RES{}; INIT csrwi vxrm, (vxrm); BASE DST, R_op1, R_op2, MASK}
   RES{} res;
   
   for (size_t i = 0; i < vl; i++) {
     MASKWEE{} RMELN{}
     intinf_t exact = intinf(op1[i]) * intinf(IDX{op2});
-    intinf_t tmp = rounded_shift_right(exact, ${eparts(f.ret)[0]-1}); // based on RVV_VXRM
+    intinf_t tmp = rounded_shift_right(intinf_t, exact, ${eparts(f.ret)[0]-1}, vxrm);
     res[i] = clip(${tshort(f.ret)}, tmp); // may set RVV_VXSAT
   }
   TAILLOOP{};
@@ -705,7 +713,8 @@ let defs = [
   [/_vsetvlmax_/, (f) => `return VLMAXG{${f.name.split('vsetvlmax_')[1].replace('e','vint')+'_t'}};`],
 ];
 
-let cleanup = (c) => c.replace(/\n  /g, "\n").replace(/^(\n *)+\n/, "");
+let miniHTMLEscape = (c) => c.replace(/&/g, '&amp;').replace(/<(?!span)/g, '&lt;'); // allow intentional inline HTML usage, but escape most things
+let cleanup = (c) => miniHTMLEscape(c.replace(/\n  /g, "\n").replace(/^(\n *)+\n/, ""));
 defs.forEach(c => { if (typeof c[1] !== 'function') c[1] = cleanup(c[1]); });
 
 
@@ -725,7 +734,7 @@ switch(n) {
 case 'clip': {
   let [t] = args;
   return helper_code(`
-  ${(t[0]=='u'?'u':'')}int${t.slice(1)}_t clip(${t}, intinf_t exact) {
+  ${tfull(t)} clip(${t}, intinf_t exact) {
     if (exact < ${minval(t)}) {
       return ${minval(t)};
       BORING{CSRS[RVV_VXSAT] |= 1;}
@@ -766,6 +775,40 @@ ${[32,64,128,256,512,1024,65536].filter(v => v*frac>=1).map(v => `  //   VLEN=${
   
 ${equalTo? `  // vlmax(e${e}, m${l}) is equal to:\n${equalTo}` : ``}
 `)}
+
+case 'rounded_shift_right': {
+  let [t] = args;
+  t = t.slice(1);
+  return helper_code(`
+  ${t} rounded_shift_right(${t} x, size_t shift, unsigned int vxrm) {
+    if (shift == 0) return x;
+    
+    ${t} last = 1 << (shift-1); // mask of the most-significant shifted out bit
+    bool carry = (x&last)!=0; // the value of the most-significant shifted out bit
+    
+    bool shiftLSB = ((x >> shift) & 1) != 0; // least-significant bit of a rounded-down shift
+    
+    bool increment;
+    switch (vxrm) {
+      case __RISCV_VXRM_RNU: { // vxrm == 0; round to nearest up
+        increment = carry;
+        break;
+      }
+      case __RISCV_VXRM_RNE: { // vxrm == 1; round to nearest even
+        increment = carry && ((x&(last-1)) != 0 || shiftLSB); // x[shift-1] && (x[shift-2:0]!=0 || x[shift])
+        break;
+      }
+      case __RISCV_VXRM_RDN: { // vxrm == 2; round down
+        increment = false; // i.e. result is just a regular x >> shift
+        break;
+      }
+      case __RISCV_VXRM_ROD: { // vxrm == 3; round to odd
+        increment = (x & ((1<<shift)-1) != 0) && !shiftLSB; // !x[shift] && x[shift-1:0]!=0
+        break;
+      }
+    }
+    return (x >> shift) + (increment ? 1 : 0);
+  }`)}
 
 case 'anything': return helper_text(`
   Returns any value of the given type.
@@ -834,6 +877,28 @@ oper: (o, v) => {
     return g? v : boring(`assume(vl ≤ ${v});`);
   });
   
+  let instrArr = undefined;
+  let procInstr = (all) => {
+    let post;
+    let test = (p) => all.startsWith(p)? (post=all.slice(p.length), 1) : 0;
+    if (test('VLSET ')) {
+      let [ew,lm] = vparts(post);
+      return [0, 'vsetvli zero, x[vl], e'+ew+', m'+(lm<1? 'f'+(1/lm) : lm)+', '+(tail?'ta':'tu')+', '+(mask==2?'mu':'ma')];
+    }
+    if (test('INIT ')) {
+      return [0, procInstr(post)[1]];
+    }
+    all = all.replace(/\bBASE\b/, () => o.name.replace('__riscv_','').split(/_[iuf]\d+mf?\d+_/)[0].replace(/_/g,'.')); // base assembly instruction name
+    all = all.replace(/, MASK/, () => mask? ', v0.t' : '');
+    all = all.replace(/\bR_(\w+)\b/g, (_,c) => { let t = farg(fn,c)[0]; return (t=='v'? 'v' : t=='f'? 'f' : 'x')+'['+c+']'; }); // argument registers
+    all = all.replace(/\bDST\b/, basev? `v[${basev}]` : `vd`); // destination register
+    return [1, all];
+  }
+  s = s.replace(/ *INSTR{(.*)} *\n/, (_,c) => {
+    instrArr = c.split("; ").map(procInstr);
+    return '';
+  });
+  
   s = s.replace(/TAILLOOP{(.*?)};?/g, (_,c) => boring(`for (size_t i = ${c?c:'vl'}; i < vlmax; i++) res[i] = TAIL{};`));
   s = s.replace(/TAIL{}/g, agnBaseT(tail)); // tail element
   s = s.replace(/TAILV{}/g, agnBase0(tail,basev)); // tail vector
@@ -853,10 +918,19 @@ oper: (o, v) => {
   
   // helper function display
   let h = (name, args='') => `<a onclick="rvv_helper('${name}',${args})">${name}</a>`;
-  s = s.replace(/clip\(([ui]\d+), /g, (_, t) => h('clip',`'${t}'`)+`(${t}, `);
-  s = s.replace(/vlmax(\(e(\d+), m(f?\d+)\))/g, (_,a, e,m) => h('vlmax',`${+e},'${m}'`)+a);
+  
+  // non-trivial helper functions
+  s = s.replace(/\bclip\(([ui]\d+), /g, (_, t) => h('clip',`'${t}'`)+`(${t}, `);
+  s = s.replace(/\bvlmax(\(e(\d+), m(f?\d+)\))/g, (_,a, e,m) => h('vlmax',`${+e},'${m}'`)+a);
+  s = s.replace(/\brounded_shift_right\((\w+), /g, (_,a) => h('rounded_shift_right', `'x${a}'`)+'('); // prepended x to prevent intinf_t being matched
+  
+  // simpler helper functions & values
   s = s.replace(/\b(anything|agnostic|u?intinf|is[SQ]?NaN)\(/g, (_,c) => h(c)+'(');
   s = s.replace(/\b(intinf_t)\b/g, (_,c) => h(c));
   
-  return s;
+  return {
+    oper: s,
+    instrSearch: !instrArr? undefined : instrArr.map(c=>c[1]).join('\n'),
+    instrHTML: !instrArr? undefined : instrArr.map(([i,c]) => i? c : boring(c)).join('\n'),
+  };
 }};

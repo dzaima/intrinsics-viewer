@@ -490,7 +490,7 @@ async function loadRVV() {
     
     'Stride Segment Load/Store Instructions (Zvlsseg)|Strided Segment Load': 'Load/store|Segment|Strided Load',
     'Stride Segment Load/Store Instructions (Zvlsseg)|Strided Segment Store': 'Load/store|Segment|Strided Store',
-    'Unit-Stride Segment Load/Store Instructions (Zvlsseg)|Unit-Stride Segment Load': 'Load/store|Segment|Load',
+    'Unit-Stride Segment Load/Store Instructions (Zvlsseg)|Unit-Stride Segment Load': c => 'Load/store|Segment|' + mapn(c,['ff_','Fault-only-first load', 'seg','Load']),
     'Unit-Stride Segment Load/Store Instructions (Zvlsseg)|Unit-Stride Segment Store': 'Load/store|Segment|Store',
     'Indexed Segment Load/Store Instructions (Zvlsseg)|Indexed Segment Load': 'Load/store|Segment|Indexed Load',
     'Indexed Segment Load/Store Instructions (Zvlsseg)|Indexed Segment Store': 'Load/store|Segment|Indexed Store',

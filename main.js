@@ -730,8 +730,8 @@ async function loadRVV() {
             case '_tu': nargs = [...args0,       ...maskedOff, ...args1]; break;
           }
           let obj = {name: c.name+ty, short: ty, ret: c.ret, args: nargs};
-          obj.implDesc = () => rvvOps.oper(c, obj).oper;
-          obj.implInstr = () => rvvOps.oper(c, obj).instrHTML;
+          obj.implDesc = () => rvvOps.oper(c, obj)?.oper;
+          obj.implInstr = () => rvvOps.oper(c, obj)?.instrHTML;
           if (extra_test) rvvOps.oper(c, obj); // make sure oper generation works for all variations
           alts.push(obj);
         }

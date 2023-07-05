@@ -291,7 +291,7 @@ let defs = [
 
 // fault-only-first
 [/_vle\d+ff_v/, (f) => `
-  INSTR{VLSET RES{}; BASE DST, (R_base), MASK; csrr R_new_vl,vl}
+  INSTR{VLSET RES{}; BASE DST, (R_base), MASK; csrr R_new_vl, vl}
   VLMAX{RES{}}
   ${mem_align_comment(f,1)}
   RES{} res;
@@ -806,14 +806,14 @@ let defs = [
 
 // averaging add/sub
 [/_va(add|sub)u?_/, (f) => `
-  INSTR{VLSET RES{}; INIT csrwi vxrm, (vxrm); BASE DST, R_op1, R_op2, MASK}
+  INSTR{VLSET RES{}; INIT csrwi vxrm, <vxrm>; BASE DST, R_op1, R_op2, MASK}
   VLMAX{RES{}}
   RES{} res;
   
   for (size_t i = 0; i < vl; i++) {
     MASKWEE{} RMELN{}
     intinf_t exact = intinf(op1[i]) ${opmap(f)} intinf(IDX{op2});
-    res[i] = rounded_shift_right(${eltype(f.ret)}, exact, 1, vxrm);
+    res[i] = trunc(${tshort(f.ret)}, rounded_shift_right(intinf_t, exact, 1, vxrm)};
   }
   TAILLOOP{};
   return res;`
@@ -821,7 +821,7 @@ let defs = [
 
 // rounding shift
 [/_vssr[al]_/, (f) => `
-  INSTR{VLSET RES{}; INIT csrwi vxrm, (vxrm); BASE DST, R_op1, R_shift, MASK}
+  INSTR{VLSET RES{}; INIT csrwi vxrm, <vxrm>; BASE DST, R_op1, R_shift, MASK}
   VLMAX{RES{}}
   RES{} res;
   
@@ -835,7 +835,7 @@ let defs = [
 
 // narrowing clip
 [/_vnclipu?_/, (f) => `
-  INSTR{VLSET RES{}; INIT csrwi vxrm, (vxrm); BASE DST, R_op1, R_shift, MASK}
+  INSTR{VLSET RES{}; INIT csrwi vxrm, <vxrm>; BASE DST, R_op1, R_shift, MASK}
   VLMAX{FARG{op1}}
   RES{} res;
   
@@ -851,7 +851,7 @@ let defs = [
 // rounding & saturating multiply
 [/_vsmul_/, (f) => `
   VLMAX{RES{}}
-  INSTR{VLSET RES{}; INIT csrwi vxrm, (vxrm); BASE DST, R_op1, R_op2, MASK}
+  INSTR{VLSET RES{}; INIT csrwi vxrm, <vxrm>; BASE DST, R_op1, R_op2, MASK}
   RES{} res;
   
   for (size_t i = 0; i < vl; i++) {

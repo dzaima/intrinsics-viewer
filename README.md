@@ -38,7 +38,8 @@ term          | checkbox    | description
 General:
 
 - `arg:*` - intrinsics taking pointer arguments
-- `!arg1n:` - intrinsics taking no arguments
+- `arg6:""` - intrinsics taking at least 6 arguments
+- `!arg1n:""` - intrinsics taking no arguments
 
 x86-64 AVX-512:
 

@@ -87,9 +87,7 @@ table {
   width: 100%;
   height: min-content;
 }
-#search-table tr {
-  cursor: pointer;
-}
+#search-table tr { cursor: pointer; }
 #search-table td:nth-child(1) { text-align: right; overflow: hidden; }
 #search-table td { overflow: hidden; white-space: nowrap; }
 #search-table td {
@@ -104,7 +102,12 @@ table {
 
 /* variation switches */
 .var-link { cursor: pointer; }
+.var-link:hover { text-decoration: underline dotted; }
 body.dark .var-link { color: #A6E22C; }
+
+/* copying intrinsics via clicking their name */
+.click-copy { cursor: pointer; }
+
 
 #pagination-place {
   display: inline-block;
@@ -211,6 +214,48 @@ body.dark button {
 }
 body.dark button[disabled] {
   color: #808080;
+}
+
+
+
+/* hover tooltips */
+.hover-base {
+  position: relative;
+  display: inline-block;
+}
+.hover-base .hover-text {
+  visibility: hidden;
+  z-index: 1;
+  
+  text-align: center;
+  font-family: sans-serif;
+  background-color: #333;
+  color: #fff;
+  
+  position: absolute;
+  width: max-content;
+  left: 0;
+  right: 0;
+  margin-right: auto;
+  margin-left: auto;
+  bottom: -150%;
+  
+  border-radius: 6px;
+  padding: 0.2em;
+}
+.hover-base .hover-text::after {
+  content: "";
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  margin-left: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: transparent transparent #333 transparent;
+}
+
+.hover-base:hover .hover-text {
+  visibility: visible;
 }
 
 

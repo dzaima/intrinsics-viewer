@@ -753,7 +753,7 @@ async function loadRVV() {
     }
     let overloadRegex = /Overloaded name: <code>(\w+)<\/code><br>/;
     let overload = (c.desc.match(overloadRegex) || ["",""])[1];
-    if (overload) overload = `Overloaded name: <span class="mono h-name">${overload}</span><br>`;
+    if (overload) overload = `Overloaded name: <span class="mono h-name">${mkcopy(overload,overload)}</span><br>`;
     
     if (docVal) {
       let [desc, oper] = docVal(c);
@@ -833,7 +833,7 @@ function group(list, name, order) {
 
 
 
-const mkch = (n, ch, {cl, id, attrs, onclick, href}={}) => {
+function mkch(n, ch, {cl, id, attrs, onclick, href}={}) {
   let r = document.createElement(n);
   if (ch) r.append(...ch);
   if (id) r.id = id;
@@ -845,6 +845,14 @@ const mkch = (n, ch, {cl, id, attrs, onclick, href}={}) => {
 };
 const mk = (n, named={}) => mkch(n, undefined, named);
 
+function docopy(text) {
+  navigator.clipboard.writeText(text);
+}
+function mkcopy(content, text) {
+  let hoverMessage = 'Click to copy';
+  if (typeof content === 'string') return `<span class="click-copy hover-base" onclick="docopy('${text}')"><span class="hover-text">${hoverMessage}</span>${content}</span>`;
+  return mkch('span', [mkch('span', [hoverMessage], {cl:'hover-text'}), content], {cl:['click-copy', 'hover-base'], onclick: ()=>docopy(text)});
+}
 
 
 function makeCheckbox(display, key, updated, group) {
@@ -1088,7 +1096,7 @@ function deltaPage(n) {
 
 const hl = (h, text) => mkch('span', [text], {cl:'h-'+h});
 let mkRetLine = (fn) => hl('type',fn.ret.type);
-let mkFnLine = (fn) => mkch('span', [hl('name',fn.name), '(', ...fn.args.flatMap(c=>[hl('type', c.type), ' '+c.name, ', ']).slice(0,-1), ')']);
+let mkFnLine = (fn, wrapname=(c=>c)) => mkch('span', [wrapname(hl('name',fn.name)), '(', ...fn.args.flatMap(c=>[hl('type', c.type), ' '+c.name, ', ']).slice(0,-1), ')']);
 function displayNoEnt(link = true) {
   descPlaceEl.innerText = "";
   curr_entry = undefined;
@@ -1128,10 +1136,11 @@ function displayEnt(ins, fn, link = true) {
   ]));
   
   let desc;
+  let copyWrap = (c) => mkcopy(c, fn.name);
   if (fn.args.length>7 || fn.args==0) {
-    desc = [mkRetLine(fn), ' ', mkFnLine(fn)];
+    desc = [mkRetLine(fn), ' ', mkFnLine(fn, copyWrap)];
   } else {
-    desc = [mkRetLine(fn), ' ', hl('name',fn.name), '(\n', ...fn.args.map((a,i)=>{
+    desc = [mkRetLine(fn), ' ', copyWrap(hl('name',fn.name)), '(\n', ...fn.args.map((a,i)=>{
       return mkch('span', ['  ', hl('type',a.type), ' '+a.name, ','.repeat(i!=fn.args.length-1), a.info? hl('comm',' // '+a.info) : '', '\n']);
     }), ')'];
   }

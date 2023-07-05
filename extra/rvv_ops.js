@@ -879,7 +879,10 @@ let defs = [
     return vlmax;
   }`
 }],
-[/_vsetvlmax_/, (f) => `return VLMAXG{${f.name.split('vsetvlmax_')[1].replace('e','vint')+'_t'}};`],
+[/_vsetvlmax_/, (f) => { let t = f.name.split('vsetvlmax_')[1].replace('e','vint')+'_t'; return `
+  INSTR{VLSET ${t}}
+  return VLMAXG{${t}};`
+}],
 
 ];
 
@@ -1051,8 +1054,9 @@ oper: (o, v) => {
     let test = (p) => all.startsWith(p)? (post=all.slice(p.length), 1) : 0;
     if (test('VLSET ')) { // automated vlseti generation from intrinsic name & given type
       let [ew,lm] = vparts(post);
-      let vl = hasarg(fn,'avl')?'x[avl]':hasarg(fn,'vl')?'x[vl]':'0';
-      return [0, `vset${vl==='0'?'i':''}vli zero, ${vl}, e${ew}, m${lm<1? 'f'+(1/lm) : lm}, ${tail?'ta':'tu'}, ${mask==2?'mu':'ma'}`];
+      let setter = fn.name.includes('_vsetvl');
+      let vl = setter? (hasarg(fn,'avl')? 'x[avl]' : 'zero') : hasarg(fn,'vl')? 'x[vl]' : '0';
+      return [0, `vset${vl==='0'?'i':''}vli ${setter? 'xd' : 'zero'}, ${vl}, e${ew}, m${lm<1? 'f'+(1/lm) : lm}, ${tail?'ta':'tu'}, ${mask==2?'mu':'ma'}`];
     }
     if (test('INIT ')) {
       return [0, procInstr(post)[1]];

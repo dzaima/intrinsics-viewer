@@ -205,6 +205,7 @@ let defs = [
 
 // segment load, strided load, indexed load
 [/vl(|s|[ou]x)seg\dei?\d+_/, (f) => { let [x,vt] = xparts(f.ret); return `
+  INSTR{VLSET RES{}; BASE DST, (R_base)${hasarg(f,'bindex')?', R_bindex':''}${hasarg(f,'bstride')?', R_bstride':''}, MASK}
   VLMAX{${vt}}
   ${mem_align_comment(f,1)}
   RES{} res;
@@ -220,6 +221,7 @@ let defs = [
 }],
 // segment store, stided store, indexed store
 [/vs(|s|[ou]x)seg\dei?\d+_/, (f) => { let [x,vt] = xparts(farg(f,'v_tuple')); return `
+  INSTR{VLSET FARG{v_tuple}; BASE R_v_tuple, (R_base)${hasarg(f,'bindex')?', R_bindex':''}${hasarg(f,'bstride')?', R_bstride':''}, MASK}
   VLMAX{${vt}}
   ${mem_align_comment(f,0)}
   for (int o = 0; o < ${x}; o++) {
@@ -232,6 +234,7 @@ let defs = [
 }],
 // segment fault-only-first load
 [/vlseg\de\d+ff_/, (f) => { let [x,vt] = xparts(f.ret); return `
+  INSTR{VLSET RES{}; BASE DST, (R_base), MASK; csrr R_new_vl, vl}
   VLMAX{${vt}}
   ${mem_align_comment(f,1)}
   RES{} res;
@@ -1054,7 +1057,7 @@ oper: (o, v) => {
     if (test('INIT ')) {
       return [0, procInstr(post)[1]];
     }
-    all = all.replace(/\bBASE\b/, () => o.name.replace('__riscv_','').split(/_([iuf]\d+mf?\d+|b\d+)+(_|$)/)[0].replace(/_/g,'.')); // base assembly instruction name
+    all = all.replace(/\bBASE\b/, () => o.name.replace('__riscv_','').split(/_([iuf]\d+mf?\d+(x\d+)?|b\d+)+(_|$)/)[0].replace(/_/g,'.')); // base assembly instruction name
     all = all.replace(/, MASK/, () => mask? ', v0.t' : ''); // mask argument if policy asks for it
     all = all.replace(/\bR_(\w+)\b/g, (_,c) => { let t = farg(fn,c)[0]; return (t=='v'? 'v' : t=='f'? 'f' : 'x')+'['+c+']'; }); // argument registers
     all = all.replace(/\bDST\b/g, basev? `v[${basev}]` : `vd`); // destination register

@@ -651,7 +651,7 @@ async function loadRVV() {
     'set-vl-to-vlmax-with-specific-vtype': c => ["Returns the maximum number of elements of the specified type to process.", undefined],
     'reinterpret-cast-conversion-functions': c => [undefined, ""],
     'vector-lmul-extension-and-truncation-functions': c => [c.name.includes("vlmul_ext")? "Returns a vector whose low part is the argument, and the upper part is undefined." : "Returns a low portion of the argument.", ""],
-    'vector-initialization-functions': c => "Returns an undefined vector value of the specified type.",
+    'vector-initialization-functions': c => ["Returns an undefined vector value of the specified type.", undefined],
     'vector-insertion-functions': c => [c.name.includes("x")? "Creates a copy of the tuple with a specific element replaced." : "Inserts a lower-LMUL vector to part of a higher-LMUL one. This is equivalent to writing over part of the register group of the <code>desc</code> argument.", ""],
     'vector-extraction-functions': c => [c.name.includes("x")? "Extracts an element of the tuple." : "Extracts a part of the register group of <code>src</code>.", ""],
   };
@@ -751,15 +751,16 @@ async function loadRVV() {
     } else {
       specRef = 'sec-aos'; // TODO more specific
     }
-    let overload = (c.desc.match(/Overloaded name: <code>\w+<\/code><br>/) || [""])[0];
+    let overloadRegex = /Overloaded name: <code>(\w+)<\/code><br>/;
+    let overload = (c.desc.match(overloadRegex) || ["",""])[1];
+    if (overload) overload = `Overloaded name: <span class="mono h-name">${overload}</span><br>`;
     
     if (docVal) {
-      docVal = docVal(c);
-      if (Array.isArray(docVal)) {
-        let [desc, oper] = docVal;
-        if (desc!==undefined) c.desc = overload + desc;
-        docVal = oper;
-      }
+      let [desc, oper] = docVal(c);
+      if (desc!==undefined) c.desc = overload + desc;
+      docVal = oper;
+    } else {
+      if (overload) c.desc = c.desc.replace(overloadRegex, overload);
     }
     
     // add implementation description aka operation, and new instr if available

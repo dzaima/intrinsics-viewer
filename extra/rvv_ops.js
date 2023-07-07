@@ -114,7 +114,7 @@ function opmap(fn) {
   if (name.includes('srl')) return '>>';
   if (name.includes('and')) return '&';
   if (name.includes('xor')) return '^';
-  if (name.includes('or')) return '^';
+  if (name.includes('or')) return '|';
   if (/eq$/.test(name)) return '==';
   if (/ne$/.test(name)) return '!=';
   if (/gtu?$/.test(name)) return '>';

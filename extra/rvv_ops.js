@@ -234,7 +234,7 @@ let defs = [
 }],
 // segment fault-only-first load
 [/vlseg\de\d+ff_/, (f) => { let [x,vt] = xparts(f.ret); return `
-  INSTR{VLSET RES{}; BASE DST, (R_base), MASK; csrr R_new_vl, vl}
+  INSTR{VLSET RES{}; BASE DST, (R_base), MASK; csrr R_new_vl, vl // or used as vl directly}
   VLMAX{${vt}}
   ${mem_align_comment(f,1)}
   RES{} res;
@@ -294,7 +294,7 @@ let defs = [
 
 // fault-only-first
 [/_vle\d+ff_v/, (f) => `
-  INSTR{VLSET RES{}; BASE DST, (R_base), MASK; csrr R_new_vl, vl}
+  INSTR{VLSET RES{}; BASE DST, (R_base), MASK; csrr R_new_vl, vl // or used as vl directly}
   VLMAX{RES{}}
   ${mem_align_comment(f,1)}
   RES{} res;

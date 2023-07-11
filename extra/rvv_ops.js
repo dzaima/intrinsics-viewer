@@ -642,7 +642,10 @@ let defs = [
 ],
 
 // reinterpret
-[/_vreinterpret_/, `return reinterpret(RES{}, src);`],
+[/_vreinterpret_/, `
+  INSTR{}
+  return reinterpret(RES{}, src);`
+],
 
 // integer min/max
 [/_v(min|max)u?_[vw][vx]_/, (f) => `

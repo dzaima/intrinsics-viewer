@@ -766,7 +766,7 @@ async function loadRVV() {
     // add implementation description aka operation, and new instr if available
     let newOp = rvvOps.oper(c);
     c.implDesc = newOp? newOp.oper : !docVal? undefined : `<div style="font-family:sans-serif;white-space:normal">${docVal}</div>`;
-    if (newOp && newOp.instrHTML) {
+    if (newOp && newOp.instrHTML!==undefined) {
       c.implInstrSearch = newOp.instrSearch;
       c.implInstr = () => rvvOps.oper(c).instrHTML;
     }

@@ -1,6 +1,8 @@
 'use strict';
 
 let argIndexing = 1;
+let perPageMin = 10;
+let perPageMax = 50;
 
 /*
 intrinsic entry:
@@ -1462,6 +1464,11 @@ function updateSearch0() {
   
   archStore.write();
   categoryStore.write();
+  
+  let hdr = document.getElementById('main-table-header');
+  let left = window.innerHeight - (hdr.getBoundingClientRect().bottom + document.documentElement.scrollTop);
+  perPage = Math.min(perPageMax, Math.max(perPageMin, (left / hdr.clientHeight) | 0));
+  
   toPage(0);
   resultCountEl.textContent = query_found.length+" result"+(query_found.length==1?"":"s");
   clearCenterInfo();

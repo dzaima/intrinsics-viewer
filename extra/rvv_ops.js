@@ -506,7 +506,7 @@ let defs = [
     res[0] = src;
     TAILLOOP{1};
   } else {
-    res = TAILV{}
+    res = TAILV{};
   }
   return res;`
 ],
@@ -889,7 +889,7 @@ let defs = [
 
 ];
 
-let miniHTMLEscape = (c) => c.replace(/&/g, '&amp;').replace(/<(?!span)/g, '&lt;'); // allow intentional inline HTML usage, but escape most things
+let miniHTMLEscape = (c) => c.replace(/&/g, '&amp;').replace(/<(?!\/?(span|code))/g, '&lt;'); // allow intentional inline HTML usage, but escape most things
 let cleanup = (c) => miniHTMLEscape(c.replace(/\n  /g, "\n").replace(/^(\n *)+\n/, ""));
 defs.forEach(c => { if (typeof c[1] !== 'function') c[1] = cleanup(c[1]); });
 
@@ -994,9 +994,9 @@ case 'anything': return helper_text(`
 
 case 'agnostic': return helper_text(`
   Either returns its argument, or a constant whose bitwise value is all ones.
-  May make a different choice each call.
-  For practical purposes, the result of this should be considered to be undefined. It's only used for purposes of clarity.
-  In the future, this may become equivalent to <code>anything()</code>.
+  May make a different choice on each call.
+  This describes the precise requirement of the architecture specification for purposes of clarity; for practical purposes, the result of this should be considered to be undefined like <code>anything()</code>.
+  The intrinsics may in the future allow the compiler to arbitrarily change agnostic values, making this method truly equal to <code>anything()</code>.
 `);
 
 case 'intinf_t': return helper_text(`

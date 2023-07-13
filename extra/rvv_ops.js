@@ -1157,7 +1157,7 @@ oper: (o, v) => {
   
   return {
     oper: s,
-    instrSearch: !instrArr? undefined : instrArr.map(c=>c[1]).join('\n'),
+    instrSearch: !instrArr? undefined : instrArr.map(c=>c[1]).join('\n').replace(/&lt;/g, '<'),
     instrHTML: !instrArr? undefined : instrArr.map(([i,c]) => i? c.replace(/\/\/.*/, boring) : boring(c)).join('\n'),
   };
 }};

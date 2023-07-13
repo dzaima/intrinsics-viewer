@@ -1590,7 +1590,7 @@ async function setCPU(name) {
     toCenterInfo(noDataMsg);
     return false;
   } else {
-    const searchStr = c => c && c.length? c.toLowerCase() : undefined;
+    const searchStr = c => c && c.length? c.toLowerCase().replace(/&lt;/g, '<') : undefined;
     function prepType(t) {
       let c = t.type;
       c = c.replace(/ +(\**) *$/, "$1");

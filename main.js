@@ -451,7 +451,7 @@ async function loadRVV() {
   let specFilePath = "data/v-spec.html";
   let baseFile, policiesFile, rvvOps;
   try {
-    baseFile = await loadFile("data/rvv_base-1.json");
+    baseFile = await loadFile("data/rvv_base-2.json");
     policiesFile = await loadFile("data/rvv_policies.json");
     rvvOps = new Function(await loadFile("extra/rvv_ops.js"))();
     // rvvOps = {oper:()=>undefined,helper:()=>undefined};

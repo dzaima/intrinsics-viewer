@@ -1112,7 +1112,11 @@ oper: (o, v) => {
   if (extra_test) {
     let ms = defs.filter(c => c[0].test(name));
     if (ms.length != 1) console.warn(`multiple matches for ${fn.name}: ${ms.map(c=>c[0]).join(', ')}`);
-    if (instrArr) {
+    let instrEmpty = instrArr? instrArr.map(c=>c[1]).join('').length==0 : 0;
+    if (instrArr && instrEmpty) {
+      if (!name.includes("vreinterpret")) console.warn(`unexpected empty instruction for ${fn.name}`);
+    }
+    if (instrArr && !instrEmpty) {
       
       // compare vsetvl setup with known
       if (o.implInstrRaw) {

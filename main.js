@@ -449,12 +449,13 @@ async function loadArm() {
 let rvv_helper = undefined;
 async function loadRVV() {
   let specFilePath = "data/v-spec.html";
-  let baseFile, policiesFile, rvvOps;
+  let baseFile, rvvOps;
+  /// let policiesFile;
   try {
-    baseFile = await loadFile("data/rvv_base-2.json");
-    policiesFile = await loadFile("data/rvv_policies.json");
+    baseFile = await loadFile("data/rvv_base-3.json");
+    /// policiesFile = await loadFile("data/rvv_policies.json");
     rvvOps = new Function(await loadFile("extra/rvv_ops.js"))();
-    // rvvOps = {oper:()=>undefined,helper:()=>undefined};
+    /// rvvOps = {oper:()=>undefined,helper:()=>undefined};
   } catch (e) {
     console.log(e);
     return null;
@@ -667,11 +668,13 @@ async function loadRVV() {
   
   
   let res = JSON.parse(baseFile);
-  let {data:policyMap, def:policyDef, types:policyTypes} = JSON.parse(policiesFile);
-  let implicitCount = 0; // sanity check counter
+  /// let {data:policyMap, def:policyDef, types:policyTypes} = JSON.parse(policiesFile);
+  /// let implicitCount = 0; // sanity check counter
   
   // process entries
-  res.forEach(c => {
+  res.forEach(ins => {
+    let c = ins;
+    
     c.categories = c.categories.map(c => c.endsWith("|non-masked")? c.substring(0,c.length-11): c);
     c.id = idCounter++;
     c.implInstr = c.implInstrRaw? c.implInstrRaw.replace(/\n/g, '<br>') : undefined;
@@ -682,69 +685,39 @@ async function loadRVV() {
       let n = categoryMap[ct];
       return n===undefined? ct : (typeof n === 'string')? n : n(c);
     });
-    
     // process variations
-    let udsVal = policyMap[c.name.substring(8)];
-    if (udsVal === undefined) udsVal = policyDef;
-    if (udsVal) {
-      // messy logic for deciding how to transform the arguments for the masking
-      // tested via generating invocations of all the results and running them through clang version 17.0.0 (++20230624042319+ee2bf319bc05-1~exp1~20230624042420.1017)
-      let nameParts = c.name.split('_');
-      let mainType = nameParts.filter(c => /^([iuf]\d+mf?\d+(x\d+)?|b\d+)$/.test(c))[0];
-      if (!mainType) throw new Error("Couldn't find mask type for "+c.name);
-      
-      let maskW = undefined;
-      if (mainType[0]=='b') {
-        maskW = mainType.substring(1);
-      } else {
-        let [a,b] = mainType.split("m");
-        b = b.split('x')[0];
-        if (b[0]=='f') b = 1 / +b.substring(1);
-        maskW = +a.substring(1) / +b;
-      }
-      let mask = {type: "vbool"+maskW+"_t", name: 'mask'};
-      
-      let maskedOff;
-      let isvptr = (i) => c.args[i].type[0]=='v' && c.args[i].type.endsWith("*");
-      let args0, args1;
-      if (isvptr(0)) {
-        maskedOff = [];
-        let i = -1;
-        while (isvptr(++i)) maskedOff.push({type: c.args[i].type.slice(0,-1).trim(), name: "maskedoff"+i});
-        args0 = c.args.slice(0,i);
-        args1 = c.args.slice(i);
-      } else {
-        maskedOff = [{type: c.ret.type, name: 'maskedoff'}];
-        if (implicitMasked.some(m => c.categories[0].startsWith(m))) { maskedOff = []; implicitCount++; }
-        args0 = [];
-        args1 = c.args;
-      }
-      
-      let alts = [];
-      for (let i = 0; i < policyTypes.length; i++) {
-        if (udsVal & (1<<(policyTypes.length-i-1))) {
-          let nargs;
-          let ty = policyTypes[i];
-          switch(ty) { default: throw 0;
-            case '_tumu': case '_tum':
-            case '_mu': nargs = [...args0, mask, ...maskedOff, ...args1]; break;
-            case '_m':  nargs = [...args0, mask,               ...args1]; break;
-            case '_tu': nargs = [...args0,       ...maskedOff, ...args1]; break;
-          }
-          let obj = {name: c.name+ty, short: ty, ret: c.ret, args: nargs};
-          obj.implDesc = () => rvvOps.oper(c, obj)?.oper;
-          obj.implInstr = () => rvvOps.oper(c, obj)?.instrHTML;
-          if (extra_test) rvvOps.oper(c, obj); // make sure oper generation works for all variations
-          alts.push(obj);
-        }
-      }
-      if (alts) c.variations = alts;
+    if (ins.policies) {
+      ins.variations = ins.policies.map(s => {
+        let obj = {
+          name: ins.name + s.s,
+          short: s.s,
+          ret: ins.ret,
+          
+          args: s.a.map(a => {
+            if (typeof a === 'number') return ins.args[a];
+            if (typeof a === 'object') return a;
+            return {name: a.startsWith('vbool')? 'mask' : 'maskedoff', type: a};
+          }),
+        };
+        
+        obj.implDesc = () => rvvOps.oper(c, obj)?.oper;
+        obj.implInstr = () => rvvOps.oper(c, obj)?.instrHTML;
+        if (extra_test) rvvOps.oper(c, obj); // make sure oper generation works for all variations
+        
+        return obj;
+      });
     }
+    
+    [ins, ...(ins.variations || [])].forEach(v => {
+      v.args.forEach(a => {
+        if (a.info==='__RISCV_FRM' || a.info=='__RISCV_VXRM') a.info = `<a onclick="rvv_helper('${a.info}')">${a.info}</a>`
+      });
+    });
     
     let docVal, specRef;
     if (c.implDesc) {
       let match = c.implDesc.match(/\.\.\/rvv-intrinsic-api.md#+(.+)/);
-      if (!match) throw new Error("expected API reference");
+      if (!match) throw new Error("expected API reference for "+c.name);
       let apiRef = match[1];
       if (c.categories[0].includes("Slide|Down")) apiRef+= "D";
       if (c.categories[0].includes("Slide|Up")) apiRef+= "U";
@@ -753,17 +726,14 @@ async function loadRVV() {
     } else {
       specRef = 'sec-aos'; // TODO more specific
     }
-    let overloadRegex = /Overloaded name: <code>(\w+)<\/code><br>/;
-    let overload = (c.desc.match(overloadRegex) || ["",""])[1];
-    if (overload) overload = `Overloaded name: <span class="mono h-name">${mkcopy(overload,overload)}</span><br>`;
     
     if (docVal) {
       let [desc, oper] = docVal(c);
-      if (desc!==undefined) c.desc = overload + desc;
+      if (desc!==undefined) c.desc = desc;
       docVal = oper;
-    } else {
-      if (overload) c.desc = c.desc.replace(overloadRegex, overload);
     }
+    
+    if (c.overloaded) c.desc = `Overloaded name: <span class="mono h-name">${mkcopy(c.overloaded,c.overloaded)}</span><br>${c.desc}`;
     
     // add implementation description aka operation, and new instr if available
     let newOp = rvvOps.oper(c);
@@ -779,7 +749,7 @@ async function loadRVV() {
     if (c.name.includes("_vwcvt")) specRef = '_vector_widening_integer_addsubtract';
     if (specRef) c.desc = `<a target="_blank" href="${specFilePath}#${specRef}">Specification</a><br>`+c.desc
   });
-  if (implicitCount!=828) console.warn("Unexpected count of intrinsics with implicit maskedoff argument: "+implicitCount);
+  /// if (implicitCount!=828) console.warn("Unexpected count of intrinsics with implicit maskedoff argument: "+implicitCount);
   
 
   function addCsrOp(ret, name, args, desc, oper) {
@@ -835,7 +805,7 @@ function group(list, name, order) {
 
 
 
-function mkch(n, ch, {cl, id, attrs, onclick, href}={}) {
+function mkch(n, ch, {cl, id, attrs, onclick, href, innerHTML}={}) {
   let r = document.createElement(n);
   if (ch) r.append(...ch);
   if (id) r.id = id;
@@ -843,6 +813,7 @@ function mkch(n, ch, {cl, id, attrs, onclick, href}={}) {
   if (href) r.href = href;
   if (attrs) Object.entries(attrs).map(([k,v]) => r.setAttribute(k,v));
   if (cl) cl instanceof Array? r.classList.add(...cl) : r.classList.add(cl);
+  if (innerHTML) r.innerHTML = innerHTML
   return r;
 };
 const mk = (n, named={}) => mkch(n, undefined, named);
@@ -1145,7 +1116,7 @@ function displayEnt(ins, fn, link = true) {
     desc = [mkRetLine(fn), ' ', mkFnLine(fn, copyWrap)];
   } else {
     desc = [mkRetLine(fn), ' ', copyWrap(hl('name',fn.name)), '(\n', ...fn.args.map((a,i)=>{
-      return mkch('span', ['  ', hl('type',a.type), ' '+a.name, ','.repeat(i!=fn.args.length-1), a.info? hl('comm',' // '+a.info) : '', '\n']);
+      return mkch('span', ['  ', hl('type',a.type), ' '+a.name, ','.repeat(i!=fn.args.length-1), a.info? hl('comm',mkch('span', [], {innerHTML: ' // '+a.info})) : '', '\n']);
     }), ')'];
   }
   if (ins.variations && ins.variations.length) {

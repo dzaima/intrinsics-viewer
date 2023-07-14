@@ -132,7 +132,14 @@ const mem_ref = (fn, eln) => {
   let ptr = `(${eln? eltype(farg(fn,eln)) : 'RESE{}'}*)(i*b${/riscv_v[ls][ou]x/.test(fn.name)? 'index[i]' : 'stride'} + (char*)base)`;
   return seg? `(${ptr})%M[o%M]` : '%M*'+ptr;
 }
-const mem_mask_comment = (f) => f.short&&f.short.includes("m")? ` // masked-off indices won't fault` : ``;
+const fvhas = (f, t) => {
+  if (!f || !f.short) return false;
+  let p = f.short.split('_');
+  if (p.includes(t)) return true;
+  p = p[p.length-1];
+  return p.includes(t);
+}
+const mem_mask_comment = (f) => fvhas(f, "m")? ` // masked-off indices won't fault` : ``;
 const mem_align_comment = (f,l) => {
   let a = eparts(l? f.ret : farg(f,'v_tuple','value'))[0]/8;
   return a==1? `RMELN{}` : `// if the address of any executed ${l?'load':'store'} is not aligned to a${a==8?'n':''} ${a}-byte boundary, an address-misaligned exception may or may not be raised.`
@@ -152,8 +159,9 @@ function red_op(fn, a, b) {
 let defs = [
 // same-width & widening float & integer add/sub/mul/div, integer and/or/xor
 [/_vf?w?(add|sub|mul|div|rem|and|or|xor)(s?u)?_[vw][vxf]_/, (f) => { let minew = Math.min(eparts(farg(f,'op1'))[0], eparts(farg(f,'op2'))[0]); return `
-  INSTR{VLSET int${minew}${fmtmul(minew * vparts(farg(f,'op1')).reduce((lw,lm)=>lm/lw))}_t; BASE DST, R_op1, R_op2, MASK}
+  INSTR{VLSET int${minew}${fmtmul(minew * vparts(farg(f,'op1')).reduce((lw,lm)=>lm/lw))}_t; FRMI0{}; BASE DST, R_op1, R_op2, MASK; FRMI1{}}
   VLMAX{RES{}}
+  FRM{}
   RES{} res;
   for (size_t i = 0; i < vl; i++) {
     res[i] = MASK{${owdq(f.ret, farg(f,'op1'), `op1[i]`)} ${opmap(f)} ${owdq(f.ret, farg(f,'op2'), `IDX{op2}`)}};
@@ -164,8 +172,9 @@ let defs = [
 
 // multiply-add
 [/_vf?w?n?m(acc|add|sub|sac)(su|us?)?_v[vxf]_/, (f) => `
-  INSTR{VLSET ${farg(f,'vs2')}; BASE R_vd, R_${hasarg(f,'vs1')?'v':'r'}s1, R_vs2, MASK}
+  INSTR{VLSET ${farg(f,'vs2')}; FRMI0{}; BASE R_vd, R_${hasarg(f,'vs1')?'v':'r'}s1, R_vs2, MASK; FRMI1{}}
   VLMAX{RES{}}
+  FRM{}
   RES{} res;
   for (size_t i = 0; i < vl; i++) {
     res[i] = MASK{${
@@ -227,7 +236,7 @@ let defs = [
   for (int o = 0; o < ${x}; o++) {
     ${vt} curr = v_tuple[o];
     for (size_t i = 0; i < vl; i++) {
-      ${f.short==='_m'?`if (mask[i]) `:``}${mem_ref(f,'v_tuple')} %M= curr[i];${mem_mask_comment(f)}
+      ${fvhas(f,'m')?`if (mask[i]) `:``}${mem_ref(f,'v_tuple')} %M= curr[i];${mem_mask_comment(f)}
     }
   }
   return res;`
@@ -238,7 +247,7 @@ let defs = [
   VLMAX{${vt}}
   ${mem_align_comment(f,1)}
   RES{} res;
-  ${f.short&&f.short.includes('m')?'if (mask[0]) ':''}for (int o = 0; o < ${x}; o++) base%M[o%M]; // for the side-effect of faulting
+  ${fvhas(f,'m')?'if (mask[0]) ':''}for (int o = 0; o < ${x}; o++) base%M[o%M]; // for the side-effect of faulting
   // after this point, this instruction will never fault
   
   size_t new_vl = /* implementation-defined 1 ≤ new_vl ≤ vl */;
@@ -274,7 +283,7 @@ let defs = [
   VLMAX{FARG{value}}
   ${mem_align_comment(f,0)}
   ${mem_loop(f)}
-    ${f.short==='_m'?`if (mask[i]) `:``}${mem_ref(f,'value')} %M= value[i];${mem_mask_comment(f)}
+    ${fvhas(f,'m')?`if (mask[i]) `:``}${mem_ref(f,'value')} %M= value[i];${mem_mask_comment(f)}
   }`
 ],
 
@@ -298,7 +307,7 @@ let defs = [
   VLMAX{RES{}}
   ${mem_align_comment(f,1)}
   RES{} res;
-  ${f.short&&f.short.includes('m')?'if (mask[0]) ':''}base%M[0%M]; // for the side-effect of faulting
+  ${fvhas(f,'m')?'if (mask[0]) ':''}base%M[0%M]; // for the side-effect of faulting
   // after this point, this instruction will never fault
   
   size_t new_vl = /* implementation-defined 1 ≤ new_vl ≤ vl */;
@@ -325,8 +334,9 @@ let defs = [
 
 // reverse binary: rsub, rdiv
 [/_vf?r(sub|div)_v[xf]_/, (f) => `
-  INSTR{VLSET RES{}; BASE DST, R_op1, R_op2, MASK}
+  INSTR{VLSET RES{}; FRMI0{}; BASE DST, R_op1, R_op2, MASK; FRMI1{}}
   VLMAX{RES{}}
+  FRM{}
   RES{} res;
   for (size_t i = 0; i < vl; i++) {
     res[i] = MASK{${owd(f.ret, farg(f,'op2'), `op2`)} ${opmap(f)} ${owd(f.ret, farg(f,'op1'), `op1[i]`)}};
@@ -392,11 +402,12 @@ let defs = [
 
 // reductions
 [/vf?w?red(?!usum)/, (f) => { let [ew, lm] = vparts(farg(f,'vector')); let ovlen = 2**(2*ew) / (lm * 2**ew); return `
-  INSTR{VLSET FARG{vector}; BASE DST, R_vector, R_scalar, MASK}
+  INSTR{VLSET FARG{vector}; FRMI0{}; BASE DST, R_vector, R_scalar, MASK; FRMI1{}}
   VLMAX{FARG{vector}}
+  FRM{}
   RESE{} res = scalar[0];
   for (size_t i = 0; i < vl; i++) {
-    ${f.short&&f.short.includes('m')? 'if (mask[i]) ' : ''}res = ${red_op(f, 'res', owd(f.ret, farg(f,'vector'), 'vector[i]'))};${
+    ${fvhas(f,'m')? 'if (mask[i]) ' : ''}res = ${red_op(f, 'res', owd(f.ret, farg(f,'vector'), 'vector[i]'))};${
       f.name.includes('osum')? ' // yes, sequential sum, rounding on each op'
       : f.name.includes('wredsum')? ` // note: can overflow if ${ovlen<=65536? `vl ≥ ≈${ovlen} or if ` : ``}scalar is large enough`
       : ``
@@ -408,14 +419,15 @@ let defs = [
   return res_vec;`
 }],
 
-[/_vfw?redusum/, (f) => { let m=f.short&&f.short.includes('m'); return `
-  INSTR{VLSET FARG{vector}; BASE DST, R_vector, R_scalar, MASK}
+[/_vfw?redusum/, (f) => { let m=fvhas(f,'m'); return `
+  INSTR{VLSET FARG{vector}; FRMI0{}; BASE DST, R_vector, R_scalar, MASK; FRMI1{}}
   // TL;DR: sum${m?' non-masked':''} elements in some implementation-defined order with
   //   implementation-defined intermediate types (at least RESE{})
   //   and some additive identities possibly sprinkled in
   VLMAX{FARG{vector}}
   
-  RESE{} additive_identity = rounding_mode==ROUND_DOWN ? +0.0 : -0.0;
+  FRM{}
+  RESE{} additive_identity = ${fvhas(f,'rm')? 'frm' : 'dynamic_rounding_mode'}==__RISCV_FRM_RDN ? +0.0 : -0.0;
   
   float_t process(float_t[] items) {
     if (items.length == 1) {
@@ -530,7 +542,7 @@ let defs = [
   return res;`
 ],
 [/vrgather(ei16)?_vv_/, (f) => `
-  INSTR{VLSET RES{}; BASE DST, R_op1, R_${argn(f,'index','op2')}, MASK}
+  INSTR{VLSET RES{}; BASE DST, R_op1, R_index, MASK}
   RES{} res;
   VLMAX{RES{}}
   for (size_t i = 0; i < vl; i++) {
@@ -686,11 +698,12 @@ let defs = [
 
 // unary same-width things
 [/_vf?neg_|_vfrsqrt7_|_vfsqrt_|_vfrec7_|_vfabs_|_vnot_|_vmv_v_v_/, (f) => {let n=(c)=>f.name.includes(c); return `
-  INSTR{VLSET RES{}; BASE DST, R_${argn(f,'op1','src')}, MASK}
+  INSTR{VLSET RES{}; FRMI0{}; BASE DST, R_${argn(f,'op1','src')}, MASK; FRMI1{}}
   VLMAX{RES{}}
+  FRM{}
   RES{} res;
   for (size_t i = 0; i < vl; i++) {
-    res[i] = MASK{${ocall(n('vmv')?'':n('neg')?'-':n('not')?'~':n('rsqrt7')?'reciprocal_sqrt_estimate':n('rec7')?'reciprocal_estimate':n('sqrt')?'sqrt':n('abs')?'abs':'??', `op1[i]`)}};${n("7")? ' // 7 MSB of precision' : n('abs')? ' // abs(-0.0) is +0.0' : ''}
+    res[i] = MASK{${ocall(n('vmv')?'':n('neg')?'-':n('not')?'~':n('rsqrt7')?'reciprocal_sqrt_estimate':n('rec7')?'reciprocal_estimate':n('sqrt')?'sqrt':n('abs')?'abs':'??', argn(f,'op1','src')+'[i]')}};${n("7")? ' // 7 MSB of precision' : n('abs')? ' // abs(-0.0) is +0.0' : ''}
   }
   TAILLOOP{};
   return res;`
@@ -698,8 +711,9 @@ let defs = [
 
 // sign-extend, zero-extend, widen, convert
 [/[sz]ext|_vf?w?cvtu?_/, (f) => { let op=argn(f,'src','op1'); let [rw,rq]=eparts(f.ret); let [ow,oq]=eparts(farg(f,op)); return  `
-  INSTR{VLSET ${f.name.includes('ext_')? 'RES{}' : farg(f,op)}; BASE DST, R_${op}, MASK}
+  INSTR{VLSET ${f.name.includes('ext_')? 'RES{}' : farg(f,op)}; FRMI0{}; BASE DST, R_${op}, MASK; FRMI1{}}
   VLMAX{${farg(f,op)}}
+  FRM{}
   ${f.name.includes('_rtz_')?`local_rounding_mode = RTZ; // Round towards zero`:``} RMELN{}
   
   RES{} res;
@@ -712,13 +726,14 @@ let defs = [
 
 // narrow
 [/_vf?ncvt_/, (f) => `
-  INSTR{VLSET RES{}; BASE DST, R_src, MASK}
+  INSTR{VLSET RES{}; FRMI0{}; BASE DST, R_src, MASK; FRMI1{}}
   VLMAX{FARG{src}}
+  FRM{}
   ${f.name.includes('_rod_')?`local_rounding_mode = ROUND_TOWARDS_ODD;`:``} RMELN{}
   
   RES{} res;
   for (size_t i = 0; i < vl; i++) {
-    res[i] = MASK{${f.name.includes('_vf')?'round':'trunc'}(${tshort(f.ret)}, op1[i]})};
+    res[i] = MASK{${f.name.includes('_vf')?'round':'trunc'}(${tshort(f.ret)}, ${argn(f,'op1','src')}[i]})};
   }
   TAILLOOP{};
   return res;`
@@ -780,7 +795,7 @@ let defs = [
   VLMAXB{}
   VLMAX{}
   for (size_t i = 0; i < vl; i++) {
-    if (${f.short?'mask[i] && ':''}op1[i]) return i;
+    if (${fvhas(f,'m')?'mask[i] && ':''}op1[i]) return i;
   }
   return -1;`
 ],
@@ -790,7 +805,7 @@ let defs = [
   VLMAX{}
   RES{} res = 0;
   for (size_t i = 0; i < vl; i++) {
-    if (${f.short?'mask[i] && ':''}op1[i]) res++;
+    if (${fvhas(f,'m')?'mask[i] && ':''}op1[i]) res++;
   }
   return res;`
 ],
@@ -952,6 +967,25 @@ ${[32,64,128,256,512,1024,65536].filter(v => v*frac>=1).map(v => `  //   VLEN=${
 ${equalTo? `  // vlmax(e${e}, m${l}) is equal to:\n${equalTo}` : ``}
 `)}
 
+
+case '__RISCV_VXRM': return helper_code(`
+  enum __RISCV_VXRM {
+    __RISCV_VXRM_RNU = 0, // round to nearest up
+    __RISCV_VXRM_RNE = 1, // round to nearest even
+    __RISCV_VXRM_RDN = 2, // round down
+    __RISCV_VXRM_ROD = 3, // round to odd
+  };
+`);
+case '__RISCV_FRM': return helper_code(`
+  enum __RISCV_FRM {
+    __RISCV_FRM_RNE = 0, // Round to nearest, ties to even
+    __RISCV_FRM_RTZ = 1, // Round towards zero
+    __RISCV_FRM_RDN = 2, // Round down (towards -∞)
+    __RISCV_FRM_RUP = 3, // Round up (towards +∞)
+    __RISCV_FRM_RMM = 4, // Round to nearest, ties to max magnitude
+  };
+`);
+
 case 'rounded_shift_right': {
   let [t] = args;
   t = t.slice(1);
@@ -1026,17 +1060,15 @@ oper: (o, v) => {
   let fn = v || o;
   if (typeof s === 'function') s = cleanup(s(fn));
   
-  let vsi = v===undefined? (c)=>false : (c) => v.short.includes(c); // variation short includes
-  
-  let mask = !vsi("m")? 0 : vsi("mu")? 2 : 1; // 0: no masking; 1: agnostic; 2: undisturbed
-  let tail = !vsi("tu"); // 0: undisturbed; 1: agnostic
+  let mask = !fvhas(v,"m")? 0 : fvhas(v,"mu")? 2 : 1; // 0: no masking; 1: agnostic; 2: undisturbed
+  let tail = !fvhas(v,"tu"); // 0: undisturbed; 1: agnostic
   let basev = hasarg(fn, "maskedoff")? "maskedoff" : hasarg(fn, "vd")? "vd" : fn.name.includes("slideup")? "dest" : "";
   let baseeM = basev? basev+(farg(fn,basev).includes('x')? '[o]' : '')+'[i]' : '';
   let baseeT = fn.ret.type.includes("bool")? "" : baseeM;
   
   let agnBase0 = (agn,base) => agn? (base? `agnostic(${base})` : "anything()") : `${base}`;
-  let agnBaseM= (agn,base) => boring(agnBase0(agn, baseeM));
-  let agnBaseT= (agn,base) => boring(agnBase0(agn, baseeT));
+  let agnBaseM = (agn,base) => boring(agnBase0(agn, baseeM));
+  let agnBaseT = (agn,base) => boring(agnBase0(agn, baseeT));
   
   s = s.replace(/%M([=*\[\]])/g, (_,c) => `<span class="op-load">${c}</span>`); // memory ops
   s = s.replace(/RES{}/g, o.ret.type); // return type
@@ -1049,6 +1081,8 @@ oper: (o, v) => {
     // return g? v : boring(`vl = min(vl, ${v});`); // possibly the intention, but idk
     return g? v : boring(`assume(vl ≤ ${v});`);
   });
+  s = s.replace(/FRMI0{}(; )?/, (_,c='') => fvhas(fn,"rm")? boring('fsrmi xtmp, &lt;frm>'+c) : '');
+  s = s.replace(/FRMI1{}(; )?/, (_,c='') => fvhas(fn,"rm")? boring('fsrm xtmp'+c) : '');
   
   // generate assembler instruction
   let instrArr = undefined;
@@ -1061,9 +1095,7 @@ oper: (o, v) => {
       let vl = setter? (hasarg(fn,'avl')? 'x[avl]' : 'zero') : hasarg(fn,'vl')? 'x[vl]' : '0';
       return [0, `vset${vl==='0'?'i':''}vli ${setter? 'xd' : 'zero'}, ${vl}, e${ew}, m${lm<1? 'f'+(1/lm) : lm}, ${tail?'ta':'tu'}, ${mask==2?'mu':'ma'}`];
     }
-    if (test('INIT ')) {
-      return [0, procInstr(post)[1]];
-    }
+    if (test('INIT ')) return [0, procInstr(post)[1]];
     all = all.replace(/\bBASE\b/, () => o.name.replace('__riscv_','').split(/_([iuf]\d+mf?\d+(x\d+)?|b\d+)+(_|$)/)[0].replace(/_/g,'.')); // base assembly instruction name
     all = all.replace(/, MASK/, () => mask? ', v0.t' : ''); // mask argument if policy asks for it
     all = all.replace(/\bR_(\w+)\b/g, (_,c) => { let t = farg(fn,c)[0]; return (t=='v'? 'v' : t=='f'? 'f' : 'x')+'['+c+']'; }); // argument registers
@@ -1080,9 +1112,10 @@ oper: (o, v) => {
   s = s.replace(/TAIL{}/g, agnBaseT(tail)); // tail element
   s = s.replace(/TAILV{}/g, agnBase0(tail,basev)); // tail vector
   
+  s = s.replace(/FRM{}/, c => fvhas(fn,"rm")? boring('local_rounding_mode = frm;') : 'RMELN{}');
   s = s.replace(/^( *)MASKWEE{}.*\n/gm, (_,c) => !mask? "" : boring(`${c}if (!mask[i]) {\n${c}  res[i] = ${agnBaseM(mask==1)};\n${c}  continue;\n${c}}\n`)); // mask write early exit
   s = s.replace(/BORING{(.*?)}/g, (_,c) => boring(c));
-  s = s.replace(/IDX{(.*?)}/g, (_,c) => isvec(farg(fn,c))? c+"[i]" : c);
+  s = s.replace(/IDX{(.*?)}/g, (_,c) => isvec(farg(fn,c))? c+'[i]' : c);
   s = s.replace(/MASK{(.*?)}/g, (_,c) => {
     if (!mask) return c;
     if (c == agnBase0(mask==1, baseeM)) return c; // prevent pointless things like `mask[i] ? anything() : anything()`
@@ -1144,14 +1177,21 @@ oper: (o, v) => {
         }
       }
       
-      // verify all arguments of the intrinsic are present somewhere in the result
+      // verify arguments being present in instruction
       let allInstrs = instrArr.map(c=>c[1]).join('');
       fn.args.map(c=>c.name).filter(c=>c!='vl' && c!='mask').forEach(a => {
-        if (!allInstrs.includes(a)) throw new Error('argument '+a+' not used in '+fn.name);
+        if (!allInstrs.includes(a)) throw new Error('argument '+a+' not used in instruction of '+fn.name);
       });
       
       // make sure masking is included
       if ((mask!=0) != allInstrs.includes('v0.t')) throw new Error('bad mask in '+fn.name);
+    }
+    
+    if (s) {
+      // verify arguments being present in operation
+      fn.args.map(c=>c.name).forEach(a => {
+        if (!new RegExp(`\\b${a}\\b`).test(s)) throw new Error('argument '+a+' not used in operation of '+fn.name);
+      });
     }
   }
   

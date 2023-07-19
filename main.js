@@ -1206,6 +1206,18 @@ function benchmarkSearch(seconds = 1) {
   }
   console.log("average over "+n+" iterations: "+((t1-t0)/n).toFixed(3)+"ms");
 }
+
+
+let searchRequested;
+function searchTyped() {
+  if (searchRequested === undefined) {
+    searchRequested = setTimeout(()=>{
+      searchRequested = undefined;
+      updateSearch(false);
+    }, 1);
+  }
+}
+
 function updateSearch(link=true) {
   try {
     updateSearch0();

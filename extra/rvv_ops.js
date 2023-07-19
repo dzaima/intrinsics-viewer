@@ -962,7 +962,12 @@ case 'vlmax': {
   vlmax = EMUL*VLEN/EEW = VLEN${frac<1? '/'+(1/frac) : '*'+frac};
   
   // examples:
-${[32,64,128,256,512,1024,65536].filter(v => v*frac>=1).map(v => `  //   VLEN=${(v+':').padEnd(6)} vlmax = ${v*frac}`).join('\n')} - maximum possible
+${[32,64,128,256,512,1024,65536].filter(v => v*frac>=1).map(v => `  //   VLEN=${(v+':').padEnd(6)} vlmax = ${v*frac}`+(
+  v==65536? ' - maximum possible'
+  : v==128? ' - minimum for "v" extension'
+  : v== 64? ' - minimum for "Zvl64"'
+  : v== 32? ' - minimum for "Zvl32"' : ''
+)).join('\n')}
   
 ${equalTo? `  // vlmax(e${e}, m${l}) is equal to:\n${equalTo}` : ``}
 `)}

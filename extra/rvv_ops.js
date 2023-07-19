@@ -1075,6 +1075,9 @@ oper: (o, v) => {
   let agnBaseM = (agn,base) => boring(agnBase0(agn, baseeM));
   let agnBaseT = (agn,base) => boring(agnBase0(agn, baseeT));
   
+  // helper function display
+  let h = (name, args='') => `<a onclick="rvv_helper('${name}',${args})">${name}</a>`;
+  
   s = s.replace(/%M([=*\[\]])/g, (_,c) => `<span class="op-load">${c}</span>`); // memory ops
   s = s.replace(/RES{}/g, o.ret.type); // return type
   s = s.replace(/RESE{}/g, eltype(o.ret)); // result element
@@ -1117,7 +1120,7 @@ oper: (o, v) => {
   s = s.replace(/TAIL{}/g, agnBaseT(tail)); // tail element
   s = s.replace(/TAILV{}/g, agnBase0(tail,basev)); // tail vector
   
-  s = s.replace(/FRM{}/, c => fvhas(fn,"rm")? boring('local_rounding_mode = frm;') : 'RMELN{}');
+  s = s.replace(/FRM{}/, c => fvhas(fn,"rm")? boring('local_rounding_mode = frm; // '+h('__RISCV_FRM')) : 'RMELN{}');
   s = s.replace(/^( *)MASKWEE{}.*\n/gm, (_,c) => !mask? "" : boring(`${c}if (!mask[i]) {\n${c}  res[i] = ${agnBaseM(mask==1)};\n${c}  continue;\n${c}}\n`)); // mask write early exit
   s = s.replace(/BORING{(.*?)}/g, (_,c) => boring(c));
   s = s.replace(/IDX{(.*?)}/g, (_,c) => isvec(farg(fn,c))? c+'[i]' : c);
@@ -1134,9 +1137,6 @@ oper: (o, v) => {
     if (s==p) break;
   }
   s = s.replace(/ *RMELN{} */gm, "");
-  
-  // helper function display
-  let h = (name, args='') => `<a onclick="rvv_helper('${name}',${args})">${name}</a>`;
   
   // non-trivial helper functions
   s = s.replace(/\bclip\(([ui]\d+), /g, (_, t) => h('clip',`'${t}'`)+`(${t}, `);

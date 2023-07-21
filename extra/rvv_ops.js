@@ -546,7 +546,9 @@ let defs = [
   RES{} res;
   VLMAX{RES{}}
   for (size_t i = 0; i < vl; i++) {
-    res[i] = MASK{index[i] ≥ vlmax ? ${f.ret.type.includes('fl')? '+0.0' : '0'} : op1[index[i]]}; // allows indexing in op1 past vl
+    res[i] = MASK{index[i] ≥ vlmax ? ${f.ret.type.includes('fl')? '+0.0' : '0'} : op1[index[i]]}; // ${
+      (farg(f,'index').includes('int8')? 'warning: uint8 limits indices to ≤255, use vrgatherei16 to avoid; ' : '') + 'can index in op1 past vl'
+    }
   }
   TAILLOOP{};
   return res;`
@@ -1046,7 +1048,7 @@ case 'uintinf': return helper_text(`
   Reinterprets the argument as an unsigned integer, and, zero-extending, widens it to a signed infinite-precision integer.
   For example, both <code>uintinf((int8_t) -100)</code> and <code>uintinf((uint8_t) 155)</code> become the infinite-precision signed integer <code>155</code>.
 `);
-case 'intinf': return helper_text(`Widens (sign- or zero-extending) the argument to an infinite-precision integer.`);
+case 'intinf': return helper_text(`Widens (sign- or zero-extending depending on type) the argument to an infinite-precision integer.`);
 case 'isQNaN': return helper_text(`Returns whether the argument is any quiet NaN.`);
 case 'isSNaN': return helper_text(`Returns whether the argument is any signaling NaN.`);
 case 'isNaN': return helper_text(`Returns whether the argument is any NaN - that is, either signaling or quiet.`);

@@ -66,7 +66,7 @@ h4 {
 }
 
 .gr-yes {
-  font-family: DejaVu Sans Mono, monospace;
+  font-family: "DejaVu Sans Mono", monospace;
   cursor: pointer;
 }
 
@@ -91,13 +91,13 @@ table {
 #search-table td:nth-child(1) { text-align: right; overflow: hidden; }
 #search-table td { overflow: hidden; white-space: nowrap; }
 #search-table td {
-  font-family: DejaVu Sans Mono, monospace;
+  font-family: "DejaVu Sans Mono", monospace;
   padding-left: 0.5em;
   padding-right: 0.5em;
 }
 
 
-.mono { font-family: DejaVu Sans Mono, monospace; }
+.mono { font-family: "DejaVu Sans Mono", monospace; }
 .code-ws { white-space: pre-wrap; }
 
 /* variation switches */

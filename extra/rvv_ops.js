@@ -141,8 +141,9 @@ const fvhas = (f, t) => {
 }
 const mem_mask_comment = (f) => fvhas(f, "m")? ` // masked-off indices won't fault` : ``;
 const mem_align_comment = (f,l) => {
-  let a = eparts(l? f.ret : farg(f,'v_tuple','value'))[0]/8;
-  return a==1? `RMELN{}` : `// if the address of any executed ${l?'load':'store'} is not aligned to a${a==8?'n':''} ${a}-byte boundary, an address-misaligned exception may or may not be raised.`
+  // let a = eparts(l? f.ret : farg(f,'v_tuple','value'))[0]/8;
+  // return a==1? `RMELN{}` : `// if the address of any executed ${l?'load':'store'} is not aligned to a${a==8?'n':''} ${a}-byte boundary, an address-misaligned exception may or may not be raised.`
+  return '';
 }
 const mem_loop = (f) => `for (size_t i = 0; i < vl; i++) {`+(f.name.includes("uxei")? ` // note: "unordered" only applies to non-idempotent memory (i.e. memory-mapped), but otherwise the operation is still sequential` : ``)
 

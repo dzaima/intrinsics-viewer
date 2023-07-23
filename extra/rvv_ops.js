@@ -930,11 +930,11 @@ case 'clip': {
   return helper_code(`
   ${tfull(t)} clip(${t}, intinf_t exact) {
     if (exact < ${minval(t)}) {
+      BORING{CSRS[RVV_VXSAT] |= 1;}
       return ${minval(t)};
-      BORING{CSRS[RVV_VXSAT] |= 1;}
     } else if (exact > ${maxval(t)}) {
-      return ${maxval(t)};
       BORING{CSRS[RVV_VXSAT] |= 1;}
+      return ${maxval(t)};
     } else {
       return exact; // doesn't overflow
     }

@@ -395,7 +395,7 @@ let defs = [
   RES{} res;
   for (size_t i = 0; i < vl; i++) {
     intinf_t exact = uintinf(op1[i]) ${`+ uintinf(IDX{op2})${inn? ` + (${inn} ? 1 : 0)` : ''}`.replace(/\+/g,a?'+':'-')};
-    res[i] = ${a? 'exact ≥ '+maxval(farg(f,'op1').replace(/^vi/,'vui')) : 'exact < 0'};
+    res[i] = ${a? 'exact > '+maxval(farg(f,'op1').replace(/^vi/,'vui')) : 'exact < 0'};
   }
   TAILLOOP{};
   return res;`

@@ -752,24 +752,24 @@ async function loadRVV() {
   /// if (implicitCount!=828) console.warn("Unexpected count of intrinsics with implicit maskedoff argument: "+implicitCount);
   
 
-  function addCsrOp(ret, name, args, desc, oper) {
+  function addSimpleOp(ret, name, args, desc, oper) {
     res.push({
       id: idCounter++,
       ret: {type: ret}, args, name,
       desc, implDesc: oper,
-      archs: ['rvv'], categories: ["Initialize|CSR"],
+      archs: ['rvv'], categories: ["Initialize|General"],
     });
   }
-  let csrdef = `
-    enum RVV_CSR {
-      RVV_VSTART = 0,
-      RVV_VXSAT = 1,
-      RVV_VXRM = 2,
-      RVV_VCSR = 3,
-    };\n`.replace(/\n    /g,"\n").slice(1);
-  addCsrOp("unsigned long", "__riscv_vlenb", [], "Get VLEN in bytes", "return VLEN/8;");
-  addCsrOp("unsigned long", "__riscv_vread_csr", [{type:"enum RVV_CSR",name:"csr"}], "Read a CSR", csrdef+"return CSRS[csr];");
-  addCsrOp("void", "__riscv_vwrite_csr", [{type:"enum RVV_CSR",name:"csr"}, {type:"unsigned long", name:"value"}], "Set a CSR", csrdef+"CSRS[csr] = value;");
+  // let csrdef = `
+  //   enum RVV_CSR {
+  //     RVV_VSTART = 0,
+  //     RVV_VXSAT = 1,
+  //     RVV_VXRM = 2,
+  //     RVV_VCSR = 3,
+  //   };\n`.replace(/\n    /g,"\n").slice(1);
+  addSimpleOp("unsigned long", "__riscv_vlenb", [], "Get VLEN in bytes", "return VLEN/8;");
+  // addSimpleOp("unsigned long", "__riscv_vread_csr", [{type:"enum RVV_CSR",name:"csr"}], "Read a CSR", csrdef+"return CSRS[csr];");
+  // addSimpleOp("void", "__riscv_vwrite_csr", [{type:"enum RVV_CSR",name:"csr"}, {type:"unsigned long", name:"value"}], "Set a CSR", csrdef+"CSRS[csr] = value;");
   
   res.forEach(c => {
     c.cpu = ['risc-v'];

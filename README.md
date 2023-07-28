@@ -40,6 +40,7 @@ General:
 - `arg:*` - intrinsics taking pointer arguments
 - `arg6:""` - intrinsics taking at least 6 arguments
 - `!arg1n:""` - intrinsics taking no arguments
+- `arg:int64 ret:int16` - intrinsics taking 64-bit & returning 16-bit integers
 
 x86-64 AVX-512:
 

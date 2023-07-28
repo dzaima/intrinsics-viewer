@@ -119,8 +119,8 @@ function opmap(fn) {
   if (/ne$/.test(name)) return '!=';
   if (/gtu?$/.test(name)) return '>';
   if (/ltu?$/.test(name)) return '<';
-  if (/geu?$/.test(name)) return '≥';
-  if (/leu?$/.test(name)) return '≤';
+  if (/geu?$/.test(name)) return '>=';
+  if (/leu?$/.test(name)) return '<=';
   throw new Error("Unknown operator name in "+name);
 }
 const raise_invalid = "fflags[NV] = 1; // Invalid Operation FP flag";
@@ -535,7 +535,7 @@ let defs = [
   INSTR{VLSET RES{}; BASE DST, R_op1, R_index, MASK}
   VLMAX{RES{}}
   RES{} res;
-  RESE{} val = index ≥ vlmax ? ${f.ret.type.includes('fl')? '+0.0' : '0'} : op1[index];
+  RESE{} val = index >= vlmax ? ${f.ret.type.includes('fl')? '+0.0' : '0'} : op1[index];
   for (size_t i = 0; i < vl; i++) {
     res[i] = MASK{val};
   }
@@ -547,7 +547,7 @@ let defs = [
   RES{} res;
   VLMAX{RES{}}
   for (size_t i = 0; i < vl; i++) {
-    res[i] = MASK{index[i] ≥ vlmax ? ${f.ret.type.includes('fl')? '+0.0' : '0'} : op1[index[i]]}; // ${
+    res[i] = MASK{index[i] >= vlmax ? ${f.ret.type.includes('fl')? '+0.0' : '0'} : op1[index[i]]}; // ${
       (farg(f,'index').includes('int8')? 'warning: uint8 limits indices to ≤255, use vrgatherei16 to avoid; ' : '') + 'can index in op1 past vl'
     }
   }
@@ -610,7 +610,7 @@ let defs = [
   
   RES{} res;
   for (size_t i = 0; i < vl; i++) {
-    res[i] = MASK{i+offset ≥ vlmax ? 0 : src[i+offset]};
+    res[i] = MASK{i+offset >= vlmax ? 0 : src[i+offset]};
   }
   
   TAILLOOP{};
@@ -892,9 +892,9 @@ let defs = [
 [/_vsetvl_/, (f) => { let t = f.name.split('vsetvl_')[1].replace('e','vint')+'_t'; return `
   INSTR{VLSET ${t}}
   vlmax = VLMAXG{${t}};
-  if (avl ≤ vlmax) {
+  if (avl <= vlmax) {
     return avl;
-  } else if (vlmax < avl ≤ vlmax*2) {
+  } else if (vlmax < avl <= vlmax*2) {
     return /* implementation-defined number in [ceil(avl/2), vlmax] inclusive */
   } else {
     return vlmax;
@@ -1090,7 +1090,7 @@ oper: (o, v) => {
   s = s.replace(/VLMAX(G?){(.*?)}/g, (_,g,c) => {
     let v = 'vlmax' + (c? '(' + vparts(c).reduce((e,m) => `e${e}, ${fmtmul(m)}`) + ')' : '');
     // return g? v : boring(`vl = min(vl, ${v});`); // possibly the intention, but idk
-    return g? v : boring(`assume(vl ≤ ${v});`);
+    return g? v : boring(`assume(vl <= ${v});`);
   });
   s = s.replace(/FRMI0{}(; )?/, (_,c='') => fvhas(fn,"rm")? boring('fsrmi xtmp, &lt;frm>'+c) : '');
   s = s.replace(/FRMI1{}(; )?/, (_,c='') => fvhas(fn,"rm")? boring('fsrm xtmp'+c) : '');

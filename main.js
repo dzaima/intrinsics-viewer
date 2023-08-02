@@ -29,7 +29,8 @@ intrinsic entry:
     short: "var",
     args, name, ret, // same structure as outside
     desc, implInstr, implInstrSearch, implDesc, implTimes, // optional, same structure as outside
-  }]
+  }],
+  toVar: {...}, // a reference to an entry in variations to go to on click; if present, self is excluded from variationsIncl (for entries is just a "wrapper" around variations)
   
   archs: [..."arch|paths"],
   categories: [..."category|paths"],
@@ -62,6 +63,8 @@ let pages2El = document.getElementById("pages-2");
 let pages3El = document.getElementById("pages-3");
 let centerInfoEl = document.getElementById("center-info");
 
+let idCounter = 1;
+
 let entries_all = [];
 let entries_ccpu = undefined;
 let curr_archObj, curr_categoryObj, curr_cpu, curr_entry;
@@ -81,7 +84,7 @@ async function loadFile(path) {
 }
 
 
-let idCounter = 0;
+let excludeSVML = true; // remove SVML entries, which are provided by an Intel library and not the CPU
 async function loadIntel() {
   let src, perfSrc;
   try {
@@ -134,9 +137,9 @@ async function loadIntel() {
     AVX_VNNI: "AVX2+",
     FP16C: "AVX2+",
     
-    VPCLMULQDQ: "AVX512+",
-    VAES: "AVX512+",
-    GFNI: "AVX512+",
+    VPCLMULQDQ: "AVX512",
+    VAES: "AVX512",
+    GFNI: "AVX512",
     
     KNCNI: "other",
     
@@ -226,6 +229,7 @@ async function loadIntel() {
       return c;
     });
     if (archs.length==0) archs = ['other|all'];
+    if (archs.length > 1 && archs.every(c=>c.includes('512'))) archs = archs.filter(c=>c!='AVX512|AVX512F'); // remove reduntant AVX512F arch requirements for things that imply that otherwise
     
     let implDesc = takeOpt("operation", c=>c.textContent);
     if(implDesc) while(" \n\t".includes(implDesc[implDesc.length-1])) implDesc = implDesc.substring(0, implDesc.length-1);
@@ -255,21 +259,37 @@ async function loadIntel() {
     };
   });
   
+  if (excludeSVML) res0 = res0.filter(c=>!c.archs.some(c=>c.includes('SVML')));
+  
   let res1 = [];
   {
-    let map = new Map();
-    res0.forEach(n => {
-      if (!n.archs.length || !(n.archs[0].includes("AVX512") || n.archs[0].includes("KNCNI"))) { res1.push(n); return; }
-      let key = n.archs[0] + ';' + n.name.replace(/_mask[z23]?_/, "_");
+    let mapB = new Map();
+    let mapX = new Map();
+    let add = (map, key, val, ...pre) => { // returns whether this is a new entry
       let l = map.get(key);
       if (!l) {
         map.set(key, l = []);
-        l.push(res1.length);
-        res1.push("??");
+        l.push(...pre, val);
+        return true;
       }
-      l.push(n);
+      l.push(val);
+      return false;
+    }
+    
+    res0.forEach(n => {
+      let key1 = n.name.replace(/^(_mm\d*)_mask[z23]?_/, "$1_");
+      if (!n.archs.length || !(n.archs[0].includes("AVX512") || n.archs[0].includes("KNCNI"))) {
+        add(mapX, key1, n);
+        n.short = "base";
+        res1.push(n);
+        return;
+      }
+      
+      let key = n.archs[0]+';'+key1;
+      if (add(mapB, key, n, res1.length)) res1.push("??");
     });
-    map.forEach((v,k) => {
+    
+    mapB.forEach((v,k) => {
       let pos = v[0];
       if (v.length==2) {
         res1[pos] = v[1];
@@ -277,13 +297,31 @@ async function loadIntel() {
         let v1 = v.slice(1);
         v1.sort((a,b) => a.name.length-b.name.length);
         if (v1.length>1 && v1[0].name.length==v1[1].name.length) throw new Error("equal first lengths");
-        res1[pos] = v1[0];
-        let v2 = v1[0].variations = v1.slice(1);
         v1.map((c,i) => {
           let f = c.name.match(/_(mask[z23]?)_/);
           c.short = f? f[1] : "base";
           if (c.short=="base" && i!=0) throw new Error("base not first");
         });
+        
+        let v2 = [...(mapX.get(k.split(';')[1]) || []), ...v1];
+        
+        let opts = v2.map((c) => c.name.match(/_mask([z23]?)_/));
+        let optsF = opts.filter(c=>c);
+        
+        let dec = optsF.map(c=>c[1]).join('');
+        let exName = optsF[0].input.replace(/_mask([z23]?)_/, opts.includes(null)? '[_mask]_' : `_mask[${dec}]_`);
+        
+        let exArch = v1[0];
+        
+        res1[pos] = {
+          id: idCounter++,
+          name: exName,
+          ret: v2[0].ret,
+          args: v2[0].args,
+          archs: exArch.archs, cpu: exArch.cpu, categories: exArch.categories,
+          variations: v2,
+          toVar: exArch,
+        };
       }
     });
   }
@@ -913,7 +951,6 @@ async function newCPU() {
     'all|AVX+AVX2': 1,
     'all|AVX2+': 2,
     'all|AVX512': 3,
-    'all|AVX512+': 4,
     
     'SSE|MMX':0,
     'SSE|SSE':1,
@@ -1078,6 +1115,7 @@ function displayNoEnt(link = true) {
   if (link) updateLink();
 }
 function displayEnt(ins, fn, link = true) {
+  if (fn.toVar) fn = fn.toVar;
   curr_entry = [ins, fn];
   let a0 = fn.archs || ins.archs;
   let a1 = a0;
@@ -1123,8 +1161,7 @@ function displayEnt(ins, fn, link = true) {
     let mkvar = (fn, short) => mkch('span', short, {cl: ['mono', 'var-link'], onclick: () => displayEnt(ins, fn)});
     descPlaceEl.insertAdjacentElement('afterBegin', mkch('span', [
       'Variations: ',
-      mkvar(ins, ins.short || 'base'),
-      ...ins.variations.flatMap(fn => [', ', mkvar(fn, fn.short)])
+      ...ins.variationsIncl.flatMap((fn, i) => [i?', ':'', mkvar(fn, fn.short || "base")])
     ]));
     descPlaceEl.insertAdjacentElement('afterBegin', mk('br'));
   }
@@ -1582,10 +1619,12 @@ async function setCPU(name) {
       t.typeSearch = searchStr(t.type);
       t.nameSearch = searchStr(t.name);
     }
-    is.forEach(c => {
-      if (c.archs.length==0 || c.categories.length==0) { console.warn("No categories or architectures for "+c.name); }
-      c.variationsIncl = [c, ...(c.variations || [])];
-      c.variationsIncl.forEach(v => {
+    is.forEach(ins => {
+      if (ins.archs.length==0 || ins.categories.length==0) { console.warn("No categories or architectures for "+ins.name); }
+      let variationsExcl = ins.variations || [];
+      ins.variationsIncl = ins.toVar? variationsExcl : [ins, ...variationsExcl];
+      if (!ins.id) throw new Error("Intrinsic without ID: "+ins.name);
+      ins.variationsIncl.forEach(v => {
         v.args.forEach(prepType);
         prepType(v.ret);
         v.nameSearch = searchStr(v.name);
@@ -1594,9 +1633,9 @@ async function setCPU(name) {
         if (!v.implDescSearch && typeof v.implDesc!=='function')  v.implDescSearch = searchStr(v.implDesc);
       });
       
-      let ref = c.name.replace(/^(__riscv_|_mm)/,"");
-      if (c.cpu[0]==='x86-64') ref = c.ret.type+';'+c.archs.join(';')+';'+ref;
-      c.ref = ref;
+      let ref = ins.name.replace(/^(__riscv_|_mm)/,"");
+      if (ins.cpu[0]==='x86-64') ref = ins.ret.type+';'+ins.archs.join(';')+';'+ref;
+      ins.ref = ref;
     });
     
     let badEntry = is.find(c => !c.name || !c.ret.type || c.args.some(c => !c.type || !c.name));

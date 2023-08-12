@@ -145,7 +145,7 @@ const mem_align_comment = (f,l) => {
   // return a==1? `RMELN{}` : `// if the address of any executed ${l?'load':'store'} is not aligned to a${a==8?'n':''} ${a}-byte boundary, an address-misaligned exception may or may not be raised.`
   return '';
 }
-const mem_loop = (f) => `for (size_t i = 0; i < vl; i++) {`+(f.name.includes("uxei")? ` // note: "unordered" only applies to non-idempotent memory (i.e. memory-mapped), but otherwise the operation is still sequential` : ``)
+const mem_loop = (f) => `for (size_t i = 0; i < vl; i++) {`+(f.name.includes("uxei")? ` // note: "unordered" only applies to non-idempotent memory (e.g. MMIO), but otherwise the operation is still sequential` : ``)
 
 function red_op(fn, a, b) {
   let n = (t) => fn.name.includes(t);
@@ -544,8 +544,8 @@ let defs = [
 ],
 [/vrgather(ei16)?_vv_/, (f) => `
   INSTR{VLSET RES{}; BASE DST, R_op1, R_index, MASK}
-  RES{} res;
   VLMAX{RES{}}
+  RES{} res;
   for (size_t i = 0; i < vl; i++) {
     res[i] = MASK{index[i] >= vlmax ? ${f.ret.type.includes('fl')? '+0.0' : '0'} : op1[index[i]]}; // ${
       (farg(f,'index').includes('int8')? 'warning: uint8 limits indices to ≤255, use vrgatherei16 to avoid; ' : '') + 'can index in op1 past vl'
@@ -960,16 +960,16 @@ case 'vlmax': {
   
   return helper_code(`
   // vlmax(e${e}, m${l}):
-  EEW = ${e}; // element width in bits
-  EMUL = ${l.replace('f','1/')}; // register group size
-  vlmax = EMUL*VLEN/EEW = VLEN${frac<1? '/'+(1/frac) : '*'+frac};
+  SEW = ${e}; // element width in bits
+  LMUL = ${l.replace('f','1/')}; // register group size
+  vlmax = LMUL*VLEN/SEW = VLEN${frac<1? '/'+(1/frac) : '*'+frac};
   
   // examples:
 ${[32,64,128,256,512,1024,65536].filter(v => v*frac>=1).map(v => `  //   VLEN=${(v+':').padEnd(6)} vlmax = ${v*frac}`+(
   v==65536? ' - maximum possible'
   : v==128? ' - minimum for "v" extension'
-  : v== 64? ' - minimum for "Zvl64"'
-  : v== 32? ' - minimum for "Zvl32"' : ''
+  : v== 64? ' - minimum for "Zvl64b"'
+  : v== 32? ' - minimum for "Zvl32b"' : ''
 )).join('\n')}
   
 ${equalTo? `  // vlmax(e${e}, m${l}) is equal to:\n${equalTo}` : ``}
@@ -1052,7 +1052,7 @@ case 'uintinf': return helper_text(`
 case 'intinf': return helper_text(`Widens (sign- or zero-extending depending on type) the argument to an infinite-precision integer.`);
 case 'isQNaN': return helper_text(`Returns whether the argument is any quiet NaN.`);
 case 'isSNaN': return helper_text(`Returns whether the argument is any signaling NaN.`);
-case 'isNaN': return helper_text(`Returns whether the argument is any NaN - that is, either signaling or quiet.`);
+case 'isNaN': return helper_text(`Returns whether the argument is any NaN - that is, either signaling or quiet, with any payload and sign.`);
 
 }},
 

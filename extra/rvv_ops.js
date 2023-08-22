@@ -1074,7 +1074,8 @@ oper: (o, v) => {
   let baseeM = basev? basev+(farg(fn,basev).includes('x')? '[o]' : '')+'[i]' : '';
   let baseeT = fn.ret.type.includes("bool")? "" : baseeM;
   
-  let agnBase0 = (agn,base) => agn? (base? `agnostic(${base})` : "anything()") : `${base}`;
+  // let agnBase0 = (agn,base) => agn? (base? `agnostic(${base})` : "anything()") : `${base}`;
+  let agnBase0 = (agn,base) => agn? "anything()" : `${base}`;
   let agnBaseM = (agn,base) => boring(agnBase0(agn, baseeM));
   let agnBaseT = (agn,base) => boring(agnBase0(agn, baseeT));
   

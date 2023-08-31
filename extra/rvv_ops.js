@@ -182,8 +182,8 @@ let defs = [
       [
         ['_vmacc_',   '(VS1 * vs2[i]) + vd[i]'],
         ['_vnmsac_', '-(VS1 * vs2[i]) + vd[i]'],
-        ['_vmadd_',   '(VS1 * vd[i]) + vs2[i]'],
-        ['_vnmsub_', '-(VS1 * vd[i]) + vs2[i]'],
+        ['_vmadd_',   '(vd[i] * VS1) + vs2[i]'],
+        ['_vnmsub_', '-(vd[i] * VS1) + vs2[i]'],
         
         ['_vwmaccu_',  '(WD1 * WD2) + vd[i]'],
         ['_vwmacc_',   '(WD1 * WD2) + vd[i]'],
@@ -194,10 +194,10 @@ let defs = [
         ['vfnmacc', '-(VS1 * vs2[i]) - vd[i]'],
         ['vfmsac',   '(VS1 * vs2[i]) - vd[i]'],
         ['vfnmsac', '-(VS1 * vs2[i]) + vd[i]'],
-        ['vfmadd',   '(VS1 * vd[i]) + vs2[i]'],
-        ['vfnmadd', '-(VS1 * vd[i]) - vs2[i]'],
-        ['vfmsub',   '(VS1 * vd[i]) - vs2[i]'],
-        ['vfnmsub', '-(VS1 * vd[i]) + vs2[i]'],
+        ['vfmadd',   '(vd[i] * VS1) + vs2[i]'],
+        ['vfnmadd', '-(vd[i] * VS1) - vs2[i]'],
+        ['vfmsub',   '(vd[i] * VS1) - vs2[i]'],
+        ['vfnmsub', '-(vd[i] * VS1) + vs2[i]'],
         
         ['_vfwmacc_',   '(VS1 * vs2[i]) + vd[i]'],
         ['_vfwnmacc_', '-(VS1 * vs2[i]) - vd[i]'],

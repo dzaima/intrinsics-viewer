@@ -675,10 +675,11 @@ let defs = [
 ],
 
 // float min/max
-[/_vf(min|max)_v[vf]_/, (f) => `
+[/_vf(min|max)_v[vf]_/, (f) => { let min = f.name.includes('min'); return `
   INSTR{VLSET RES{}; BASE DST, R_op1, R_op2, MASK}
   VLMAX{RES{}}
   RES{} res;
+  // follows IEEE 754-201x ${min?'minimum':'maximum'}Number, is commutative even for -0.0 and varying input NaN bit patterns
   for (size_t i = 0; i < vl; i++) {
     MASKWEE{} RMELN{}
     RESE{} a = op1[i];
@@ -689,15 +690,14 @@ let defs = [
       res[i] = b;
     } else if (isNaN(b)) {
       res[i] = a;
-    } else if (a==0 && b==0) { // comparing -0.0 and +0.0 as equal
-      res[i] = bitwise_eq(a, -0.0) || bitwise_eq(b, -0.0) ? -0.0 : +0.0;
     } else {
-      res[i] = a ${f.name.includes('min')?'<':'>'} b ? a : b;
+      res[i] = a ${min?'<':'>'} b ? a : b;
+      // considers -0.0 to be less than +0.0
     }
   }
   TAILLOOP{};
   return res;`
-],
+}],
 
 // unary same-width things
 [/_vf?neg_|_vfrsqrt7_|_vfsqrt_|_vfrec7_|_vfabs_|_vnot_|_vmv_v_v_/, (f) => {let n=(c)=>f.name.includes(c); return `

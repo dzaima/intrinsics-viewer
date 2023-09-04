@@ -326,6 +326,12 @@ async function loadIntel() {
     });
   }
   
+  res1.sort((a,b) => [a,b].map(c => {
+    let a0 = c.archs[0];
+    let a0i = (e) => a0.includes(e);
+    return (c.name.startsWith('_mm')?'0':'1') + (a0i('MMX')||a0i('AES')||a0i('KEYLOCKER')||a0i('SHA')? '~' : a0i('SSE')?'1':'0') + a0 + '__' + c.name.replace(/\[z]|\[?_maskz?]?/g, '') + (c.name.includes('[')?'1':'0');
+  }).reduce((a,b)=>(a>b)-(a<b)));
+  
   return res1;
 }
 async function loadArm() {

@@ -713,35 +713,30 @@ let defs = [
 }],
 
 // sign-extend, zero-extend, widen, convert
-[/[sz]ext|_vf?w?cvtu?_/, (f) => { let op=argn(f,'src','op1'); let [rw,rq]=eparts(f.ret); let [ow,oq]=eparts(farg(f,op)); return  `
+[/[sz]ext|_vf?[wn]?cvtu?_/, (f) => {
+  let op=argn(f,'src','op1');
+  let [rw,rq]=eparts(f.ret);      let rqf = rq=='f';
+  let [ow,oq]=eparts(farg(f,op)); let oqf = oq=='f';
+  
+  return `
   INSTR{VLSET ${f.name.includes('ext_')? 'RES{}' : farg(f,op)}; FRMI0{}; BASE DST, R_${op}, MASK; FRMI1{}}
   VLMAX{${farg(f,op)}}
-  FRM{}
+  FRM{}${'' /* TODO force-add local rounding mode for dynamic? */}
   ${f.name.includes('_rtz_')?`local_rounding_mode = RTZ; // Round towards zero`:``} RMELN{}
-  
-  RES{} res;
-  for (size_t i = 0; i < vl; i++) {
-    res[i] = MASK{${rw==ow || oq=='f'&&rq!='f'? ocall('convert',tshort(f.ret),op+'[i]') : owd(f.ret, '', op+'[i]')}};
-  }
-  TAILLOOP{};
-  return res;`
-}],
-
-// narrow
-[/_vf?ncvt_/, (f) => `
-  INSTR{VLSET RES{}; FRMI0{}; BASE DST, R_src, MASK; FRMI1{}}
-  VLMAX{FARG{src}}
-  FRM{}
   ${f.name.includes('_rod_')?`local_rounding_mode = ROUND_TOWARDS_ODD;`:``} RMELN{}
   
   RES{} res;
   for (size_t i = 0; i < vl; i++) {
-    res[i] = MASK{${f.name.includes('_vf')?'round':'trunc'}(${tshort(f.ret)}, ${argn(f,'op1','src')}[i]})};
+    res[i] = MASK{${
+      rw<ow && !oqf && !rqf? ocall('trunc', op+'[i]')
+      : rw>ow && !oqf && !rqf? owd(f.ret, '', op+'[i]')
+      : ocall(rqf && oqf && rw<ow? 'round' : 'convert', tshort(f.ret), op+'[i]')
+        
+    }};${oqf && !rqf? ' // saturated, NaN behaves as +∞' : rw>ow && rqf? ' // lossless' : ''}
   }
   TAILLOOP{};
   return res;`
-],
-
+}],
 
 // float classify
 [/vfclass/, (f) => `

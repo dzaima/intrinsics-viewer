@@ -889,8 +889,8 @@ let defs = [
   vlmax = VLMAXG{${t}};
   if (avl <= vlmax) {
     return avl;
-  } else if (vlmax < avl <= vlmax*2) {
-    return /* implementation-defined number in [ceil(avl/2), vlmax] inclusive */
+  } else if (vlmax < avl < vlmax*2) {
+    return /* implementation-defined number in [ceil(avl/2), vlmax] inclusive */;
   } else {
     return vlmax;
   }`
@@ -973,8 +973,8 @@ ${equalTo? `  // vlmax(e${e}, m${l}) is equal to:\n${equalTo}` : ``}
 
 case '__RISCV_VXRM': return helper_code(`
   enum __RISCV_VXRM {
-    __RISCV_VXRM_RNU = 0, // round to nearest up
-    __RISCV_VXRM_RNE = 1, // round to nearest even
+    __RISCV_VXRM_RNU = 0, // round to nearest, ties to up
+    __RISCV_VXRM_RNE = 1, // round to nearest, ties to even
     __RISCV_VXRM_RDN = 2, // round down
     __RISCV_VXRM_ROD = 3, // round to odd
   };
@@ -1003,20 +1003,23 @@ case 'rounded_shift_right': {
     
     bool increment;
     switch (vxrm) {
-      case __RISCV_VXRM_RNU: { // vxrm == 0; round to nearest up
+      case __RISCV_VXRM_RNU: { // vxrm == 0; round to nearest, ties to up
         increment = carry;
         break;
       }
-      case __RISCV_VXRM_RNE: { // vxrm == 1; round to nearest even
-        increment = carry && ((x&(last-1)) != 0 || shiftLSB); // x[shift-1] && (x[shift-2:0]!=0 || x[shift])
+      case __RISCV_VXRM_RNE: { // vxrm == 1; round to nearest, ties to even
+        increment = carry && ((x&(last-1)) != 0 || shiftLSB);
+        // equivalently: increment = x[shift-1] && (x[shift-2:0]!=0 || x[shift]);
         break;
       }
       case __RISCV_VXRM_RDN: { // vxrm == 2; round down
-        increment = false; // i.e. result is just a regular x >> shift
+        increment = false;
+        // equivalently, just: return x >> shift;
         break;
       }
       case __RISCV_VXRM_ROD: { // vxrm == 3; round to odd
-        increment = (x & ((1<<shift)-1) != 0) && !shiftLSB; // !x[shift] && x[shift-1:0]!=0
+        increment = (x & ((1<<shift)-1) != 0) && !shiftLSB;
+        // equivalently: increment = !x[shift] && x[shift-1:0]!=0;
         break;
       }
     }

@@ -1454,12 +1454,12 @@ function updateSearch0() {
               let r = [];
               const addOpt   = v => { if (v!==undefined) r.push(v); };
               const addLower = v => r.push(v.toLowerCase());
-              if (m[P_INST]) addOpt(ins.implInstrSearch);
-              if (m[P_DESC]) addOpt(ins.descSearch);
-              if (m[P_OPER]) addOpt(ins.implDescSearch);
               if (m[P_CAT]) addLower(...ins.categories);
               if (nstate.svar) vars = vars.filter(c => nstate.svar.includes(c.short || "base"));
               vars.forEach(c => {
+                if (m[P_INST]) addOpt(c.implInstrSearch);
+                if (m[P_DESC]) addOpt(c.descSearch);
+                if (m[P_OPER]) addOpt(c.implDescSearch);
                 if (m[P_NAME]) r.push(c.nameSearch);
                 if (m[P_TYPE] || m[P_RET]) r.push(c.ret.typeSearch);
                 c.args.forEach((c,i) => {

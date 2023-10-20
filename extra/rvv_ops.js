@@ -1091,9 +1091,13 @@ oper: (o, v) => {
   s = s.replace(/VLMAXBG{}/g, c => { let b = +o.name.split('_b')[1]; return `vint8m${b<8? 8/b : 'f'+(b/8)}_t`; });
   s = s.replace(/VLMAXB{}/g, c => { let b = +o.name.split('_b')[1]; return `BORING{vlmax = VLEN/${b};} // equal to VLMAXG{vint8m${b<8? 8/b : 'f'+(b/8)}_t}`});
   s = s.replace(/VLMAX(G?){(.*?)}/g, (_,g,c) => {
-    let v = 'vlmax' + (c? '(' + vparts(c).reduce((e,m) => `e${e}, ${fmtmul(m)}`) + ')' : '');
-    // return g? v : boring(`vl = min(vl, ${v});`); // possibly the intention, but idk
-    return g? v : boring(`assume(vl <= ${v});`);
+    let e, m;
+    if (c) {
+      [e, m] = vparts(c);
+      m = fmtmul(m);
+    }
+    let v = 'vlmax' + (c? `(e${e}, ${m})` : '');
+    return g? v : boring(`if (vl > ${v}) vl = __riscv_vsetvl_e${e}${m}(vl);`);
   });
   s = s.replace(/FRMI0{}(; )?/, (_,c='') => fvhas(fn,"rm")? boring('fsrmi xtmp, &lt;frm>'+c) : '');
   s = s.replace(/FRMI1{}(; )?/, (_,c='') => fvhas(fn,"rm")? boring('fsrm xtmp'+c) : '');

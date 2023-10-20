@@ -526,10 +526,11 @@ async function loadRVV() {
     let w = orig=='Widening Floating-Point/Integer Type-Convert';
     let n = orig=='Narrowing Floating-Point/Integer Type-Convert';
     let wn = (w? 'widen' : n? 'narrow' : '??');
+    let wc = (w? 'Wider result' : n? 'Narrower result' : 'Same-width result');
     if ( rf &&  af) return 'Conversion|Float '+wn;
     if (!rf && !af) return 'Conversion|Integer '+wn;
-    if ( rf && !af) return 'Conversion|Integer to float';
-    if (!rf &&  af) return 'Conversion|Float to integer';
+    if ( rf && !af) return 'Conversion|Integer to float|'+wc;
+    if (!rf &&  af) return 'Conversion|Float to integer|'+wc;
   }
   const categoryMap = {
     'Configuration-Setting and Utility|Set the vl to VLMAX with specific vtype': 'Initialize|Set max vl',
@@ -566,7 +567,7 @@ async function loadRVV() {
     'Permutation|Slidedown':               'Permutation|Slide|Down N',
     
     'Miscellaneous Vector|Initialization': 'Initialize|Set undefined',
-    'Miscellaneous Vector|Reinterpret Cast Conversion|Reinterpret between different SEW under the same LMUL': 'Conversion|Reinterpret|Same LMUL',
+    'Miscellaneous Vector|Reinterpret Cast Conversion|Reinterpret between different SEW under the same LMUL': 'Conversion|Reinterpret|Same LMUL & sign',
     'Miscellaneous Vector|Reinterpret Cast Conversion|Reinterpret between different type under the same SEW/LMUL': 'Conversion|Reinterpret|Same LMUL & width',
     'Miscellaneous Vector|Reinterpret Cast Conversion|Reinterpret between vector boolean types and LMUL=1 (m1) vector integer types': 'Conversion|Reinterpret|Boolean',
     'Miscellaneous Vector|Extraction': c => 'Permutation|' + (/x\d(_|$)/.test(c.name)? 'Tuple|' : '') + 'Extract',
@@ -579,11 +580,11 @@ async function loadRVV() {
     'Reduction|Widening Floating-Point Reduction': 'Fold|Widening float sum',
     'Reduction|Widening Integer Reduction':        'Fold|Widening integer sum',
     
-    'Fixed-Point Arithmetic|Narrowing Fixed-Point Clip': 'Fixed-point|Narrowing clip',
-    'Fixed-Point Arithmetic|Single-Width Averaging Add and Subtract': 'Fixed-point|Averaging add & subtract',
+    'Fixed-Point Arithmetic|Narrowing Fixed-Point Clip': c => 'Fixed-point|Saturating narrowing clip|'+mapn(c,['_vnclipu_', 'Unsigned', '_vnclip_', 'Signed']),
     'Fixed-Point Arithmetic|Single-Width Fractional Multiply with Rounding and Saturation': 'Fixed-point|Fractional rounding & saturating multiply',
-    'Fixed-Point Arithmetic|Single-Width Saturating Add and Subtract': c => { let p=mapn(c,['_vsadd_','Add|Saturating signed', '_vsaddu_','Add|Saturating unsigned', '_vssub_','Subtract|Saturating signed', '_vssubu_','Subtract|Saturating unsigned']); return ['Integer|','Fixed-point|'].map(c=>c+p); },
-    'Fixed-Point Arithmetic|Single-Width Scaling Shift': 'Fixed-point|Scaling shift',
+    'Fixed-Point Arithmetic|Single-Width Averaging Add and Subtract':  c => { let p=mapn(c,['_vaadd_','add|Signed', '_vaaddu_','add|Unsigned', '_vasub_','subtract|Signed', '_vasubu_','subtract|Unsigned']); return ['Fixed-point|Averaging '+p]; },
+    'Fixed-Point Arithmetic|Single-Width Saturating Add and Subtract': c => { let p=mapn(c,['_vsadd_','add|Signed', '_vsaddu_','add|Unsigned', '_vssub_','subtract|Signed', '_vssubu_','subtract|Unsigned']); return ['Fixed-point|Saturating '+p, 'Integer|'+p[0].toUpperCase()+p.slice(1).toLowerCase().replace('|', '|Saturating ')]; },
+    'Fixed-Point Arithmetic|Single-Width Scaling Shift': c => 'Fixed-point|Scaling right shift|'+mapn(c,['_vssra_', 'Arithmetic', '_vssrl_', 'Logical']),
     
     'Floating-Point|Floating-Point Absolute Value': 'Float|Absolute',
     'Floating-Point|Floating-Point Classify': 'Float|Classify',
@@ -1064,12 +1065,17 @@ async function newCPU() {
     'Conversion|Float narrow': 3,
     'Conversion|Integer to float': 4,
     'Conversion|Float to integer': 5,
+    'Integer to float|Same-width result': 0,
+    'Float to integer|Same-width result': 0,
     
     'Bitwise|Shift left': 0,
     'Bitwise|AND': 1,
     'Bitwise|OR': 2,
     'Bitwise|XOR': 3,
     'Bitwise|NOT': 4,
+    
+    'Fixed-point|Saturating add': 0,
+    'Fixed-point|Saturating subtract': 1,
   };
   let openByDefault = new Set([
     'all',

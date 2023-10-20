@@ -1317,7 +1317,8 @@ function updateSearch0() {
   const P_INST = 5;
   const P_OPER = 6;
   const P_TYPE = 7;
-  const P_CAT = 8;
+  const P_ARCH = 8;
+  const P_CAT = 9;
   const P_ARGn = (n) => P_CAT + n*2;
   const P_ARGnN = (n) => P_CAT + n*2 + 1;
   let gsvar = undefined;
@@ -1339,6 +1340,7 @@ function updateSearch0() {
           case "inst": r[P_INST] = true; break;
           case "oper": r[P_OPER] = true; break;
           case "cat":  r[P_CAT]  = true; break;
+          case "arch": r[P_ARCH] = true; break;
           default:
             let m;
             if (m = c.match(/^arg(\d+)$/))  { let n=m[1]-argIndexing; if(n<0) throw "Bad argument number"; r[P_ARGn (n)] = true; break; }
@@ -1460,6 +1462,7 @@ function updateSearch0() {
               let r = [];
               const addOpt   = v => { if (v!==undefined) r.push(v); };
               const addLower = v => r.push(v.toLowerCase());
+              if (m[P_ARCH]) addLower(...ins.archs);
               if (m[P_CAT]) addLower(...ins.categories);
               if (nstate.svar) vars = vars.filter(c => nstate.svar.includes(c.short || "base"));
               vars.forEach(c => {

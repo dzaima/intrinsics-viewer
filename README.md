@@ -30,7 +30,8 @@ term          | checkbox    | description
 `desc:`       | description | description
 `inst:`       | instruction | instruction
 `oper:`       | operation   | operation
-`cat:`        | caregory    | category (`\|`-separated)
+`cat:`        | caregory    | category (nesting is `\|`-separated)
+`arch:`       | —           | architecture (nesting is `\|`-separated)
 `var=[name]:` | —           | search in specific variation, e.g. `var=base:arg:bool`
 
 ### Search examples

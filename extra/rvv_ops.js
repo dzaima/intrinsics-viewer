@@ -683,7 +683,7 @@ let defs = [
   INSTR{VLSET RES{}; BASE DST, R_op1, R_op2, MASK}
   VLMAX{RES{}}
   RES{} res;
-  // follows IEEE 754-201x ${min?'minimum':'maximum'}Number, is commutative even for -0.0 and varying input NaN bit patterns
+  // follows IEEE 754-2019 ${min?'minimum':'maximum'}Number, is commutative even for -0.0 and varying input NaN bit patterns
   for (size_t i = 0; i < vl; i++) {
     MASKWEE{} RMELN{}
     RESE{} a = op1[i];
@@ -695,8 +695,8 @@ let defs = [
     } else if (isNaN(b)) {
       res[i] = a;
     } else {
+      // considering -0.0 to be less than +0.0:
       res[i] = a ${min?'<':'>'} b ? a : b;
-      // considers -0.0 to be less than +0.0
     }
   }
   TAILLOOP{};

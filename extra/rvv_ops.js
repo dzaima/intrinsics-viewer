@@ -402,7 +402,11 @@ let defs = [
 }],
 
 // reductions
-[/vf?w?red(?!usum)/, (f) => { let [ew, lm] = vparts(farg(f,'vector')); let ovlen = 2**(2*ew) / (lm * 2**ew); return `
+[/vf?w?red(?!usum)/, (f) => {
+  let [ew, lm] = vparts(farg(f,'vector'));
+  let ovl = 2**(2*ew) / (2**ew);
+  let ovlen = ovl*ew/lm;
+  return `
   INSTR{VLSET FARG{vector}; FRMI0{}; BASE DST, R_vector, R_scalar, MASK; FRMI1{}}
   VLMAX{FARG{vector}}
   FRM{}
@@ -410,7 +414,7 @@ let defs = [
   for (size_t i = 0; i < vl; i++) {
     ${fvhas(f,'m')? 'if (mask[i]) ' : ''}res = ${red_op(f, 'res', owd(f.ret, farg(f,'vector'), 'vector[i]'))};${
       f.name.includes('osum')? ' // yes, sequential sum, rounding on each op'
-      : f.name.includes('wredsum')? ` // note: can overflow if ${ovlen<=65536? `vl ≥ ≈${ovlen} or if ` : ``}scalar is large enough`
+      : f.name.includes('wredsum')? ` // note: can overflow if ${ovlen<=65536? `vl ≥ ≈${ovl} (VLEN ≥ ${ovlen}) or if ` : ``}scalar is large enough`
       : ``
     }
   }

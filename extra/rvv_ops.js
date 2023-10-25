@@ -59,12 +59,12 @@ function argn(fn, ...names) { // which of the given argument names fn has
     let r = fn.args.find(c => c.name === name);
     if (r) return r.name;
   }
-  throw new Error("Expected "+fn.name+" to have an argument named "+name.join(' or '));
+  throw new Error("Expected "+fn.name+" to have an argument named "+names.join(' or '));
 }
 function farg(fn, ...names) { // type of argn(fn, ...names)
   let name = argn(fn, ...names);
   let r = fn.args.find(c => c.name === name);
-  if (!r) throw new Error("Expected "+fn.name+" to have an argument named "+name.join(' or '));
+  if (!r) throw new Error("Expected "+fn.name+" to have an argument named "+names.join(' or '));
   return r.type;
 }
 

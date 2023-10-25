@@ -75,7 +75,7 @@ let query_selVar = undefined;
 let query_currPage = 0;
 let perPage = 37;
 
-let extra_test = false;
+let extra_test = true;
 
 async function loadFile(path) {
   let f = await fetch(path);
@@ -759,7 +759,7 @@ async function loadRVV() {
       });
     });
     
-    let docVal, specRef;
+    let docVal, oldSpecRef;
     if (c.implDesc) {
       let match = c.implDesc.match(/\.\.\/rvv-intrinsic-api.md#+(.+)/);
       if (!match) throw new Error("expected API reference for "+c.name);
@@ -767,10 +767,13 @@ async function loadRVV() {
       if (c.categories[0].includes("Slide|Down")) apiRef+= "D";
       if (c.categories[0].includes("Slide|Up")) apiRef+= "U";
       docVal = miniDocs[apiRef];
-      specRef = specMap[apiRef];
+      oldSpecRef = specMap[apiRef];
     } else {
-      specRef = 'sec-aos'; // TODO more specific
+      oldSpecRef = 'sec-aos';
     }
+    if (c.name.includes("_vfmv_s_f_")) oldSpecRef = '_floating_point_scalar_move_instructions'; // map specification references pt.2
+    if (c.name.includes("vncvt_x_x_w_")) oldSpecRef = '_vector_narrowing_integer_right_shift_instructions';
+    if (c.name.includes("_vwcvt")) oldSpecRef = '_vector_widening_integer_addsubtract';
     
     if (docVal) {
       let [desc, oper] = docVal(c);
@@ -780,19 +783,22 @@ async function loadRVV() {
     
     if (c.overloaded) c.desc = `Overloaded name: <span class="mono h-name">${mkcopy(c.overloaded,c.overloaded)}</span><br>${c.desc}`;
     
-    // add implementation description aka operation, and new instr if available
     let newOp = rvvOps.oper(c);
-    c.implDesc = newOp? newOp.oper : !docVal? undefined : `<div style="font-family:sans-serif;white-space:normal">${docVal}</div>`;
-    if (newOp && newOp.instrHTML!==undefined) {
-      c.implInstrSearch = newOp.instrSearch;
-      c.implInstr = () => rvvOps.oper(c).instrHTML;
+    if (newOp) {
+      c.specRef = newOp.specRef;
+      c.implDesc = newOp? newOp.oper : !docVal? undefined : `<div style="font-family:sans-serif;white-space:normal">${docVal}</div>`;
+      if (newOp && newOp.instrHTML!==undefined) {
+        c.implInstrSearch = newOp.instrSearch;
+        c.implInstr = () => rvvOps.oper(c).instrHTML;
+      }
+    } else {
+      c.implDesc = !docVal? undefined : `<div style="font-family:sans-serif;white-space:normal">${docVal}</div>`;
     }
     
-    // reference spec
-    if (c.name.includes("_vfmv_s_f_")) specRef = '_floating_point_scalar_move_instructions'; // map specification references pt.2
-    if (c.name.includes("vncvt_x_x_w_")) specRef = '_vector_narrowing_integer_right_shift_instructions';
-    if (c.name.includes("_vwcvt")) specRef = '_vector_widening_integer_addsubtract';
-    if (specRef) c.desc = `<a target="_blank" href="${specFilePath}#${specRef}">Specification</a><br>`+c.desc
+    if (oldSpecRef != (newOp? newOp.specRef : undefined)) throw new Error('different spec for '+c.name+': exp '+oldSpecRef+', got '+newOp.specRef);
+    
+    if (c.specRef) c.desc = `<a target="_blank" href="${specFilePath}#${newOp.specRef}">Specification</a><br>`+c.desc
+    
   });
   /// if (implicitCount!=828) console.warn("Unexpected count of intrinsics with implicit maskedoff argument: "+implicitCount);
   

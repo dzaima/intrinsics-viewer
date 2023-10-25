@@ -75,7 +75,7 @@ let query_selVar = undefined;
 let query_currPage = 0;
 let perPage = 37;
 
-let extra_test = true;
+let extra_test = false;
 
 async function loadFile(path) {
   let f = await fetch(path);
@@ -496,7 +496,7 @@ async function loadRVV() {
   let baseFile, rvvOps;
   /// let policiesFile;
   try {
-    baseFile = await loadFile("data/rvv_base-4.json");
+    baseFile = await loadFile("data/rvv_base-3.json");
     /// policiesFile = await loadFile("data/rvv_policies.json");
     rvvOps = new Function(await loadFile("extra/rvv_ops.js"))();
     /// rvvOps = {oper:()=>undefined,helper:()=>undefined};
@@ -517,7 +517,7 @@ async function loadRVV() {
     for (let i = 0; i < l.length-1; i+= 2) {
       if (n.includes(l[i])) return l[i+1];
     }
-    throw 0;
+    throw new Error('mapn '+c.name);
   }
   function typeConvert(c) {
     let rf = c.ret.type.includes("float");
@@ -536,12 +536,12 @@ async function loadRVV() {
     'Configuration-Setting and Utility|Set the vl to VLMAX with specific vtype': 'Initialize|Set max vl',
     'Configuration-Setting and Utility|Set vl and vtype': 'Initialize|Set specific vl',
     
-    'Stride Segment Load/Store Instructions (Zvlsseg)|Strided Segment Load': 'Load/store|Segment|Strided Load',
-    'Stride Segment Load/Store Instructions (Zvlsseg)|Strided Segment Store': 'Load/store|Segment|Strided Store',
+    'Stride Segment Load/Store Instructions (Zvlsseg)|Strided Segment Load': 'Load/store|Segment|Strided|Load',
+    'Stride Segment Load/Store Instructions (Zvlsseg)|Strided Segment Store': 'Load/store|Segment|Strided|Store',
     'Unit-Stride Segment Load/Store Instructions (Zvlsseg)|Unit-Stride Segment Load': c => 'Load/store|Segment|' + mapn(c,['ff_','Fault-only-first load', 'seg','Load']),
     'Unit-Stride Segment Load/Store Instructions (Zvlsseg)|Unit-Stride Segment Store': 'Load/store|Segment|Store',
-    'Indexed Segment Load/Store Instructions (Zvlsseg)|Indexed Segment Load': 'Load/store|Segment|Indexed Load',
-    'Indexed Segment Load/Store Instructions (Zvlsseg)|Indexed Segment Store': 'Load/store|Segment|Indexed Store',
+    'Indexed Segment Load/Store Instructions (Zvlsseg)|Indexed Segment Load':  c => 'Load/store|Segment|Indexed|Load/gather '   + mapn(c,['_vlox','ordered', '_vlux','unordered']),
+    'Indexed Segment Load/Store Instructions (Zvlsseg)|Indexed Segment Store': c => 'Load/store|Segment|Indexed|Store/scatter ' + mapn(c,['_vsox','ordered', '_vsux','unordered']),
     'Loads and Stores|Indexed Load':  c => 'Load/store|Indexed|Load/gather '   + mapn(c,['_vlox','ordered', '_vlux','unordered']),
     'Loads and Stores|Indexed Store': c => 'Load/store|Indexed|Store/scatter ' + mapn(c,['_vsox','ordered', '_vsux','unordered']),
     'Loads and Stores|Strided Load': 'Load/store|Strided|Load',
@@ -577,7 +577,7 @@ async function loadRVV() {
     
     'Reduction|Single-Width Floating-Point Reduction': c => 'Fold|'+mapn(c,['_vfredosum','Sequential sum', '_vfredusum','Tree sum', '_vfredmax','Max', '_vfredmin','Min']),
     'Reduction|Single-Width Integer Reduction':        c => 'Fold|'+mapn(c,['vredmaxu','Max', 'vredminu','Min', 'vredsum','Sum', 'vredmax','Max', 'vredmin','Min', 'vredand','Bitwise and', 'vredor','Bitwise or', 'vredxor','Bitwise xor']),
-    'Reduction|Widening Floating-Point Reduction': 'Fold|Widening float sum',
+    'Reduction|Widening Floating-Point Reduction': c => 'Fold|'+mapn(c,['vfwredosum','Widening sequential sum', 'vfwredusum','Widening tree sum']),
     'Reduction|Widening Integer Reduction':        'Fold|Widening integer sum',
     
     'Fixed-Point Arithmetic|Narrowing Fixed-Point Clip': c => 'Fixed-point|Saturating narrowing clip|'+mapn(c,['_vnclipu_', 'Unsigned', '_vnclip_', 'Signed']),
@@ -706,6 +706,9 @@ async function loadRVV() {
         c.implInstrSearch = newOp.instrSearch;
         c.implInstr = () => rvvOps.oper(c).instrHTML;
       }
+      if (newOp.categories.length != c.categories.length) throw new Error("Mismatched categories for "+c.name+": exp\n"+c.categories.length+", got\n"+newOp.categories.length);
+      for (let i = 0; i < newOp.categories.length; i++) if (newOp.categories[i] != c.categories[i]) throw new Error("Mismatched categories for "+c.name+": exp\n"+c.categories[i]+", got\n"+newOp.categories[i]);
+      c.categories = newOp.categories;
     } else {
       c.implDesc = !docVal? undefined : `<div style="font-family:sans-serif;white-space:normal">${docVal}</div>`;
     }

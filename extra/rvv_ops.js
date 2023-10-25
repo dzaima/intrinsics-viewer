@@ -29,7 +29,7 @@ function vparts(T) { // [width, lmul]
 }
 function eparts(T) { // [width, quality]
   T = eltype(T);
-  return [+T.match(/\d+/)[0], T[0]];
+  return [T.includes('bool')? 1 : +T.match(/\d+/)[0], T[0]];
 }
 
 function eltype(t) { // vint32m2_t → int32_t; int16_t → int16_t; vint32m2x2_t → int32_t
@@ -159,6 +159,29 @@ function mapn(f, l) {
   }
   throw new Error("didn't find in "+f.name);
 }
+function typeConvertCat(c) {
+  let [rw, rq] = eparts(c.ret);
+  let [aw, aq] = eparts(c.args[c.args[0].name=='mask'? 1 : 0]);
+  let rf = rq=='f';
+  let af = aq=='f';
+  let w = rw>aw;
+  let n = rw<aw;
+  let wn = (w? 'widen' : n? 'narrow' : '??');
+  let wc = (w? 'Wider result' : n? 'Narrower result' : 'Same-width result');
+  if ( rf &&  af) return 'Conversion|Float '+wn;
+  if (!rf && !af) return 'Conversion|Integer '+wn;
+  if ( rf && !af) return 'Conversion|Integer to float|'+wc;
+  if (!rf &&  af) return 'Conversion|Float to integer|'+wc;
+}
+function loadStoreCat(c) {
+  let [_, l, strided, _2, ord, seg] = c.name.match(/_v([ls])(s)?(([ou])x)?(seg\d+)?ei?\d+_/);
+  return 'Load/store|' + (seg? 'Segment|' : '') + (
+    ord?
+      `Indexed|${l=='l'? 'Load/gather' : 'Store/scatter'} ${ord=='o'?'ordered':'unordered'}`
+    :
+      (strided?'Strided|':'') + (l=='l'?'Load':'Store')
+  );
+}
 
 function red_op(fn, a, b) {
   let n = (t) => fn.name.includes(t);
@@ -172,18 +195,46 @@ function red_op(fn, a, b) {
 
 let defs = [
 // same-width & widening float & integer add/sub/mul/div, integer and/or/xor
-[/_vf?w?(add|sub|mul|div|rem|and|or|xor)(s?u)?_[vw][vxf]_/, (f) => { let minew = Math.min(eparts(farg(f,'op1'))[0], eparts(farg(f,'op2'))[0]); return `
+[/_vf?w?(add|sub|mul|div|rem|and|or|xor)(s?u)?_[vw][vxf]_/, (f) => {
+  let minew = Math.min(eparts(farg(f,'op1'))[0], eparts(farg(f,'op2'))[0]);
+  
+  return `
   REF{${mapn(f,[
-    /_v(add|sub)/, '_vector_single_width_integer_add_and_subtract',
-    /_vw(add|sub)/, '_vector_widening_integer_addsubtract',
+    /_v(add|sub)/,     '_vector_single_width_integer_add_and_subtract',
+    /_vw(add|sub)/,    '_vector_widening_integer_addsubtract',
     /_v(and|or|xor)_/, '_vector_bitwise_logical_instructions',
-    /_vmul/, '_vector_single_width_integer_multiply_instructions',
-    /_v(div|rem)/, '_vector_integer_divide_instructions',
-    /_vwmul/, '_vector_widening_integer_multiply_instructions',
-    /_vf(add|sub)/, '_vector_single_width_floating_point_addsubtract_instructions',
-    /_vfw(add|sub)/, '_vector_widening_floating_point_addsubtract_instructions',
-    /_vf(mul|div)/, '_vector_single_width_floating_point_multiplydivide_instructions',
-    /_vfwmul/, '_vector_widening_floating_point_multiply'])}}
+    /_vmul/,           '_vector_single_width_integer_multiply_instructions',
+    /_v(div|rem)/,     '_vector_integer_divide_instructions',
+    /_vwmul/,          '_vector_widening_integer_multiply_instructions',
+    /_vf(add|sub)/,    '_vector_single_width_floating_point_addsubtract_instructions',
+    /_vfw(add|sub)/,   '_vector_widening_floating_point_addsubtract_instructions',
+    /_vf(mul|div)/,    '_vector_single_width_floating_point_multiplydivide_instructions',
+    /_vfwmul/,         '_vector_widening_floating_point_multiply'])}}
+  CAT{${mapn(f,[
+    /_vadd/,     'Integer|Add|Same-width',
+    /_vsub/,     'Integer|Subtract|Same-width',
+    /_vwadd_/,   'Integer|Add|Widening signed',
+    /_vwaddu_/,  'Integer|Add|Widening unsigned',
+    /_vwsub_/,   'Integer|Subtract|Widening signed',
+    /_vwsubu_/,  'Integer|Subtract|Widening unsigned',
+    /_vdiv_/,    'Integer|Divide|Divide signed',
+    /_vdivu_/,   'Integer|Divide|Divide unsigned',
+    /_vrem_/,    'Integer|Divide|Remainder signed',
+    /_vremu_/,   'Integer|Divide|Remainder unsigned',
+    /_vwmul_/,   'Integer|Multiply|Widening signed',
+    /_vwmulu_/,  'Integer|Multiply|Widening unsigned',
+    /_vwmulsu_/, 'Integer|Multiply|Widening signed*unsigned',
+    /_vand_/,    'Bitwise|AND',
+    /_vor_/,     'Bitwise|OR',
+    /_vxor_/,    'Bitwise|XOR',
+    /_vmul/,     'Integer|Multiply|Same-width',
+    /_vfadd/,    'Float|Add',
+    /_vfsub/,    'Float|Subtract',
+    /_vfwadd/,   'Float|Widen|Add',
+    /_vfwsub/,   'Float|Widen|Subtract',
+    /_vfmul/,    'Float|Multiply',
+    /_vfdiv/,    'Float|Divide',
+    /_vfwmul/,   'Float|Widen|Multiply'])}}
   INSTR{VLSET int${minew}${fmtmul(minew * vparts(farg(f,'op1')).reduce((lw,lm)=>lm/lw))}_t; FRMI0{}; BASE DST, R_op1, R_op2, MASK; FRMI1{}}
   VLMAX{RES{}}
   FRM{}
@@ -202,6 +253,11 @@ let defs = [
     /_vwm/, '_vector_widening_integer_multiply_add_instructions',
     /_vfn?m/, '_vector_single_width_floating_point_fused_multiply_add_instructions',
     /_vfwn?m/, '_vector_widening_floating_point_fused_multiply_add_instructions'])}}
+  CAT{${mapn(f,[
+    /_vn?m/, 'Integer|Multiply-add|Same-width',
+    /_vwm/, 'Integer|Multiply-add|Widening',
+    /_vfn?m/, 'Float|Fused multiply-add',
+    /_vfwn?m/, 'Float|Widen|Fused multiply-add'])}}
   INSTR{VLSET ${farg(f,'vs2')}; FRMI0{}; BASE R_vd, R_${hasarg(f,'vs1')?'v':'r'}s1, R_vs2, MASK; FRMI1{}}
   VLMAX{RES{}}
   FRM{}
@@ -242,9 +298,10 @@ let defs = [
 ],
 
 
-// segment load, strided load, indexed load
+// segment load, segment strided load, segment indexed load
 [/vl(|s|[ou]x)seg\dei?\d+_/, (f) => { let [x,vt] = xparts(f.ret); return `
   REF{sec-aos}
+  CAT{${loadStoreCat(f)}}
   INSTR{VLSET RES{}; BASE DST, (R_base)${hasarg(f,'bindex')?', R_bindex':''}${hasarg(f,'bstride')?', R_bstride':''}, MASK}
   VLMAX{${vt}}
   ${mem_align_comment(f,1)}
@@ -259,9 +316,10 @@ let defs = [
   }
   return res;`
 }],
-// segment store, stided store, indexed store
+// segment store, segment stided store, segment indexed store
 [/vs(|s|[ou]x)seg\dei?\d+_/, (f) => { let [x,vt] = xparts(farg(f,'v_tuple')); return `
   REF{sec-aos}
+  CAT{${loadStoreCat(f)}}
   INSTR{VLSET FARG{v_tuple}; BASE R_v_tuple, (R_base)${hasarg(f,'bindex')?', R_bindex':''}${hasarg(f,'bstride')?', R_bstride':''}, MASK}
   VLMAX{${vt}}
   ${mem_align_comment(f,0)}
@@ -276,6 +334,7 @@ let defs = [
 // segment fault-only-first load
 [/vlseg\de\d+ff_/, (f) => { let [x,vt] = xparts(f.ret); return `
   REF{sec-aos}
+  CAT{Load/store|Segment|Fault-only-first load}
   INSTR{VLSET RES{}; BASE DST, (R_base), MASK; csrr R_new_vl, vl // or used as vl directly}
   VLMAX{${vt}}
   ${mem_align_comment(f,1)}
@@ -303,6 +362,7 @@ let defs = [
     /_vle/, '_vector_unit_stride_instructions',
     /_vls/, '_vector_strided_instructions',
     /_vl[ou]/, '_vector_indexed_instructions'])}}
+  CAT{${loadStoreCat(f)}}
   INSTR{VLSET RES{}; BASE DST, (R_base)${hasarg(f,'bindex')?', R_bindex':''}${hasarg(f,'bstride')?', R_bstride':''}, MASK}
   VLMAX{RES{}}
   ${mem_align_comment(f,1)}
@@ -320,6 +380,7 @@ let defs = [
     /_vse/, '_vector_unit_stride_instructions',
     /_vss/, '_vector_strided_instructions',
     /_vs[ou]/, '_vector_indexed_instructions'])}}
+  CAT{${loadStoreCat(f)}}
   INSTR{VLSET FARG{value}; BASE R_value, (R_base)${hasarg(f,'bindex')?', R_bindex':''}${hasarg(f,'bstride')?', R_bstride':''}, MASK}
   VLMAX{FARG{value}}
   ${mem_align_comment(f,0)}
@@ -331,6 +392,7 @@ let defs = [
 // mask load/store
 [/_v[ls]m_v_/, (f) => { let b=+f.name.split('_v_b')[1]; let ld=f.name.includes('_vl'); return `
   REF{_vector_unit_stride_instructions}
+  CAT{Load/store|Mask}
   INSTR{VLSET VLMAXBG{}; BASE ${ld? 'DST' : 'R_value'}, (R_base)${hasarg(f,'bindex')?', R_bindex':''}, MASK}
   VLMAXB{}
   VLMAX{}
@@ -346,6 +408,7 @@ let defs = [
 // fault-only-first
 [/_vle\d+ff_v/, (f) => `
   REF{_unit_stride_fault_only_first_loads}
+  CAT{Load/store|Fault-only-first load}
   INSTR{VLSET RES{}; BASE DST, (R_base), MASK; csrr R_new_vl, vl // or used as vl directly}
   VLMAX{RES{}}
   ${mem_align_comment(f,1)}
@@ -366,6 +429,7 @@ let defs = [
 // shift
 [/_vn?s(ll|ra|rl)_/, (f) => `
   REF{${f.name.includes('_vn')? '_vector_narrowing_integer_right_shift_instructions' : '_vector_single_width_shift_instructions'}}
+  CAT{Bitwise|${mapn(f,[/_vsl/,'Shift left', /_vn?sra/,'Shift right|arithmetic', /_vn?srl/,'Shift right|logical'])}${f.name.includes('_vn')? ' narrowing' : ''}}
   INSTR{VLSET RES{}; BASE DST, R_op1, R_shift, MASK}
   VLMAX{FARG{op1}}
   RES{} res;
@@ -382,6 +446,7 @@ let defs = [
     /_vrsub/, '_vector_single_width_integer_add_and_subtract',
     /_vfrsub/, '_vector_single_width_floating_point_addsubtract_instructions',
     /_vfrdiv/, '_vector_single_width_floating_point_multiplydivide_instructions'])}}
+  CAT{${mapn(f,[/_vrsub/,'Integer|Subtract|Same-width', /_vfrsub/,'Float|Subtract', /_vfrdiv/,'Float|Divide'])}}
   INSTR{VLSET RES{}; FRMI0{}; BASE DST, R_op1, R_op2, MASK; FRMI1{}}
   VLMAX{RES{}}
   FRM{}
@@ -396,6 +461,7 @@ let defs = [
 // high half of multiplication
 [/_vmulh/, (f) => `
   REF{_vector_single_width_integer_multiply_instructions}
+  CAT{Integer|Multiply|${mapn(f,[/_vmulhsu_/,'High signed*unsigned', /_vmulhu_/,'High unsigned', /_vmulh_/,'High signed', /_vmul_/,'Same-width'])}}
   INSTR{VLSET RES{}; BASE DST, R_op1, R_op2, MASK}
   VLMAX{RES{}}
   RES{} res;
@@ -409,6 +475,7 @@ let defs = [
 // sign injection
 [/_vfsgnj/, (f) => { let w=+f.ret.type.match(/\d+/)[0]; let u='uint'+w+'_t'; let n=f.name.includes('sgnjx')?2:f.name.includes('sgnjn')?1:0; return `
   REF{_vector_floating_point_sign_injection_instructions}
+  CAT{Float|Sign-injection}
   INSTR{VLSET RES{}; BASE DST, R_op1, R_op2, MASK}
   VLMAX{RES{}}
   
@@ -428,6 +495,7 @@ let defs = [
 // add-with-carry / subtract-with-borrow
 [/_v(ad|sb)c_/, (f) => { let a=f.name.includes('_vadc'); let inn=(a?'carry':'borrow')+'in'; return `
   REF{_vector_integer_add_with_carry_subtract_with_borrow_instructions}
+  CAT{Integer|Carry / borrow|${a? 'Add' : 'Subtract'}}
   INSTR{VLSET RES{}; BASE DST, R_op1, R_op2, R_${inn}}
   VLMAX{RES{}}
   RES{} res;
@@ -441,6 +509,7 @@ let defs = [
 // mask out of add-with-carry / subtract-with-borrow
 [/_vm(ad|sb)c_/, (f) => { let a=f.name.includes('_vmadc'); let inn = f.args.length==3? '' : (a?'carry':'borrow')+'in'; return `
   REF{_vector_integer_add_with_carry_subtract_with_borrow_instructions}
+  CAT{Integer|Carry / borrow|${a? 'Add carry-out' : 'Subtract borrow-out'}}
   INSTR{VLSET FARG{op1}; BASE DST, R_op1, R_op2${inn? ', R_'+inn : ''}}
   VLMAX{FARG{op1}}
   RES{} res;
@@ -463,6 +532,16 @@ let defs = [
     /_vwred/, 'sec-vector-integer-reduce-widen',
     /_vfred/, 'sec-vector-float-reduce',
     /_vfwred/, 'sec-vector-float-reduce-widen'])}}
+  CAT{Fold|${mapn(f,[
+    /vredsum/, 'Sum',
+    /vwredsum/, 'Widening integer sum',
+    /redmax/, 'Max',
+    /redmin/, 'Min',
+    /redand/, 'Bitwise and',
+    /redor/, 'Bitwise or',
+    /redxor/, 'Bitwise xor',
+    /vfredosum/, 'Sequential sum',
+    /vfwredosum/, 'Widening sequential sum'])}}
   INSTR{VLSET FARG{vector}; FRMI0{}; BASE DST, R_vector, R_scalar, MASK; FRMI1{}}
   VLMAX{FARG{vector}}
   FRM{}
@@ -482,6 +561,7 @@ let defs = [
 
 [/_vfw?redusum/, (f) => { let m=fvhas(f,'m'); return `
   REF{${f.name.includes('_vfw')? 'sec-vector-float-reduce-widen' : 'sec-vector-float-reduce'}}
+  CAT{Fold|${f.name.includes('_vfw')? 'Widening tree' : 'Tree'} sum}
   INSTR{VLSET FARG{vector}; FRMI0{}; BASE DST, R_vector, R_scalar, MASK; FRMI1{}}
   // TL;DR: sum${m?' non-masked':''} elements in some implementation-defined order with
   //   implementation-defined intermediate types (at least RESE{})
@@ -524,6 +604,8 @@ let defs = [
 // saturating add/sub
 [/_vs(add|sub)u?_v[vx]_/, (f) => `
   REF{_vector_single_width_saturating_add_and_subtract}
+  CAT{Fixed-point|Saturating ${f.name.includes('_vsadd')? 'add' : 'subtract'}|${/u_v[vx]_/.test(f.name)? 'Unsigned' : 'Signed'}}
+  CAT{Integer|${f.name.includes('_vsadd')? 'Add' : 'Subtract'}|Saturating ${/u_v[vx]_/.test(f.name)? 'unsigned' : 'signed'}}
   INSTR{VLSET RES{}; BASE DST, R_op1, R_op2, MASK}
   VLMAX{RES{}}
   RES{} res;
@@ -539,6 +621,7 @@ let defs = [
 // comparison
 [/_vm[fs](lt|le|gt|ge|eq|ne)u?_/, (f) => { let fl=farg(f,'op1')[1]=='f'; let mf=fl&&f.short; let nt = '=!'.includes(opmap(f)[0])? "isSNaN" : "isNaN"; return `
   REF{${f.name.includes('_vmf')? '_vector_floating_point_compare_instructions' : '_vector_integer_compare_instructions'}}
+  CAT{${f.name.includes('_vmf')? 'Float' : 'Integer'}|Compare|${/_vm(f|seq|sne)/.test(f.name)? '' : /_vm[a-z]+u_/.test(f.name)? 'Unsigned ' : 'Signed '}${opmap(f)}}
   INSTR{VLSET FARG{op1}; ${(()=>{
     let vv = f.name.includes('_vv_');
     let ge = f.name.includes('vmsge');
@@ -564,6 +647,7 @@ let defs = [
 // broadcast
 [/_vmv_v_x_|_vfmv_v_f_/, (f) => `
   REF{${f.name.includes('_vfmv_v_f_')? 'sec-vector-float-move' : '_vector_integer_move_instructions'}}
+  CAT{Initialize|Broadcast}
   INSTR{VLSET RES{}; BASE DST, R_src}
   VLMAX{RES{}}
   RES{} res;
@@ -577,6 +661,7 @@ let defs = [
 // set first
 [/_vmv_s_x_|_vfmv_s_f_/, (f) => `
   REF{${/_s_f_/.test(f.name)? '_floating_point_scalar_move_instructions' : '_integer_scalar_move_instructions'}}
+  CAT{Initialize|Set first}
   INSTR{VLSET RES{}; BASE DST, R_src}
   VLMAX{RES{}}
   RES{} res;
@@ -592,6 +677,7 @@ let defs = [
 // get first
 [/_vfmv_f_s_|_vmv_x_s_/, (f) => { let elt=tshort(f.ret); return `
   REF{_integer_scalar_move_instructions}
+  CAT{Permutation|Extract first}
   INSTR{VLSET FARG{src}; BASE DST, R_src${elt=='u8'? '; zext.b DST,DST' : elt=='u16'||elt=='u32'? `; slli DST, DST, ${64-elt.slice(1)}; srli DST, DST, ${64-elt.slice(1)}` : ''}}
   return src[0];`
 }],
@@ -599,6 +685,7 @@ let defs = [
 // gather
 [/vrgather_vx_/, (f) => `
   REF{_vector_register_gather_instructions}
+  CAT{Permutation|Broadcast one}
   INSTR{VLSET RES{}; BASE DST, R_op1, R_index, MASK}
   VLMAX{RES{}}
   RES{} res;
@@ -611,6 +698,7 @@ let defs = [
 ],
 [/vrgather(ei16)?_vv_/, (f) => `
   REF{_vector_register_gather_instructions}
+  CAT{Permutation|Shuffle|${f.name.includes('ei16')? '16-bit indices' : 'Equal-width'}}
   INSTR{VLSET RES{}; BASE DST, R_op1, R_index, MASK}
   VLMAX{RES{}}
   RES{} res;
@@ -626,6 +714,7 @@ let defs = [
 // compress
 [/_vcompress_/, `
   REF{_vector_compress_instruction}
+  CAT{Permutation|Compress}
   INSTR{VLSET RES{}; BASE DST, R_src, R_mask, MASK}
   VLMAX{RES{}}
   RES{} res;
@@ -643,6 +732,7 @@ let defs = [
 // slide
 [/vf?slide1(up|down)/, (f) => { let d=f.name.includes("down"); return `
   REF{${f.name.includes('1up')? '_vector_slide1up' : '_vector_slide1down_instruction'}}
+  CAT{Permutation|Slide|${f.name.includes('1up')? 'Up' : 'Down'} 1}
   INSTR{VLSET RES{}; BASE DST, R_src, R_value, MASK}
   VLMAX{RES{}}
   RES{} res;
@@ -659,6 +749,7 @@ let defs = [
 }],
 [/vslideup/, (f) => { let d=f.name.includes("down"); return `
   REF{_vector_slideup_instructions}
+  CAT{Permutation|Slide|Up N}
   INSTR{VLSET RES{}; BASE DST, R_src, R_offset, MASK}
   VLMAX{RES{}}
   BORING{offset = min(offset, vl);}
@@ -676,6 +767,7 @@ let defs = [
 }],
 [/vslidedown/, (f) => { let d=f.name.includes("down"); return `
   REF{_vector_slidedown_instructions}
+  CAT{Permutation|Slide|Down N}
   INSTR{VLSET RES{}; BASE DST, R_src, R_offset, MASK}
   VLMAX{RES{}}
   BORING{offset = min(offset, vl);}
@@ -692,6 +784,7 @@ let defs = [
 // merge / blend
 [/_vf?merge_/, (f) => `
   REF{${f.name.includes('m_f')? '_vector_floating_point_merge_instruction' : '_vector_integer_merge_instructions'}}
+  CAT{Permutation|Merge}
   INSTR{VLSET RES{}; BASE DST, R_op1, R_op2, R_mask}
   VLMAX{RES{}}
   RES{} res;
@@ -705,6 +798,7 @@ let defs = [
 // vid
 [/_vid_/, `
   REF{_vector_element_index_instruction}
+  CAT{Initialize|Element indices}
   INSTR{VLSET RES{}; BASE DST, MASK}
   VLMAX{RES{}}
   RES{} res;
@@ -718,6 +812,7 @@ let defs = [
 // viota
 [/_viota_/, `
   REF{_vector_iota_instruction}
+  CAT{Initialize|Cumulative indices}
   INSTR{VLSET RES{}; BASE DST, R_op1, MASK}
   VLMAX{RES{}}
   RES{} res;
@@ -732,14 +827,19 @@ let defs = [
 ],
 
 // reinterpret
-[/_vreinterpret_/, `
+[/_vreinterpret_/, (f) => {
+  let [rw, rq] = eparts(f.ret);
+  let [aw, aq] = eparts(farg(f,'src'));
+  return `
   INSTR{}
+  CAT{Conversion|Reinterpret|${rw==1||aw==1? 'Boolean' : rw==aw? 'Same LMUL & width' : 'Same LMUL & sign'}}
   return reinterpret(RES{}, src);`
-],
+}],
 
 // integer min/max
 [/_v(min|max)u?_[vw][vx]_/, (f) => `
   REF{_vector_integer_minmax_instructions}
+  CAT{Integer|${f.name.includes('_vmin')? 'Min' : 'Max'}}
   INSTR{VLSET RES{}; BASE DST, R_op1, R_op2, MASK}
   VLMAX{RES{}}
   RES{} res;
@@ -753,6 +853,7 @@ let defs = [
 // float min/max
 [/_vf(min|max)_v[vf]_/, (f) => { let min = f.name.includes('min'); return `
   REF{_vector_floating_point_minmax_instructions}
+  CAT{Float|${f.name.includes('_vfmin')? 'Min' : 'Max'}}
   INSTR{VLSET RES{}; BASE DST, R_op1, R_op2, MASK}
   VLMAX{RES{}}
   RES{} res;
@@ -777,17 +878,21 @@ let defs = [
 }],
 
 // unary same-width things
-[/_vf?neg_|_vfrsqrt7_|_vfsqrt_|_vfrec7_|_vfabs_|_vnot_|_vmv_v_v_/, (f) => {let n=(c)=>f.name.includes(c); return `
-  REF{${mapn(f,[
-    /_vnot_/, '_vector_bitwise_logical_instructions',
-    /_vneg_/, '_vector_single_width_integer_add_and_subtract',
-    /_vmv_v_v_[iu]/, '_vector_integer_move_instructions',
-    /_vfneg_/, '_vector_single_width_floating_point_addsubtract_instructions',
-    /_vfsqrt_/, '_vector_floating_point_square_root_instruction',
-    /_vfrsqrt7_/, '_vector_floating_point_reciprocal_square_root_estimate_instruction',
-    /_vfrec7_/, '_vector_floating_point_reciprocal_estimate_instruction',
-    /_vfabs_/, '_vector_floating_point_sign_injection_instructions',
-    /_vmv_v_v_f/, 'sec-vector-float-move'])}}
+[/_vf?neg_|_vfrsqrt7_|_vfsqrt_|_vfrec7_|_vfabs_|_vnot_|_vmv_v_v_/, (f) => {
+  let n=(c)=>f.name.includes(c);
+  let mapped = mapn(f,[
+    /_vnot_/,        ['Bitwise|NOT', '_vector_bitwise_logical_instructions'],
+    /_vneg_/,        ['Integer|Negate', '_vector_single_width_integer_add_and_subtract'],
+    /_vmv_v_v_[iu]/, ['Permutation|Move', '_vector_integer_move_instructions'],
+    /_vfneg_/,       ['Float|Negate', '_vector_single_width_floating_point_addsubtract_instructions'],
+    /_vfsqrt_/,      ['Float|Square root', '_vector_floating_point_square_root_instruction'],
+    /_vfrsqrt7_/,    ['Float|Estimate reciprocal square-root', '_vector_floating_point_reciprocal_square_root_estimate_instruction'],
+    /_vfrec7_/,      ['Float|Estimate reciprocal', '_vector_floating_point_reciprocal_estimate_instruction'],
+    /_vfabs_/,       ['Float|Absolute', '_vector_floating_point_sign_injection_instructions'],
+    /_vmv_v_v_f/,    ['Permutation|Move', 'sec-vector-float-move']])
+  return `
+  REF{${mapped[1]}}
+  CAT{${mapped[0]}}
   INSTR{VLSET RES{}; FRMI0{}; BASE DST, R_${argn(f,'op1','src')}, MASK; FRMI1{}}
   VLMAX{RES{}}
   FRM{}
@@ -813,6 +918,7 @@ let defs = [
     /_vfwcvt_/, '_widening_floating_pointinteger_type_convert_instructions',
     /_vfncvt_/, '_narrowing_floating_pointinteger_type_convert_instructions',
     /_vncvt/, '_vector_narrowing_integer_right_shift_instructions'])}}
+  CAT{${f.name.includes('_vsext')? 'Integer|Sign-extend' : f.name.includes('_vzext')? 'Integer|Zero-extend' : typeConvertCat(f)}}
   INSTR{VLSET ${f.name.includes('ext_')? 'RES{}' : farg(f,op)}; FRMI0{}; BASE DST, R_${op}, MASK; FRMI1{}}
   VLMAX{${farg(f,op)}}
   FRM{}${'' /* TODO force-add local rounding mode for dynamic? */}
@@ -835,6 +941,7 @@ let defs = [
 // float classify
 [/vfclass/, (f) => `
   REF{_vector_floating_point_classify_instruction}
+  CAT{Float|Classify}
   INSTR{VLSET RES{}; BASE DST, R_op1, MASK}
   VLMAX{RES{}}
   RES{} res;
@@ -862,6 +969,7 @@ let defs = [
 // mask bitwise ops
 [/_mm_|_vm(not|mv|set|clr)_m_/, (f) => `
   REF{sec-mask-register-logical}
+  CAT{Mask|${mapn(f,[/_vmandn/,'Logical|ANDN', /_vmnand/,'Logical|NAND', /_vmxnor/,'Logical|XNOR', /_vmand_/,'Logical|AND', /_vmclr/,'Zero', /_vmset/,'One', /_vmnor/,'Logical|NOR', /_vmnot/,'Logical|NOT', /_vmorn/,'Logical|ORN', /_vmxor/,'Logical|XOR', /_vmmv/,'Hint', /_vmor_/,'Logical|OR'])}}
   INSTR{VLSET VLMAXBG{}; BASE DST${hasarg(f,'op1')? ', R_op1' : ''}${f.name.includes('_mm_')? ', R_op2' : ''}}
   ${f.name.includes('vmmv')? '// hints that this will be used as a mask' : ''} RMELN{}
   VLMAXB{}
@@ -886,6 +994,7 @@ let defs = [
 // mask fancy ops
 [/_vfirst_m_/, (f) => `
   REF{_vfirst_find_first_set_mask_bit}
+  CAT{Mask|Find first set}
   INSTR{VLSET VLMAXBG{}; BASE DST, R_op1, MASK}
   VLMAXB{}
   VLMAX{}
@@ -896,6 +1005,7 @@ let defs = [
 ],
 [/_vcpop_m_/, (f) => `
   REF{_vector_count_population_in_mask_vcpop_m}
+  CAT{Mask|Population count}
   INSTR{VLSET VLMAXBG{}; BASE DST, R_op1, MASK}
   VLMAXB{}
   VLMAX{}
@@ -910,6 +1020,7 @@ let defs = [
     /_vmsbf/, '_vmsbf_m_set_before_first_mask_bit',
     /_vmsif/, '_vmsif_m_set_including_first_mask_bit',
     /_vmsof/, '_vmsof_m_set_only_first_mask_bit'])}}
+  CAT{Mask|${mapn(f,[/_vmsbf/,'Set before first',/_vmsif/,'Set including first',/_vmsof/,'Set only first'])}}
   INSTR{VLSET VLMAXBG{}; BASE DST, R_op1, MASK}
   VLMAXB{}
   VLMAX{}
@@ -928,6 +1039,7 @@ let defs = [
 // averaging add/sub
 [/_va(add|sub)u?_/, (f) => `
   REF{_vector_single_width_averaging_add_and_subtract}
+  CAT{Fixed-point|Averaging ${/_vasub/.test(f.name)?'subtract':'add'}|${/u_/.test(f.name)?'Unsigned':'Signed'}}
   INSTR{VLSET RES{}; INIT csrwi vxrm, <vxrm>; BASE DST, R_op1, R_op2, MASK}
   VLMAX{RES{}}
   RES{} res;
@@ -944,6 +1056,7 @@ let defs = [
 // rounding shift
 [/_vssr[al]_/, (f) => `
   REF{_vector_single_width_scaling_shift_instructions}
+  CAT{Fixed-point|Scaling right shift|${/_vssra_/.test(f.name)? 'Arithmetic' : 'Logical'}}
   INSTR{VLSET RES{}; INIT csrwi vxrm, <vxrm>; BASE DST, R_op1, R_shift, MASK}
   VLMAX{RES{}}
   RES{} res;
@@ -959,6 +1072,7 @@ let defs = [
 // narrowing clip
 [/_vnclipu?_/, (f) => `
   REF{_vector_narrowing_fixed_point_clip_instructions}
+  CAT{Fixed-point|Saturating narrowing clip|${/clipu/.test(f.name)? 'Unsigned' : 'Signed'}}
   INSTR{VLSET RES{}; INIT csrwi vxrm, <vxrm>; BASE DST, R_op1, R_shift, MASK}
   VLMAX{FARG{op1}}
   RES{} res;
@@ -975,6 +1089,7 @@ let defs = [
 // rounding & saturating multiply
 [/_vsmul_/, (f) => `
   REF{_vector_single_width_fractional_multiply_with_rounding_and_saturation}
+  CAT{Fixed-point|Fractional rounding & saturating multiply}
   VLMAX{RES{}}
   INSTR{VLSET RES{}; INIT csrwi vxrm, <vxrm>; BASE DST, R_op1, R_op2, MASK}
   RES{} res;
@@ -992,6 +1107,7 @@ let defs = [
 // setvl
 [/_vsetvl_/, (f) => { let t = f.name.split('vsetvl_')[1].replace('e','vint')+'_t'; return `
   REF{sec-vector-config}
+  CAT{Initialize|Set specific vl}
   INSTR{VLSET ${t}}
   vlmax = VLMAXG{${t}};
   if (avl <= vlmax) {
@@ -1004,6 +1120,7 @@ let defs = [
 }],
 [/_vsetvlmax_/, (f) => { let t = f.name.split('vsetvlmax_')[1].replace('e','vint')+'_t'; return `
   REF{sec-vector-config}
+  CAT{Initialize|Set max vl}
   INSTR{VLSET ${t}}
   return VLMAXG{${t}};`
 }],
@@ -1229,7 +1346,9 @@ oper: (o, v) => {
     return '';
   });
   let specRef;
+  let categories = [];
   s = s.replace(/^ *REF{(.*)}\n/m, (_,c) => { specRef = c; return ''; })
+  s = s.replace(/^ *CAT{(.*)}\n/mg, (_,c) => { categories.push(c.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>')); return ''; })
   
   s = s.replace(/TAILLOOP{(.*?)};?/g, (_,c) => boring(`for (size_t i = ${c?c:'vl'}; i < vlmax; i++) res[i] = TAIL{};`));
   s = s.replace(/TAIL{}/g, agnBaseT(tail)); // tail element
@@ -1318,6 +1437,7 @@ oper: (o, v) => {
   return {
     oper: s,
     specRef: specRef,
+    categories: categories,
     instrSearch: !instrArr? undefined : instrArr.map(c=>c[1]).join('\n').replace(/&lt;/g, '<'),
     instrHTML: !instrArr? undefined : instrArr.map(([i,c]) => i? c.replace(/\/\/.*/, boring) : boring(c)).join('\n'),
   };

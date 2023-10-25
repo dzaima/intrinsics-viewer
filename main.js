@@ -496,7 +496,7 @@ async function loadRVV() {
   let baseFile, rvvOps;
   /// let policiesFile;
   try {
-    baseFile = await loadFile("data/rvv_base-3.json");
+    baseFile = await loadFile("data/rvv_base-4.json");
     /// policiesFile = await loadFile("data/rvv_policies.json");
     rvvOps = new Function(await loadFile("extra/rvv_ops.js"))();
     /// rvvOps = {oper:()=>undefined,helper:()=>undefined};
@@ -625,74 +625,6 @@ async function loadRVV() {
     'Integer Arithmetic|Integer Comparison':                    c => 'Integer|Compare|' +mapn(c,['_vmsltu','Unsigned <', '_vmsleu','Unsigned <=', '_vmsgtu','Unsigned >', '_vmsgeu','Unsigned >=', '_vmseq','==', '_vmsne','!=', '_vmslt','Signed <', '_vmsle','Signed <=', '_vmsgt','Signed >', '_vmsge','Signed >=']),
   };
   
-  // map specification references pt.1
-  const specMap = {
-                                                "set-vl-and-vtype-functions": "sec-vector-config",
-                                       "set-vl-to-vlmax-with-specific-vtype": "sec-vector-config",
-                                          "74-vector-unit-stride-operations": "_vector_unit_stride_instructions",
-                                    "75-vector-strided-loadstore-operations": "_vector_strided_instructions",
-                                    "76-vector-indexed-loadstore-operations": "_vector_indexed_instructions",
-                          "77-unit-stride-fault-only-first-loads-operations": "_unit_stride_fault_only_first_loads",
-                          "121-vector-single-width-integer-add-and-subtract": "_vector_single_width_integer_add_and_subtract",
-                        "122-vector-widening-integer-addsubtract-operations": "_vector_widening_integer_addsubtract",
-                                   "123-vector-integer-extension-operations": "_vector_integer_extension",
-        "124-vector-integer-add-with-carry--subtract-with-borrow-operations": "_vector_integer_add_with_carry_subtract_with_borrow_instructions",
-                                     "125-vector-bitwise-logical-operations": "_vector_bitwise_logical_instructions",
-                              "126-vector-single-width-bit-shift-operations": "_vector_single_width_shift_instructions",
-                       "127-vector-narrowing-integer-right-shift-operations": "_vector_narrowing_integer_right_shift_instructions",
-                                  "128-vector-integer-comparison-operations": "_vector_integer_compare_instructions",
-                                      "129-vector-integer-minmax-operations": "_vector_integer_minmax_instructions",
-                      "1210-vector-single-width-integer-multiply-operations": "_vector_single_width_integer_multiply_instructions",
-                                     "1211-vector-integer-divide-operations": "_vector_integer_divide_instructions",
-                          "1212-vector-widening-integer-multiply-operations": "_vector_widening_integer_multiply_instructions",
-                  "1213-vector-single-width-integer-multiply-add-operations": "_vector_single_width_integer_multiply_add_instructions",
-                      "1214-vector-widening-integer-multiply-add-operations": "_vector_widening_integer_multiply_add_instructions",
-                                      "1216-vector-integer-merge-operations": "_vector_integer_merge_instructions",
-                                       "1217-vector-integer-move-operations": "_vector_integer_move_instructions",
-                       "131-vector-single-width-saturating-add-and-subtract": "_vector_single_width_saturating_add_and_subtract",
-                        "132-vector-single-width-averaging-add-and-subtract": "_vector_single_width_averaging_add_and_subtract",
-  "133-vector-single-width-fractional-multiply-with-rounding-and-saturation": "_vector_single_width_fractional_multiply_with_rounding_and_saturation",
-                          "134-vector-single-width-scaling-shift-operations": "_vector_single_width_scaling_shift_instructions",
-                          "135-vector-narrowing-fixed-point-clip-operations": "_vector_narrowing_fixed_point_clip_instructions",
-             "142-vector-single-width-floating-point-addsubtract-operations": "_vector_single_width_floating_point_addsubtract_instructions",
-                 "143-vector-widening-floating-point-addsubtract-operations": "_vector_widening_floating_point_addsubtract_instructions",
-          "144-vector-single-width-floating-point-multiplydivide-operations": "_vector_single_width_floating_point_multiplydivide_instructions",
-                    "145-vector-widening-floating-point-multiply-operations": "_vector_widening_floating_point_multiply",
-      "146-vector-single-width-floating-point-fused-multiply-add-operations": "_vector_single_width_floating_point_fused_multiply_add_instructions",
-          "147-vector-widening-floating-point-fused-multiply-add-operations": "_vector_widening_floating_point_fused_multiply_add_instructions",
-                          "148-vector-floating-point-square-root-operations": "_vector_floating_point_square_root_instruction",
-      "149-vector-floating-point-reciprocal-square-root-estimate-operations": "_vector_floating_point_reciprocal_square_root_estimate_instruction",
-                 "1410-vector-floating-point-reciprocal-estimate-operations": "_vector_floating_point_reciprocal_estimate_instruction",
-                              "1411-vector-floating-point-minmax-operations": "_vector_floating_point_minmax_instructions",
-                      "1412-vector-floating-point-sign-injection-operations": "_vector_floating_point_sign_injection_instructions",
-                             "1413-vector-floating-point-compare-operations": "_vector_floating_point_compare_instructions",
-                            "1414-vector-floating-point-classify-operations": "_vector_floating_point_classify_instruction",
-                               "1415-vector-floating-point-merge-operations": "_vector_floating_point_merge_instruction",
-                                "1416-vector-floating-point-move-operations": "sec-vector-float-move",
-           "1417-single-width-floating-pointinteger-type-convert-operations": "_single_width_floating_pointinteger_type_convert_instructions",
-               "1418-widening-floating-pointinteger-type-convert-operations": "_widening_floating_pointinteger_type_convert_instructions",
-              "1419-narrowing-floating-pointinteger-type-convert-operations": "_narrowing_floating_pointinteger_type_convert_instructions",
-                      "151-vector-single-width-integer-reduction-operations": "sec-vector-integer-reduce",
-               "153-vector-single-width-floating-point-reduction-operations": "sec-vector-float-reduce",
-                          "152-vector-widening-integer-reduction-operations": "sec-vector-integer-reduce-widen",
-                   "154-vector-widening-floating-point-reduction-operations": "sec-vector-float-reduce-widen",
-                               "161-vector-mask-register-logical-operations": "sec-mask-register-logical",
-                                "162-vector-count-population-in-mask-vcpopm": "_vector_count_population_in_mask_vcpop_m",
-                                        "163-vfirst-find-first-set-mask-bit": "_vfirst_find_first_set_mask_bit",
-                                      "164-vmsbfm-set-before-first-mask-bit": "_vmsbf_m_set_before_first_mask_bit",
-                                   "165-vmsifm-set-including-first-mask-bit": "_vmsif_m_set_including_first_mask_bit",
-                                        "166-vmsofm-set-only-first-mask-bit": "_vmsof_m_set_only_first_mask_bit",
-                                                "168-vector-iota-operations": "_vector_iota_instruction",
-                                       "169-vector-element-index-operations": "_vector_element_index_instruction",
-                                        "171-integer-scalar-move-operations": "_integer_scalar_move_instructions",
-                                              "173-vector-slide-operationsU": "_vector_slideup_instructions",
-                                              "173-vector-slide-operationsD": "_vector_slidedown_instructions",
-                             "173-vector-slide1up-and-slide1down-functionsD": "_vector_slide1down_instruction",
-                             "173-vector-slide1up-and-slide1down-functionsU": "_vector_slide1up",
-                                     "174-vector-register-gather-operations": "_vector_register_gather_instructions",
-                                            "175-vector-compress-operations": "_vector_compress_instruction",
-  };
-  
   // mini descriptions & "implementations"
   let miniDocs = {
     'set-vl-and-vtype-functions': c => ["Returns a number less than or equal to <code>avl</code>, specifying how many elements of the given type should be processed.", undefined],
@@ -704,14 +636,6 @@ async function loadRVV() {
     'vector-extraction-functions': c => [c.name.includes("x")? "Extracts an element of the tuple." : "Extracts a part of the register group of <code>src</code>.", ""],
   };
   
-  let implicitMasked = [ // categories where a maskedoff argument isn't added separately
-    'Permutation|Slide|Up N',
-    'Integer|Multiply-add',
-    'Float|Fused multiply-add',
-    'Float|Widen|Fused multiply-add',
-  ];
-  
-  
   let res = JSON.parse(baseFile);
   /// let {data:policyMap, def:policyDef, types:policyTypes} = JSON.parse(policiesFile);
   /// let implicitCount = 0; // sanity check counter
@@ -719,6 +643,12 @@ async function loadRVV() {
   // process entries
   res.forEach(ins => {
     let c = ins;
+    
+    let fxarg = arg => {
+      if (arg.name == 'vm') arg.name = 'mask';
+      return arg;
+    }
+    c.args.forEach(fxarg);
     
     c.categories = c.categories.map(c => c.endsWith("|non-masked")? c.substring(0,c.length-11): c);
     c.id = idCounter++;
@@ -740,8 +670,8 @@ async function loadRVV() {
           
           args: s.a.map(a => {
             if (typeof a === 'number') return ins.args[a];
-            if (typeof a === 'object') return a;
-            return {name: a.startsWith('vbool')? 'mask' : 'maskedoff', type: a};
+            if (typeof a === 'object') return fxarg(a);
+            return {name: a.startsWith('vbool')? 'mask' : 'vd', type: a};
           }),
         };
         
@@ -759,22 +689,7 @@ async function loadRVV() {
       });
     });
     
-    let docVal, oldSpecRef;
-    if (c.implDesc) {
-      let match = c.implDesc.match(/\.\.\/rvv-intrinsic-api.md#+(.+)/);
-      if (!match) throw new Error("expected API reference for "+c.name);
-      let apiRef = match[1];
-      if (c.categories[0].includes("Slide|Down")) apiRef+= "D";
-      if (c.categories[0].includes("Slide|Up")) apiRef+= "U";
-      docVal = miniDocs[apiRef];
-      oldSpecRef = specMap[apiRef];
-    } else {
-      oldSpecRef = 'sec-aos';
-    }
-    if (c.name.includes("_vfmv_s_f_")) oldSpecRef = '_floating_point_scalar_move_instructions'; // map specification references pt.2
-    if (c.name.includes("vncvt_x_x_w_")) oldSpecRef = '_vector_narrowing_integer_right_shift_instructions';
-    if (c.name.includes("_vwcvt")) oldSpecRef = '_vector_widening_integer_addsubtract';
-    
+    let docVal = undefined; // TODO TODO TODO
     if (docVal) {
       let [desc, oper] = docVal(c);
       if (desc!==undefined) c.desc = desc;
@@ -794,8 +709,6 @@ async function loadRVV() {
     } else {
       c.implDesc = !docVal? undefined : `<div style="font-family:sans-serif;white-space:normal">${docVal}</div>`;
     }
-    
-    if (oldSpecRef != (newOp? newOp.specRef : undefined)) throw new Error('different spec for '+c.name+': exp '+oldSpecRef+', got '+newOp.specRef);
     
     if (c.specRef) c.desc = `<a target="_blank" href="${specFilePath}#${newOp.specRef}">Specification</a><br>`+c.desc
     

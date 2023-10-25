@@ -1175,7 +1175,7 @@ oper: (o, v) => {
   
   let mask = !fvhas(v,"m")? 0 : fvhas(v,"mu")? 2 : 1; // 0: no masking; 1: agnostic; 2: undisturbed
   let tail = !fvhas(v,"tu"); // 0: undisturbed; 1: agnostic
-  let basev = hasarg(fn, "maskedoff")? "maskedoff" : hasarg(fn, "vd")? "vd" : fn.name.includes("slideup")? "dest" : "";
+  let basev = hasarg(fn, "vd")? "vd" : fn.name.includes("slideup")? "dest" : "";
   let baseeM = basev? basev+(farg(fn,basev).includes('x')? '[o]' : '')+'[i]' : '';
   let baseeT = fn.ret.type.includes("bool")? "" : baseeM;
   

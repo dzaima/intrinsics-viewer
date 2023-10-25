@@ -1,7 +1,7 @@
 download: download-x86 download-arm download-riscv
 download-x86: data/intel_intrinsics-1.xml data/intel_perf2-1.js
 download-arm: data/arm_intrinsics-1.json data/arm_operations-1.json
-download-riscv: data/rvv_base-3.json data/v-spec.html
+download-riscv: data/rvv_base-4.json data/v-spec.html
 
 data/intel_perf2-1.js:
 	mkdir -p data
@@ -19,9 +19,9 @@ data/arm_operations-1.json:
 	mkdir -p data
 	curl -L 'https://developer.arm.com/architectures/instruction-sets/intrinsics/data/operations.json' > "$@"
 
-data/rvv_base-3.json:
+data/rvv_base-4.json:
 	mkdir -p data
-	curl -L 'https://github.com/dzaima/rvv-intrinsic-doc/releases/download/v5/rvv_base.json' > "$@"
+	curl -L 'https://github.com/dzaima/rvv-intrinsic-doc/releases/download/v6/rvv_base.json' > "$@"
 
 data/v-spec.html:
 	mkdir -p data

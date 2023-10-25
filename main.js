@@ -494,12 +494,9 @@ let rvv_helper = undefined;
 async function loadRVV() {
   let specFilePath = "data/v-spec.html";
   let baseFile, rvvOps;
-  /// let policiesFile;
   try {
     baseFile = await loadFile("data/rvv_base-4.json");
-    /// policiesFile = await loadFile("data/rvv_policies.json");
     rvvOps = new Function(await loadFile("extra/rvv_ops.js"))();
-    /// rvvOps = {oper:()=>undefined,helper:()=>undefined};
   } catch (e) {
     console.log(e);
     return null;
@@ -511,18 +508,7 @@ async function loadRVV() {
     descPlaceEl.getElementsByClassName('rvv-helper-back')[0].onclick = () => displayEnt(...prev_entry, false);
   };
   
-  // category transformation map
-  function mapn(c, l) {
-    let n = c.name;
-    for (let i = 0; i < l.length-1; i+= 2) {
-      if (n.includes(l[i])) return l[i+1];
-    }
-    throw new Error('mapn '+c.name);
-  }
-  
   let res = JSON.parse(baseFile);
-  /// let {data:policyMap, def:policyDef, types:policyTypes} = JSON.parse(policiesFile);
-  /// let implicitCount = 0; // sanity check counter
   
   // process entries
   res.forEach(ins => {
@@ -567,24 +553,19 @@ async function loadRVV() {
     });
     
     let newOp = rvvOps.oper(c);
-    if (newOp) {
-      c.desc = newOp.desc || '';
-      c.specRef = newOp.specRef;
-      c.implDesc = newOp.oper;
-      if (newOp && newOp.instrHTML!==undefined) {
-        c.implInstrSearch = newOp.instrSearch;
-        c.implInstr = () => rvvOps.oper(c).instrHTML;
-      }
-      c.categories = newOp.categories;
-    } else {
-      c.implDesc = !docVal? undefined : `<div style="font-family:sans-serif;white-space:normal">${docVal}</div>`;
+    if (!newOp) throw new Error("No rvvOps for "+c.name);
+    c.desc = newOp.desc || '';
+    c.specRef = newOp.specRef;
+    c.implDesc = newOp.oper;
+    if (newOp.instrHTML !== undefined) {
+      c.implInstrSearch = newOp.instrSearch;
+      c.implInstr = () => rvvOps.oper(c).instrHTML;
     }
-    
+    c.categories = newOp.categories;
     if (c.overloaded) c.desc = `Overloaded name: <span class="mono h-name">${mkcopy(c.overloaded,c.overloaded)}</span><br>${c.desc}`;
     if (c.specRef) c.desc = `<a target="_blank" href="${specFilePath}#${newOp.specRef}">Specification</a><br>${c.desc}`;
     
   });
-  /// if (implicitCount!=828) console.warn("Unexpected count of intrinsics with implicit maskedoff argument: "+implicitCount);
   
 
   function addSimpleOp(ret, name, args, desc, oper) {
@@ -595,16 +576,7 @@ async function loadRVV() {
       archs: ['rvv'], categories: ["Initialize|General"],
     });
   }
-  // let csrdef = `
-  //   enum RVV_CSR {
-  //     RVV_VSTART = 0,
-  //     RVV_VXSAT = 1,
-  //     RVV_VXRM = 2,
-  //     RVV_VCSR = 3,
-  //   };\n`.replace(/\n    /g,"\n").slice(1);
   addSimpleOp("unsigned long", "__riscv_vlenb", [], "Get VLEN in bytes", "return VLEN/8;");
-  // addSimpleOp("unsigned long", "__riscv_vread_csr", [{type:"enum RVV_CSR",name:"csr"}], "Read a CSR", csrdef+"return CSRS[csr];");
-  // addSimpleOp("void", "__riscv_vwrite_csr", [{type:"enum RVV_CSR",name:"csr"}, {type:"unsigned long", name:"value"}], "Set a CSR", csrdef+"CSRS[csr] = value;");
   
   res.forEach(c => {
     c.cpu = ['risc-v'];

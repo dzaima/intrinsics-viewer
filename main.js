@@ -520,17 +520,6 @@ async function loadRVV() {
     throw new Error('mapn '+c.name);
   }
   
-  // mini descriptions & "implementations"
-  let miniDocs = {
-    'set-vl-and-vtype-functions': c => ["Returns a number less than or equal to <code>avl</code>, specifying how many elements of the given type should be processed.", undefined],
-    'set-vl-to-vlmax-with-specific-vtype': c => ["Returns the maximum number of elements of the specified type to process.", undefined],
-    'reinterpret-cast-conversion-functions': c => [undefined, ""],
-    'vector-lmul-extension-and-truncation-functions': c => [c.name.includes("vlmul_ext")? "Returns a vector whose low part is the argument, and the upper part is undefined." : "Returns a low portion of the argument.", ""],
-    'vector-initialization-functions': c => ["Returns an undefined vector value of the specified type.", undefined],
-    'vector-insertion-functions': c => [c.name.includes("x")? "Creates a copy of the tuple with a specific element replaced." : "Inserts a lower-LMUL vector to part of a higher-LMUL one. This is equivalent to writing over part of the register group of the <code>desc</code> argument.", ""],
-    'vector-extraction-functions': c => [c.name.includes("x")? "Extracts an element of the tuple." : "Extracts a part of the register group of <code>src</code>.", ""],
-  };
-  
   let res = JSON.parse(baseFile);
   /// let {data:policyMap, def:policyDef, types:policyTypes} = JSON.parse(policiesFile);
   /// let implicitCount = 0; // sanity check counter
@@ -577,19 +566,11 @@ async function loadRVV() {
       });
     });
     
-    let docVal = undefined; // TODO TODO TODO
-    if (docVal) {
-      let [desc, oper] = docVal(c);
-      if (desc!==undefined) c.desc = desc;
-      docVal = oper;
-    }
-    
-    if (c.overloaded) c.desc = `Overloaded name: <span class="mono h-name">${mkcopy(c.overloaded,c.overloaded)}</span><br>${c.desc}`;
-    
     let newOp = rvvOps.oper(c);
     if (newOp) {
+      c.desc = newOp.desc || '';
       c.specRef = newOp.specRef;
-      c.implDesc = newOp? newOp.oper : !docVal? undefined : `<div style="font-family:sans-serif;white-space:normal">${docVal}</div>`;
+      c.implDesc = newOp.oper;
       if (newOp && newOp.instrHTML!==undefined) {
         c.implInstrSearch = newOp.instrSearch;
         c.implInstr = () => rvvOps.oper(c).instrHTML;
@@ -599,7 +580,8 @@ async function loadRVV() {
       c.implDesc = !docVal? undefined : `<div style="font-family:sans-serif;white-space:normal">${docVal}</div>`;
     }
     
-    if (c.specRef) c.desc = `<a target="_blank" href="${specFilePath}#${newOp.specRef}">Specification</a><br>`+c.desc
+    if (c.overloaded) c.desc = `Overloaded name: <span class="mono h-name">${mkcopy(c.overloaded,c.overloaded)}</span><br>${c.desc}`;
+    if (c.specRef) c.desc = `<a target="_blank" href="${specFilePath}#${newOp.specRef}">Specification</a><br>${c.desc}`;
     
   });
   /// if (implicitCount!=828) console.warn("Unexpected count of intrinsics with implicit maskedoff argument: "+implicitCount);

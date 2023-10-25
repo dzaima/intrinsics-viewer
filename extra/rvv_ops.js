@@ -1,6 +1,6 @@
 'use strict';
 
-let extra_test = true;
+let extra_test = false;
 
 function boring(c) {
   return `<span class="boring">${c}</span>`;
@@ -1107,6 +1107,7 @@ let defs = [
 // setvl
 [/_vsetvl_/, (f) => { let t = f.name.split('vsetvl_')[1].replace('e','vint')+'_t'; return `
   REF{sec-vector-config}
+  DESC{Returns a number less than or equal to <code>avl</code>, specifying how many elements of the given type should be processed.}
   CAT{Initialize|Set specific vl}
   INSTR{VLSET ${t}}
   vlmax = VLMAXG{${t}};
@@ -1120,11 +1121,51 @@ let defs = [
 }],
 [/_vsetvlmax_/, (f) => { let t = f.name.split('vsetvlmax_')[1].replace('e','vint')+'_t'; return `
   REF{sec-vector-config}
+  DESC{Returns the maximum number of elements of the specified type to process.}
   CAT{Initialize|Set max vl}
   INSTR{VLSET ${t}}
   return VLMAXG{${t}};`
 }],
-
+[/_vlmul_ext/, `
+  DESC{Returns a vector whose low part is the argument, and the upper part is undefined.}
+  CAT{Permutation|LMUL extend}
+  OPER_UNDEF`
+],
+[/_vlmul_trunc/, `
+  DESC{Returns a low portion of the argument.}
+  CAT{Permutation|LMUL truncate}
+  OPER_UNDEF`
+],
+[/_vundefined/, `
+  DESC{Returns an undefined vector value of the specified type.}
+  CAT{Initialize|Set undefined}
+  OPER_UNDEF`
+],
+[/_vset_v_[^x]+$/, `
+  DESC{Inserts a lower-LMUL vector to part of a higher-LMUL one. This is equivalent to writing over part of the register group of the <code>desc</code> argument.}
+  CAT{Permutation|Insert}
+  OPER_UNDEF`
+],
+[/_vset_v_.+x/, `
+  DESC{Creates a copy of the tuple with a specific element replaced.}
+  CAT{Permutation|Tuple|Insert}
+  OPER_UNDEF`
+],
+[/_vget_v_[^x]+$/, `
+  DESC{Extracts a part of the register group of <code>src</code>.}
+  CAT{Permutation|Extract}
+  OPER_UNDEF`
+],
+[/_vget_v_.+x/, `
+  DESC{Extracts an element of the tuple.}
+  CAT{Permutation|Tuple|Extract}
+  OPER_UNDEF`
+],
+[/_vcreate_v_.+x/, `
+  DESC{Creates a tuple from elements.}
+  CAT{Permutation|Tuple|Create}
+  OPER_UNDEF`
+],
 ];
 
 let miniHTMLEscape = (c) => c.replace(/&/g, '&amp;').replace(/<(?!\/?(span|code))/g, '&lt;'); // allow intentional inline HTML usage, but escape most things
@@ -1345,9 +1386,10 @@ oper: (o, v) => {
     if (instrArr.length==1) instrArr[0][0] = 1;
     return '';
   });
-  let specRef;
+  let specRef, desc;
   let categories = [];
   s = s.replace(/^ *REF{(.*)}\n/m, (_,c) => { specRef = c; return ''; })
+  s = s.replace(/^ *DESC{(.*)}\n/m, (_,c) => { desc = c; return ''; })
   s = s.replace(/^ *CAT{(.*)}\n/mg, (_,c) => { categories.push(c.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>')); return ''; })
   
   s = s.replace(/TAILLOOP{(.*?)};?/g, (_,c) => boring(`for (size_t i = ${c?c:'vl'}; i < vlmax; i++) res[i] = TAIL{};`));
@@ -1380,6 +1422,8 @@ oper: (o, v) => {
   // simpler helper functions & values
   s = s.replace(/\b(anything|agnostic|u?intinf|is[SQ]?NaN)\(/g, (_,c) => h(c)+'(');
   s = s.replace(/\b(intinf_t)\b/g, (_,c) => h(c));
+  
+  if (s.includes('OPER_UNDEF')) s = '';
   
   if (extra_test) {
     let ms = defs.filter(c => c[0].test(name));
@@ -1437,6 +1481,7 @@ oper: (o, v) => {
   return {
     oper: s,
     specRef: specRef,
+    desc: desc,
     categories: categories,
     instrSearch: !instrArr? undefined : instrArr.map(c=>c[1]).join('\n').replace(/&lt;/g, '<'),
     instrHTML: !instrArr? undefined : instrArr.map(([i,c]) => i? c.replace(/\/\/.*/, boring) : boring(c)).join('\n'),

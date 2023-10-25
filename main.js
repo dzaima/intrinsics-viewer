@@ -496,7 +496,7 @@ async function loadRVV() {
   let baseFile, rvvOps;
   /// let policiesFile;
   try {
-    baseFile = await loadFile("data/rvv_base-3.json");
+    baseFile = await loadFile("data/rvv_base-4.json");
     /// policiesFile = await loadFile("data/rvv_policies.json");
     rvvOps = new Function(await loadFile("extra/rvv_ops.js"))();
     /// rvvOps = {oper:()=>undefined,helper:()=>undefined};
@@ -519,111 +519,6 @@ async function loadRVV() {
     }
     throw new Error('mapn '+c.name);
   }
-  function typeConvert(c) {
-    let rf = c.ret.type.includes("float");
-    let af = c.args[c.args[0].name=='mask'? 1 : 0].type.includes("float");
-    let orig = c.categories[0].split("|")[1];
-    let w = orig=='Widening Floating-Point/Integer Type-Convert';
-    let n = orig=='Narrowing Floating-Point/Integer Type-Convert';
-    let wn = (w? 'widen' : n? 'narrow' : '??');
-    let wc = (w? 'Wider result' : n? 'Narrower result' : 'Same-width result');
-    if ( rf &&  af) return 'Conversion|Float '+wn;
-    if (!rf && !af) return 'Conversion|Integer '+wn;
-    if ( rf && !af) return 'Conversion|Integer to float|'+wc;
-    if (!rf &&  af) return 'Conversion|Float to integer|'+wc;
-  }
-  const categoryMap = {
-    'Configuration-Setting and Utility|Set the vl to VLMAX with specific vtype': 'Initialize|Set max vl',
-    'Configuration-Setting and Utility|Set vl and vtype': 'Initialize|Set specific vl',
-    
-    'Stride Segment Load/Store Instructions (Zvlsseg)|Strided Segment Load': 'Load/store|Segment|Strided|Load',
-    'Stride Segment Load/Store Instructions (Zvlsseg)|Strided Segment Store': 'Load/store|Segment|Strided|Store',
-    'Unit-Stride Segment Load/Store Instructions (Zvlsseg)|Unit-Stride Segment Load': c => 'Load/store|Segment|' + mapn(c,['ff_','Fault-only-first load', 'seg','Load']),
-    'Unit-Stride Segment Load/Store Instructions (Zvlsseg)|Unit-Stride Segment Store': 'Load/store|Segment|Store',
-    'Indexed Segment Load/Store Instructions (Zvlsseg)|Indexed Segment Load':  c => 'Load/store|Segment|Indexed|Load/gather '   + mapn(c,['_vlox','ordered', '_vlux','unordered']),
-    'Indexed Segment Load/Store Instructions (Zvlsseg)|Indexed Segment Store': c => 'Load/store|Segment|Indexed|Store/scatter ' + mapn(c,['_vsox','ordered', '_vsux','unordered']),
-    'Loads and Stores|Indexed Load':  c => 'Load/store|Indexed|Load/gather '   + mapn(c,['_vlox','ordered', '_vlux','unordered']),
-    'Loads and Stores|Indexed Store': c => 'Load/store|Indexed|Store/scatter ' + mapn(c,['_vsox','ordered', '_vsux','unordered']),
-    'Loads and Stores|Strided Load': 'Load/store|Strided|Load',
-    'Loads and Stores|Strided Store': 'Load/store|Strided|Store',
-    'Loads and Stores|Unit-Stride Load': 'Load/store|Load',
-    'Loads and Stores|Unit-Stride Store': 'Load/store|Store',
-    'Loads and Stores|Unit-stride Fault-Only-First Loads': 'Load/store|Fault-only-first load',
-    
-    'Mask|count population in mask': 'Mask|Population count',
-    'Mask|Element Index': 'Initialize|Element indices',
-    'Mask|Iota': 'Initialize|Cumulative indices',
-    'Mask|Find-first-set mask bit': 'Mask|Find first set',
-    'Mask|Set-including-first mask bit': 'Mask|Set including first',
-    'Mask|Set-before-first mask bit': 'Mask|Set before first',
-    'Mask|Set-only-first mask bit': 'Mask|Set only first',
-    'Mask|Mask Load/Store': 'Load/store|Mask',
-    'Mask|Mask-Register Logical': c => 'Mask|' + mapn(c,['_vmandn','Logical|ANDN', '_vmnand','Logical|NAND', '_vmxnor','Logical|XNOR', '_vmand','Logical|AND', '_vmclr','Zero', '_vmset','One', '_vmnor','Logical|NOR', '_vmnot','Logical|NOT', '_vmorn','Logical|ORN', '_vmxor','Logical|XOR', '_vmmv','Hint', '_vmor','Logical|OR']),
-    
-    'Permutation|Integer and Floating-Point Scalar Move': c => mapn(c,['_s_x_','Initialize|Set first', '_x_s_','Permutation|Extract first', '_s_f_','Initialize|Set first', '_f_s_','Permutation|Extract first']),
-    'Permutation|Register Gather': c => 'Permutation|' + mapn(c,['_vrgatherei16','Shuffle|16-bit indices', '_vrgather_vv_','Shuffle|Equal-width', '_vrgather_vx_','Broadcast one']),
-    'Permutation|Slide1up and Slide1down': c => 'Permutation|Slide|' + mapn(c,['slide1up','Up 1', 'slide1down','Down 1']),
-    'Permutation|Slideup':                 'Permutation|Slide|Up N',
-    'Permutation|Slidedown':               'Permutation|Slide|Down N',
-    
-    'Miscellaneous Vector|Initialization': 'Initialize|Set undefined',
-    'Miscellaneous Vector|Reinterpret Cast Conversion|Reinterpret between different SEW under the same LMUL': 'Conversion|Reinterpret|Same LMUL & sign',
-    'Miscellaneous Vector|Reinterpret Cast Conversion|Reinterpret between different type under the same SEW/LMUL': 'Conversion|Reinterpret|Same LMUL & width',
-    'Miscellaneous Vector|Reinterpret Cast Conversion|Reinterpret between vector boolean types and LMUL=1 (m1) vector integer types': 'Conversion|Reinterpret|Boolean',
-    'Miscellaneous Vector|Extraction': c => 'Permutation|' + (/x\d(_|$)/.test(c.name)? 'Tuple|' : '') + 'Extract',
-    'Miscellaneous Vector|Insertion':  c => 'Permutation|' + (/x\d(_|$)/.test(c.name)? 'Tuple|' : '') + 'Insert',
-    'Miscellaneous Vector|LMUL Extension': 'Permutation|LMUL extend',
-    'Miscellaneous Vector|LMUL Truncation': 'Permutation|LMUL truncate',
-    
-    'Reduction|Single-Width Floating-Point Reduction': c => 'Fold|'+mapn(c,['_vfredosum','Sequential sum', '_vfredusum','Tree sum', '_vfredmax','Max', '_vfredmin','Min']),
-    'Reduction|Single-Width Integer Reduction':        c => 'Fold|'+mapn(c,['vredmaxu','Max', 'vredminu','Min', 'vredsum','Sum', 'vredmax','Max', 'vredmin','Min', 'vredand','Bitwise and', 'vredor','Bitwise or', 'vredxor','Bitwise xor']),
-    'Reduction|Widening Floating-Point Reduction': c => 'Fold|'+mapn(c,['vfwredosum','Widening sequential sum', 'vfwredusum','Widening tree sum']),
-    'Reduction|Widening Integer Reduction':        'Fold|Widening integer sum',
-    
-    'Fixed-Point Arithmetic|Narrowing Fixed-Point Clip': c => 'Fixed-point|Saturating narrowing clip|'+mapn(c,['_vnclipu_', 'Unsigned', '_vnclip_', 'Signed']),
-    'Fixed-Point Arithmetic|Single-Width Fractional Multiply with Rounding and Saturation': 'Fixed-point|Fractional rounding & saturating multiply',
-    'Fixed-Point Arithmetic|Single-Width Averaging Add and Subtract':  c => { let p=mapn(c,['_vaadd_','add|Signed', '_vaaddu_','add|Unsigned', '_vasub_','subtract|Signed', '_vasubu_','subtract|Unsigned']); return ['Fixed-point|Averaging '+p]; },
-    'Fixed-Point Arithmetic|Single-Width Saturating Add and Subtract': c => { let p=mapn(c,['_vsadd_','add|Signed', '_vsaddu_','add|Unsigned', '_vssub_','subtract|Signed', '_vssubu_','subtract|Unsigned']); return ['Fixed-point|Saturating '+p, 'Integer|'+p[0].toUpperCase()+p.slice(1).toLowerCase().replace('|', '|Saturating ')]; },
-    'Fixed-Point Arithmetic|Single-Width Scaling Shift': c => 'Fixed-point|Scaling right shift|'+mapn(c,['_vssra_', 'Arithmetic', '_vssrl_', 'Logical']),
-    
-    'Floating-Point|Floating-Point Absolute Value': 'Float|Absolute',
-    'Floating-Point|Floating-Point Classify': 'Float|Classify',
-    'Floating-Point|Floating-Point Reciprocal Estimate': 'Float|Estimate reciprocal',
-    'Floating-Point|Floating-Point Reciprocal Square-Root Estimate': 'Float|Estimate reciprocal square-root',
-    'Floating-Point|Floating-Point Sign-Injection': 'Float|Sign-injection',
-    'Floating-Point|Floating-Point Square-Root': 'Float|Square root',
-    'Floating-Point|Single-Width Floating-Point Fused Multiply-Add': 'Float|Fused multiply-add',
-    'Floating-Point|Floating-Point Compare':                      c => 'Float|Compare|'+mapn(c, ['_vmfeq','==', '_vmfne','!=', '_vmflt','<', '_vmfle','<=', '_vmfgt','>', '_vmfge','>=']),
-    'Floating-Point|Floating-Point MIN/MAX':                      c => 'Float|'        +mapn(c,['_vfmin','Min', '_vfmax','Max']),
-    'Floating-Point|Single-Width Floating-Point Add/Subtract':    c => 'Float|'        +mapn(c,['_vfadd','Add', '_vfsub','Subtract', '_vfrsub','Subtract', '_vfneg','Negate']),
-    'Floating-Point|Single-Width Floating-Point Multiply/Divide': c => 'Float|'        +mapn(c,['_vfdiv','Divide', '_vfrdiv','Divide', '_vfmul','Multiply', '_vfrmul','Multiply']),
-    'Floating-Point|Widening Floating-Point Add/Subtract':        c => 'Float|Widen|'  +mapn(c,['_vfwadd','Add', '_vfwsub','Subtract']),
-    'Floating-Point|Widening Floating-Point Fused Multiply-Add': 'Float|Widen|Fused multiply-add',
-    'Floating-Point|Widening Floating-Point Multiply': 'Float|Widen|Multiply',
-    'Floating-Point|Narrowing Floating-Point/Integer Type-Convert': typeConvert,
-    'Floating-Point|Widening Floating-Point/Integer Type-Convert': typeConvert,
-    'Floating-Point|Single-Width Floating-Point/Integer Type-Convert': typeConvert,
-    'Floating-Point|Floating-Point Move': c => mapn(c,['_v_f_','Initialize|Broadcast', '_v_v_','Permutation|Move']),
-    'Floating-Point|Floating-Point Merge': 'Permutation|Merge',
-    
-    'Integer Arithmetic|Integer Merge': 'Permutation|Merge',
-    'Integer Arithmetic|Integer Divide': c => 'Integer|Divide|'+mapn(c,['_vdiv_','Divide signed', '_vdivu_','Divide unsigned', '_vrem_','Remainder signed', '_vremu_','Remainder unsigned']),
-    'Integer Arithmetic|Integer Add-with-Carry / Subtract-with-Borrow': c => 'Integer|Carry / borrow|'+mapn(c,['_vadc_','Add', '_vsbc_','Subtract', '_vmadc_','Add carry-out', '_vmsbc_','Subtract borrow-out']),
-    'Integer Arithmetic|Single-Width Integer Multiply-Add': 'Integer|Multiply-add|Same-width',
-    'Integer Arithmetic|Widening Integer Multiply-Add': 'Integer|Multiply-add|Widening',
-    
-    'Integer Arithmetic|Integer Move':                          c =>                     mapn(c,['_v_x_','Initialize|Broadcast', '_v_v_','Permutation|Move']),
-    'Integer Arithmetic|Widening Integer Add/Subtract':         c => 'Integer|'         +mapn(c,['_vwaddu','Add|Widening unsigned', '_vwsubu','Subtract|Widening unsigned', '_vwadd','Add|Widening signed', '_vwsub','Subtract|Widening signed']),
-    'Integer Arithmetic|Widening Integer Multiply':             c => 'Integer|'         +mapn(c,['_vwmulsu', 'Multiply|Widening signed*unsigned', '_vwmulu', 'Multiply|Widening unsigned', '_vwmul', 'Multiply|Widening signed']),
-    'Integer Arithmetic|Integer Extension':                     c => 'Integer|'         +mapn(c,['_vsext','Sign-extend', '_vzext','Zero-extend']),
-    'Integer Arithmetic|Single-Width Integer Add and Subtract': c => 'Integer|'         +mapn(c,['_vadd','Add|Same-width', '_vsub','Subtract|Same-width', '_vrsub','Subtract|Same-width', '_vneg','Negate']),
-    'Integer Arithmetic|Single-Width Integer Multiply':         c => 'Integer|Multiply|'+mapn(c,['_vmulhsu','High signed*unsigned', '_vmulhu','High unsigned', '_vmulh','High signed', '_vmul','Same-width']),
-    'Integer Arithmetic|Bitwise Logical':                       c => 'Bitwise|'         +mapn(c,['_vand','AND', '_vor','OR', '_vxor','XOR', '_vnot', 'NOT']),
-    'Integer Arithmetic|Single-Width Bit Shift':                c => 'Bitwise|'         +mapn(c,['_vsrl','Shift right|logical', '_vsra','Shift right|arithmetic', '_vsll','Shift left']),
-    'Integer Arithmetic|Narrowing Integer Right Shift':         c => 'Bitwise|'         +mapn(c,['_vnsrl','Shift right|logical narrowing', '_vnsra','Shift right|arithmetic narrowing']),
-    'Integer Arithmetic|Integer Min/Max':                       c => 'Integer|'         +mapn(c,['_vmin','Min', '_vmax','Max']),
-    'Integer Arithmetic|Integer Comparison':                    c => 'Integer|Compare|' +mapn(c,['_vmsltu','Unsigned <', '_vmsleu','Unsigned <=', '_vmsgtu','Unsigned >', '_vmsgeu','Unsigned >=', '_vmseq','==', '_vmsne','!=', '_vmslt','Signed <', '_vmsle','Signed <=', '_vmsgt','Signed >', '_vmsge','Signed >=']),
-  };
   
   // mini descriptions & "implementations"
   let miniDocs = {
@@ -650,16 +545,9 @@ async function loadRVV() {
     }
     c.args.forEach(fxarg);
     
-    c.categories = c.categories.map(c => c.endsWith("|non-masked")? c.substring(0,c.length-11): c);
     c.id = idCounter++;
     c.implInstr = c.implInstrRaw? c.implInstrRaw.replace(/\n/g, '<br>') : undefined;
     
-    // transform categories
-    c.categories = c.categories.flatMap(ct => {
-      ct = ct.replace(/(^|\|)Vector /g, "$1");
-      let n = categoryMap[ct];
-      return n===undefined? ct : (typeof n === 'string')? n : n(c);
-    });
     // process variations
     if (ins.policies) {
       ins.variations = ins.policies.map(s => {
@@ -706,8 +594,6 @@ async function loadRVV() {
         c.implInstrSearch = newOp.instrSearch;
         c.implInstr = () => rvvOps.oper(c).instrHTML;
       }
-      if (newOp.categories.length != c.categories.length) throw new Error("Mismatched categories for "+c.name+": exp\n"+c.categories.length+", got\n"+newOp.categories.length);
-      for (let i = 0; i < newOp.categories.length; i++) if (newOp.categories[i] != c.categories[i]) throw new Error("Mismatched categories for "+c.name+": exp\n"+c.categories[i]+", got\n"+newOp.categories[i]);
       c.categories = newOp.categories;
     } else {
       c.implDesc = !docVal? undefined : `<div style="font-family:sans-serif;white-space:normal">${docVal}</div>`;

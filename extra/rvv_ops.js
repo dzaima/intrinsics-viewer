@@ -1136,24 +1136,15 @@ let defs = [
   CAT{Permutation|LMUL truncate}
   OPER_UNDEF`
 ],
-[/_vundefined/, `
-  DESC{Returns an undefined vector value of the specified type.}
-  CAT{Initialize|Set undefined}
+[/_vundefined/, (f) => `
+  DESC{Returns an undefined value of the specified type.}
+  CAT{Initialize|Undefined|${f.name.includes('x')? 'Tuple' : 'Vector'}}
   OPER_UNDEF`
 ],
-[/_vset_v_[^x]+$/, `
-  DESC{Inserts a lower-LMUL vector to part of a higher-LMUL one. This is equivalent to writing over part of the register group of the <code>desc</code> argument.}
-  CAT{Permutation|Insert}
-  OPER_UNDEF`
-],
+
 [/_vset_v_.+x/, `
   DESC{Creates a copy of the tuple with a specific element replaced.}
   CAT{Permutation|Tuple|Insert}
-  OPER_UNDEF`
-],
-[/_vget_v_[^x]+$/, `
-  DESC{Extracts a part of the register group of <code>src</code>.}
-  CAT{Permutation|Extract}
   OPER_UNDEF`
 ],
 [/_vget_v_.+x/, `
@@ -1166,6 +1157,55 @@ let defs = [
   CAT{Permutation|Tuple|Create}
   OPER_UNDEF`
 ],
+
+[/_vset_v_[^x]+$/, (f) => {
+  let arg = farg(f,'val');
+  let [wr,lr] = vparts(f.ret);
+  let [wa,la] = vparts(arg);
+  return `
+  DESC{Inserts a lower-LMUL vector to part of a higher-LMUL one. This is equivalent to writing over part of the register group of the <code>desc</code> argument.}
+  CAT{Permutation|Register group|Insert}
+  size_t count = VLMAXG{${arg}}; // number of elements in val
+  size_t off = count * index;
+  
+  RES{} res;
+  for (size_t i = 0; i < off; i++) {
+    res[i] = dest[i];
+  }
+  
+  for (size_t i = 0; i < count; i++) {
+    res[i + off] = src[i];
+  }
+  
+  for (size_t i = off+count; i < count*${lr/la}; i++) { // count*${lr/la} == vlmax(res) == VLMAXG{RES{}}
+    res[i] = dest[i];
+  }`
+}],
+[/_vget_v_[^x]+$/, `
+  DESC{Extracts a part of the register group of <code>src</code>.}
+  CAT{Permutation|Register group|Extract}
+  size_t count = VLMAXG{RES{}}; // number of elements in the result
+  size_t off = count * index;
+  
+  RES{} res;
+  for (size_t i = 0; i < count; i++) {
+    res[i] = src[off + i];
+  }`
+],
+[/_vcreate_v_[^x]+$/, (f) => {
+  let arg = farg(f,'v0');
+  let [wr,lr] = vparts(f.ret);
+  let [wa,la] = vparts(arg);
+  return `
+  DESC{Creates a vector from subregisters.}
+  CAT{Permutation|Register group|Create}
+  size_t count = VLMAXG{${arg}}; // number of elements in each argument
+  
+  RES{} res;
+  ${new Array(lr/la).fill().map((_,j) =>
+    `for (size_t i = 0; i < count; i++) res[i${j==0? `` : j==1? ` + count` : ` + count*${j}`}] = v${j}[i];`
+  ).join('\n')}`
+}],
 ];
 
 let miniHTMLEscape = (c) => c.replace(/&/g, '&amp;').replace(/<(?!\/?(span|code))/g, '&lt;'); // allow intentional inline HTML usage, but escape most things

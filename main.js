@@ -495,7 +495,7 @@ async function loadRVV() {
   let specFilePath = "data/v-spec.html";
   let baseFile, rvvOps;
   try {
-    baseFile = await loadFile("data/rvv_base-4.json");
+    baseFile = await loadFile("data/rvv_base-5.json");
     rvvOps = new Function(await loadFile("extra/rvv_ops.js"))();
   } catch (e) {
     console.log(e);
@@ -815,6 +815,9 @@ async function newCPU() {
     'Mask|Set before first': 3,
     'Mask|Set including first': 4,
     'Mask|Set only first': 5,
+    
+    'Permutation|Shuffle': 0,
+    'Permutation|Slide': 1,
     
     'Load/store|Load': 0,
     'Load/store|Store': 1,

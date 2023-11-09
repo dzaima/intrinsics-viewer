@@ -567,6 +567,7 @@ async function loadRVV() {
     
   });
   
+  rvvOps.initialized();
 
   function addSimpleOp(ret, name, args, desc, oper) {
     res.push({

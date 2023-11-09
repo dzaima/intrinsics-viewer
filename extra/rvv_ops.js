@@ -1,6 +1,6 @@
 'use strict';
 
-let extra_test = false;
+const extra_test = false;
 
 function boring(c) {
   return `<span class="boring">${c}</span>`;
@@ -100,6 +100,41 @@ function tfull(t) { // i32 → int32_t
 function fmtmul(f) { // 2 → m2; 0.25 → mf4
   if (f>=1) return 'm'+f;
   return 'mf'+(1/f);
+}
+
+let immArgMap = {
+  'vadc.vxm':      ['vadc.vim'],
+  'vadd.vx':       ['vadd.vi'],
+  'vsub.vx':       ['vadd.vi', -15, 16],
+  'vand.vx':       ['vand.vi'],
+  'vmadc.vx':      ['vmadc.vi'],
+  'vmadc.vxm':     ['vmadc.vim'],
+  'vmerge.vxm':    ['vmerge.vim'],
+  'vmseq.vx':      ['vmseq.vi'],
+  'vmsgt.vx':      ['vmsgt.vi'],
+  'vmslt.vx':      ['vmsle.vi', -15, 16],
+  'vmsgtu.vx':     ['vmsgtu.vi'],
+  'vmsle.vx':      ['vmsle.vi'],
+  'vmsleu.vx':     ['vmsleu.vi'],
+  'vmsne.vx':      ['vmsne.vi'],
+  'vmv.v.x':       ['vmv.v.i'],
+  'vnclip.wx':     ['vnclip.wi', -1, 31],
+  'vnclipu.wx':    ['vnclipu.wi', -1, 31],
+  'vnsra.wx':      ['vnsra.wi', -1, 31],
+  'vnsrl.wx':      ['vnsrl.wi', -1, 31],
+  'vor.vx':        ['vor.vi'],
+  'vrgather.vx':   ['vrgather.vi', -1, 31],
+  'vrsub.vx':      ['vrsub.vi'],
+  'vsadd.vx':      ['vsadd.vi'],
+  'vsaddu.vx':     ['vsaddu.vi'],
+  'vslidedown.vx': ['vslidedown.vi', -1, 31],
+  'vslideup.vx':   ['vslideup.vi', -1, 31],
+  'vsll.vx':       ['vsll.vi', -1, 31],
+  'vsra.vx':       ['vsra.vi', -1, 31],
+  'vsrl.vx':       ['vsrl.vi', -1, 31],
+  'vssra.vx':      ['vssra.vi', -1, 31],
+  'vssrl.vx':      ['vssrl.vi', -1, 31],
+  'vxor.vx':       ['vxor.vi'],
 }
 
 function opmap(fn) {
@@ -235,7 +270,7 @@ let defs = [
     /_vfmul/,    'Float|Multiply',
     /_vfdiv/,    'Float|Divide',
     /_vfwmul/,   'Float|Widen|Multiply'])}}
-  INSTR{VLSET int${minew}${fmtmul(minew * vparts(farg(f,'op1')).reduce((lw,lm)=>lm/lw))}_t; FRMI0{}; BASE DST, R_op1, R_op2, MASK; FRMI1{}}
+  INSTR{VLSET int${minew}${fmtmul(minew * vparts(farg(f,'op1')).reduce((lw,lm)=>lm/lw))}_t; FRMI0{}; BASE DST, R_op1, R_op2, MASK IMMALT{op2}; FRMI1{}}
   VLMAX{RES{}}
   FRM{}
   RES{} res;
@@ -429,7 +464,7 @@ let defs = [
 [/_vn?s(ll|ra|rl)_/, (f) => `
   REF{${f.name.includes('_vn')? '_vector_narrowing_integer_right_shift_instructions' : '_vector_single_width_shift_instructions'}}
   CAT{Bitwise|${mapn(f,[/_vsl/,'Shift left', /_vn?sra/,'Shift right|arithmetic', /_vn?srl/,'Shift right|logical'])}${f.name.includes('_vn')? ' narrowing' : ''}}
-  INSTR{VLSET RES{}; BASE DST, R_op1, R_shift, MASK}
+  INSTR{VLSET RES{}; BASE DST, R_op1, R_shift, MASK IMMALT{shift, FARG{op1}}}
   VLMAX{FARG{op1}}
   RES{} res;
   for (size_t i = 0; i < vl; i++) {
@@ -446,7 +481,7 @@ let defs = [
     /_vfrsub/, '_vector_single_width_floating_point_addsubtract_instructions',
     /_vfrdiv/, '_vector_single_width_floating_point_multiplydivide_instructions'])}}
   CAT{${mapn(f,[/_vrsub/,'Integer|Subtract|Same-width', /_vfrsub/,'Float|Subtract', /_vfrdiv/,'Float|Divide'])}}
-  INSTR{VLSET RES{}; FRMI0{}; BASE DST, R_op1, R_op2, MASK; FRMI1{}}
+  INSTR{VLSET RES{}; FRMI0{}; BASE DST, R_op1, R_op2, MASK IMMALT{op2}; FRMI1{}}
   VLMAX{RES{}}
   FRM{}
   RES{} res;
@@ -495,7 +530,7 @@ let defs = [
 [/_v(ad|sb)c_/, (f) => { let a=f.name.includes('_vadc'); let inn=(a?'carry':'borrow')+'in'; return `
   REF{_vector_integer_add_with_carry_subtract_with_borrow_instructions}
   CAT{Integer|Carry / borrow|${a? 'Add' : 'Subtract'}}
-  INSTR{VLSET RES{}; BASE DST, R_op1, R_op2, R_${inn}}
+  INSTR{VLSET RES{}; BASE DST, R_op1, R_op2, R_${inn} IMMALT{op2}}
   VLMAX{RES{}}
   RES{} res;
   for (size_t i = 0; i < vl; i++) {
@@ -509,7 +544,7 @@ let defs = [
 [/_vm(ad|sb)c_/, (f) => { let a=f.name.includes('_vmadc'); let inn = f.args.length==3? '' : (a?'carry':'borrow')+'in'; return `
   REF{_vector_integer_add_with_carry_subtract_with_borrow_instructions}
   CAT{Integer|Carry / borrow|${a? 'Add carry-out' : 'Subtract borrow-out'}}
-  INSTR{VLSET FARG{op1}; BASE DST, R_op1, R_op2${inn? ', R_'+inn : ''}}
+  INSTR{VLSET FARG{op1}; BASE DST, R_op1, R_op2${inn? ', R_'+inn : ''} IMMALT{op2}}
   VLMAX{FARG{op1}}
   RES{} res;
   for (size_t i = 0; i < vl; i++) {
@@ -605,7 +640,7 @@ let defs = [
   REF{_vector_single_width_saturating_add_and_subtract}
   CAT{Fixed-point|Saturating ${f.name.includes('_vsadd')? 'add' : 'subtract'}|${/u_v[vx]_/.test(f.name)? 'Unsigned' : 'Signed'}}
   CAT{Integer|${f.name.includes('_vsadd')? 'Add' : 'Subtract'}|Saturating ${/u_v[vx]_/.test(f.name)? 'unsigned' : 'signed'}}
-  INSTR{VLSET RES{}; BASE DST, R_op1, R_op2, MASK}
+  INSTR{VLSET RES{}; BASE DST, R_op1, R_op2, MASK IMMALT{op2}}
   VLMAX{RES{}}
   RES{} res;
   for (size_t i = 0; i < vl; i++) {
@@ -626,10 +661,10 @@ let defs = [
     let ge = f.name.includes('vmsge');
     let gt = f.name.includes('vmsgt');
     let u = f.name.includes('u_v')? 'u' : '';
-    if (gt? !vv : !ge) return 'BASE DST, R_op1, R_op2, MASK';
-    if (ge && vv) return 'vmsle'+u+'.vv DST, R_op2, R_op1, MASK';
-    if (gt && vv) return 'vmslt'+u+'.vv DST, R_op2, R_op1, MASK';
-    if (ge && !vv) return 'vmslt'+u+'.vx DST, R_op1, R_op2, MASK; vmnot.m DST, DST // better sequences exist if op2 is a constant';
+    if (gt? !vv : !ge) return 'BASE DST, R_op1, R_op2, MASK IMMALT{op2}';
+    if (ge && vv) return 'vmsle'+u+'.vv DST, R_op2, R_op1, MASK IMMALT{op2}';
+    if (gt && vv) return 'vmslt'+u+'.vv DST, R_op2, R_op1, MASK IMMALT{op2}';
+    if (ge && !vv) return 'vmslt'+u+'.vx DST, R_op1, R_op2, MASK IMMALT{op2}; vmnot.m DST, DST // better sequences exist if op2 is a constant';
     return '???';
   })()}}
   VLMAX{FARG{op1}}
@@ -647,7 +682,7 @@ let defs = [
 [/_vmv_v_x_|_vfmv_v_f_/, (f) => `
   REF{${f.name.includes('_vfmv_v_f_')? 'sec-vector-float-move' : '_vector_integer_move_instructions'}}
   CAT{Initialize|Broadcast}
-  INSTR{VLSET RES{}; BASE DST, R_src}
+  INSTR{VLSET RES{}; BASE DST, R_src IMMALT{src}}
   VLMAX{RES{}}
   RES{} res;
   for (size_t i = 0; i < vl; i++) {
@@ -685,7 +720,7 @@ let defs = [
 [/vrgather_vx_/, (f) => `
   REF{_vector_register_gather_instructions}
   CAT{Permutation|Broadcast one}
-  INSTR{VLSET RES{}; BASE DST, R_op1, R_index, MASK}
+  INSTR{VLSET RES{}; BASE DST, R_op1, R_index, MASK IMMALT{index}}
   VLMAX{RES{}}
   RES{} res;
   RESE{} val = index >= vlmax ? ${f.ret.type.includes('fl')? '+0.0' : '0'} : op1[index];
@@ -749,7 +784,7 @@ let defs = [
 [/vslideup/, (f) => { let d=f.name.includes("down"); return `
   REF{_vector_slideup_instructions}
   CAT{Permutation|Slide|Up N}
-  INSTR{VLSET RES{}; BASE DST, R_src, R_offset, MASK}
+  INSTR{VLSET RES{}; BASE DST, R_src, R_offset, MASK IMMALT{value}}
   VLMAX{RES{}}
   BORING{offset = min(offset, vl);}
   
@@ -767,7 +802,7 @@ let defs = [
 [/vslidedown/, (f) => { let d=f.name.includes("down"); return `
   REF{_vector_slidedown_instructions}
   CAT{Permutation|Slide|Down N}
-  INSTR{VLSET RES{}; BASE DST, R_src, R_offset, MASK}
+  INSTR{VLSET RES{}; BASE DST, R_src, R_offset, MASK IMMALT{value}}
   VLMAX{RES{}}
   BORING{offset = min(offset, vl);}
   
@@ -784,7 +819,7 @@ let defs = [
 [/_vf?merge_/, (f) => `
   REF{${f.name.includes('m_f')? '_vector_floating_point_merge_instruction' : '_vector_integer_merge_instructions'}}
   CAT{Permutation|Merge}
-  INSTR{VLSET RES{}; BASE DST, R_op1, R_op2, R_mask}
+  INSTR{VLSET RES{}; BASE DST, R_op1, R_op2, R_mask IMMALT{op2}}
   VLMAX{RES{}}
   RES{} res;
   for (size_t i = 0; i < vl; i++) {
@@ -830,7 +865,6 @@ let defs = [
   let [rw, rq] = eparts(f.ret);
   let [aw, aq] = eparts(farg(f,'src'));
   return `
-  INSTR{}
   CAT{Conversion|Reinterpret|${rw==1||aw==1? 'Boolean' : rw==aw? 'Same LMUL & width' : 'Same LMUL & sign'}}
   return reinterpret(RES{}, src);`
 }],
@@ -1052,7 +1086,7 @@ let defs = [
 [/_vssr[al]_/, (f) => `
   REF{_vector_single_width_scaling_shift_instructions}
   CAT{Fixed-point|Scaling right shift|${/_vssra_/.test(f.name)? 'Arithmetic' : 'Logical'}}
-  INSTR{VLSET RES{}; INIT csrwi vxrm, <vxrm>; BASE DST, R_op1, R_shift, MASK}
+  INSTR{VLSET RES{}; INIT csrwi vxrm, <vxrm>; BASE DST, R_op1, R_shift, MASK IMMALT{shift, FARG{op1}}}
   VLMAX{RES{}}
   RES{} res;
   
@@ -1068,7 +1102,7 @@ let defs = [
 [/_vnclipu?_/, (f) => `
   REF{_vector_narrowing_fixed_point_clip_instructions}
   CAT{Fixed-point|Saturating narrowing clip|${/clipu/.test(f.name)? 'Unsigned' : 'Signed'}}
-  INSTR{VLSET RES{}; INIT csrwi vxrm, <vxrm>; BASE DST, R_op1, R_shift, MASK}
+  INSTR{VLSET RES{}; INIT csrwi vxrm, <vxrm>; BASE DST, R_op1, R_shift, MASK IMMALT{shift, FARG{op1}}}
   VLMAX{FARG{op1}}
   RES{} res;
   
@@ -1219,6 +1253,14 @@ function helper_text(s) {
   return `<div style="font-family:sans-serif;white-space:normal">${cleanup(s).trim().replace(/.*/g,'<p>$&</p>')}</div>`;
 }
 return {
+initialized: () => {
+  if (extra_test) {
+    for (let [k,v] of Object.entries(immArgMap)) {
+      if (!v.used) console.warn(`unused immArgMap for ${k} → ${v}`);
+    }
+  }
+},
+
 helper: (n, ...args) => {
 switch(n) {
 case 'clip': {
@@ -1414,7 +1456,15 @@ oper: (o, v) => {
       return [0, `vset${vl==='0'?'i':''}vli ${setter? 'xd' : 'zero'}, ${vl}, e${ew}, m${lm<1? 'f'+(1/lm) : lm}, ${tail?'ta':'tu'}, ${mask==2?'mu':'ma'}`];
     }
     if (test('INIT ')) return [0, procInstr(post)[1]];
-    all = all.replace(/\bBASE\b/, () => o.name.replace('__riscv_','').split(/_([iuf]\d+mf?\d+(x\d+)?|b\d+)+(_|$)/)[0].replace(/_/g,'.')); // base assembly instruction name
+    let base = o.name.replace('__riscv_','').split(/_([iuf]\d+mf?\d+(x\d+)?|b\d+)+(_|$)/)[0].replace(/_/g,'.');
+    all = all.replace(/\bBASE\b/, base); // base assembly instruction name
+    all = all.replace(/ IMMALT{(\w+)(, (\w+))?}/, (_,r,_2,sh) => {
+      let nv = immArgMap[base];
+      if (!nv) return '';
+      if (extra_test) nv.used = true;
+      if (sh && vparts(sh)[0]-1 <= nv[2]) return ` // or ${nv[0]} if ${r} is constant`;
+      return ` // or ${nv[0]} if constant ${nv[1]==-1? `` : `${nv[1]===undefined? -16 : nv[1]} ≤ `}${r} ≤ ${nv[2]||15}`;
+    })
     all = all.replace(/, MASK/, () => mask? ', v0.t' : ''); // mask argument if policy asks for it
     all = all.replace(/\bR_(\w+)\b/g, (_,c) => { let t = farg(fn,c)[0]; return (t=='v'? 'v' : t=='f'? 'f' : 'x')+'['+c+']'; }); // argument registers
     all = all.replace(/\bDST\b/g, basev? `v[${basev}]` : `vd`); // destination register
@@ -1468,11 +1518,8 @@ oper: (o, v) => {
     let ms = defs.filter(c => c[0].test(name));
     if (ms.length != 1) console.warn(`multiple matches for ${fn.name}: ${ms.map(c=>c[0]).join(', ')}`);
     let instrEmpty = instrArr? instrArr.map(c=>c[1]).join('').length==0 : 0;
-    if (instrArr && instrEmpty) {
-      if (!name.includes("vreinterpret")) console.warn(`unexpected empty instruction for ${fn.name}`);
-    }
+    if (instrArr && instrEmpty) console.warn(`unexpected empty instruction for ${fn.name}`);
     if (instrArr && !instrEmpty) {
-      
       // compare vsetvl setup with known
       if (o.implInstrRaw) {
         let setvl = instrArr.map(c=>c[1]).filter(c => c.includes('vset'))[0];

@@ -395,7 +395,6 @@ let defs = [
   CAT{Load/store|Mask}
   INSTR{VLSET VLMAXBG{}; BASE ${ld? 'DST' : 'R_value'}, (R_base)${hasarg(f,'bindex')?', R_bindex':''}, MASK}
   VLMAXB{}
-  VLMAX{}
   
   ${ld? `vuint8m1_t uints;` : `vuint8m1_t uints = (vuint8m1_t) value;`}
   for (size_t i = 0; i < ceil(vl/8); i++) {
@@ -973,7 +972,6 @@ let defs = [
   INSTR{VLSET VLMAXBG{}; BASE DST${hasarg(f,'op1')? ', R_op1' : ''}${f.name.includes('_mm_')? ', R_op2' : ''}}
   ${f.name.includes('vmmv')? '// hints that this will be used as a mask' : ''} RMELN{}
   VLMAXB{}
-  VLMAX{}
   RES{} res;
   for (size_t i = 0; i < vl; i++) {
     res[i] = ${
@@ -997,7 +995,6 @@ let defs = [
   CAT{Mask|Find first set}
   INSTR{VLSET VLMAXBG{}; BASE DST, R_op1, MASK}
   VLMAXB{}
-  VLMAX{}
   for (size_t i = 0; i < vl; i++) {
     if (${fvhas(f,'m')?'mask[i] && ':''}op1[i]) return i;
   }
@@ -1008,7 +1005,6 @@ let defs = [
   CAT{Mask|Population count}
   INSTR{VLSET VLMAXBG{}; BASE DST, R_op1, MASK}
   VLMAXB{}
-  VLMAX{}
   RES{} res = 0;
   for (size_t i = 0; i < vl; i++) {
     if (${fvhas(f,'m')?'mask[i] && ':''}op1[i]) res++;
@@ -1023,7 +1019,6 @@ let defs = [
   CAT{Mask|${mapn(f,[/_vmsbf/,'Set before first',/_vmsif/,'Set including first',/_vmsof/,'Set only first'])}}
   INSTR{VLSET VLMAXBG{}; BASE DST, R_op1, MASK}
   VLMAXB{}
-  VLMAX{}
   RES{} res;
   bool acc = true;
   for (size_t i = 0; i < vl; i++) {
@@ -1390,14 +1385,18 @@ oper: (o, v) => {
   s = s.replace(/RESE{}/g, eltype(o.ret)); // result element
   s = s.replace(/FARG{(.*?)}/g, (_,c) => farg(fn,c)); // find argument with given name
   s = s.replace(/VLMAXBG{}/g, c => { let b = +o.name.split('_b')[1]; return `vint8m${b<8? 8/b : 'f'+(b/8)}_t`; });
-  s = s.replace(/VLMAXB{}/g, c => { let b = +o.name.split('_b')[1]; return `BORING{vlmax = VLEN/${b};} // equal to VLMAXG{vint8m${b<8? 8/b : 'f'+(b/8)}_t}`});
-  s = s.replace(/VLMAX(G?){(.*?)}/g, (_,g,c) => {
+  s = s.replace(/VLMAXB{}/g, c => {
+    let b = +o.name.split('_b')[1];
+    let t = `vint8m${b<8? 8/b : 'f'+(b/8)}_t`;
+    return `BORING{vlmax = VLEN/${b};} // equal to VLMAXG{${t}}\nVLMAXI{${t}}`;
+  });
+  s = s.replace(/VLMAX(I?)(G?){(.*?)}/g, (_,i,g,c) => {
     let e, m;
     if (c) {
       [e, m] = vparts(c);
       m = fmtmul(m);
-    }
-    let v = 'vlmax' + (c? `(e${e}, ${m})` : '');
+    } else if (!g) throw new Error("bad VLMAX{}");
+    let v = 'vlmax' + (c && !i? `(e${e}, ${m})` : '');
     return g? v : boring(`if (vl > ${v}) vl = __riscv_vsetvl_e${e}${m}(vl);`);
   });
   s = s.replace(/FRMI0{}(; )?/, (_,c='') => fvhas(fn,"rm")? boring('fsrmi xtmp, &lt;frm>'+c) : '');

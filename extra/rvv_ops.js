@@ -1009,15 +1009,15 @@ let defs = [
   RES{} res;
   for (size_t i = 0; i < vl; i++) {
     res[i] = ${
-      [['vmmv', 'op1[i]'], ['vmnot', '!op1[i]'], ['vmset', '1'], ['vmclr', '0'],
-      ['vmand' ,   'op1[i] && op2[i]'],
-      ['vmnand', '!(op1[i] && op2[i])'],
-      ['vmandn',   'op1[i] && !op2[i]'],
-      ['vmxor',    'op1[i] ^ op2[i]'],
-      ['vmor',     'op1[i] || op2[i]'],
-      ['vmnor',  '!(op1[i] || op2[i])'],
-      ['vmorn',    'op1[i] || !op2[i]'],
-      ['vmxnor', '!(op1[i] ^ op2[i])']].find((c)=>f.name.includes(c[0]))[1]};
+      [['vmmv_', 'op1[i]'], ['vmnot_', '!op1[i]'], ['vmset_', '1'], ['vmclr_', '0'],
+      ['vmand_' ,   'op1[i] && op2[i]'],
+      ['vmnand_', '!(op1[i] && op2[i])'],
+      ['vmandn_',   'op1[i] && !op2[i]'],
+      ['vmxor_',    'op1[i] ^ op2[i]'],
+      ['vmor_',     'op1[i] || op2[i]'],
+      ['vmnor_',  '!(op1[i] || op2[i])'],
+      ['vmorn_',    'op1[i] || !op2[i]'],
+      ['vmxnor_', '!(op1[i] ^ op2[i])']].find((c)=>f.name.includes(c[0]))[1]};
   }
   TAILLOOP{};
   return res;`

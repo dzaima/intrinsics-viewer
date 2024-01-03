@@ -390,8 +390,8 @@ async function loadArm() {
     }).join("\n"));
     
     let args = c.arguments.map(c=>{
-      let i = c.lastIndexOf(' ');
-      return ({type: c.substring(0, i), name: c.substring(i+1)});
+      let i = Math.max(c.lastIndexOf(' '), c.lastIndexOf('*'));
+      return ({type: c.substring(0, i+1), name: c.substring(i+1)});
     });
     if (args.length==1 && args[0].type=='void') args = [];
     

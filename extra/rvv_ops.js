@@ -363,8 +363,7 @@ let defs = [
     for (size_t i = 0; i < vl; i++) {
       ${fvhas(f,'m')?`if (mask[i]) `:``}${mem_ref(f,'v_tuple')} %M= curr[i];${mem_mask_comment(f)}
     }
-  }
-  return res;`
+  }`
 }],
 // segment fault-only-first load
 [/vlseg\de\d+ff_/, (f) => { let [x,vt] = xparts(f.ret); return `
@@ -435,8 +434,9 @@ let defs = [
   for (size_t i = 0; i < ceil(vl/8); i++) {
     ${ld? `bytes[i] = base%M[i%M]` : `base%M[i%M] %M= bytes[i]`};
   }
-  RMELN{}
-  ${ld? `return (RES{}) bytes;` : ``} RMELN{}`
+  ${ld? `
+  BORING{for (size_t i = ceil(vl/8); i < VLMAXG{vuint8m1_t}; i++) res[i] = anything();}
+  return (RES{}) bytes;` : ``} RMELN{}`
 }],
 
 // fault-only-first

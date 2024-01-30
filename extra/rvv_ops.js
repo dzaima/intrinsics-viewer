@@ -1348,6 +1348,7 @@ case 'rounded_shift_right': {
     switch (vxrm) {
       case __RISCV_VXRM_RNU: { // vxrm == 0; round to nearest, ties to up
         increment = carry;
+        // equivalently: return (x + last) >> shift;
         break;
       }
       case __RISCV_VXRM_RNE: { // vxrm == 1; round to nearest, ties to even
@@ -1357,7 +1358,7 @@ case 'rounded_shift_right': {
       }
       case __RISCV_VXRM_RDN: { // vxrm == 2; round down
         increment = false;
-        // equivalently, just: return x >> shift;
+        // equivalently: return x >> shift;
         break;
       }
       case __RISCV_VXRM_ROD: { // vxrm == 3; round to odd

@@ -431,12 +431,12 @@ let defs = [
   INSTR{VLSET VLMAXBG{}; BASE ${ld? 'DST' : 'R_value'}, (R_base)${hasarg(f,'bindex')?', R_bindex':''}, MASK}
   VLMAXB{}
   
-  ${ld? `vuint8m1_t uints;` : `vuint8m1_t uints = (vuint8m1_t) value;`}
+  ${ld? `vuint8m1_t bytes;` : `vuint8m1_t bytes = (vuint8m1_t) value;`}
   for (size_t i = 0; i < ceil(vl/8); i++) {
-    ${ld? `uints[i] = base%M[i%M]` : `base%M[i%M] %M= uints[i]`};
+    ${ld? `bytes[i] = base%M[i%M]` : `base%M[i%M] %M= bytes[i]`};
   }
   RMELN{}
-  ${ld? `return (RES{}) uints;` : ``} RMELN{}`
+  ${ld? `return (RES{}) bytes;` : ``} RMELN{}`
 }],
 
 // fault-only-first

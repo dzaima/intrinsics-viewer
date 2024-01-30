@@ -778,7 +778,7 @@ let defs = [
   } else {
     res = TAILV{};
   }
-  TAILLOOP{c};
+  TAILLOOP{vl};
   return res;`
 }],
 [/vslideup/, (f) => { let d=f.name.includes("down"); return `
@@ -796,7 +796,7 @@ let defs = [
     res[i] = MASK{src[i-offset]};
   }
   
-  TAILLOOP{c};
+  TAILLOOP{vl};
   return res;`
 }],
 [/vslidedown/, (f) => { let d=f.name.includes("down"); return `

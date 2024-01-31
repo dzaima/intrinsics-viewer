@@ -784,7 +784,7 @@ let defs = [
 [/vslideup/, (f) => { let d=f.name.includes("down"); return `
   REF{_vector_slideup_instructions}
   CAT{Permutation|Slide|Up N}
-  INSTR{VLSET RES{}; BASE DST, R_src, R_offset, MASK IMMALT{value}}
+  INSTR{VLSET RES{}; BASE DST, R_src, R_offset, MASK IMMALT{offset}}
   VLMAX{RES{}}
   BORING{offset = min(offset, vl);}
   
@@ -802,7 +802,7 @@ let defs = [
 [/vslidedown/, (f) => { let d=f.name.includes("down"); return `
   REF{_vector_slidedown_instructions}
   CAT{Permutation|Slide|Down N}
-  INSTR{VLSET RES{}; BASE DST, R_src, R_offset, MASK IMMALT{value}}
+  INSTR{VLSET RES{}; BASE DST, R_src, R_offset, MASK IMMALT{offset}}
   VLMAX{RES{}}
   BORING{offset = min(offset, vl);}
   

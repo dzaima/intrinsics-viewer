@@ -82,6 +82,9 @@ async function loadFile(path) {
   let b = await f.arrayBuffer();
   return new TextDecoder().decode(b);
 }
+function overloadedName(name) {
+  return `Overloaded name: <span class="mono h-name">${mkcopy(name,name)}</span>`
+}
 
 
 let excludeSVML = true; // remove SVML entries, which are provided by an Intel library and not the CPU
@@ -436,9 +439,9 @@ async function loadArm() {
       
       ret: {type: c.return_type.value},
       args: args,
-      name: c.name,
+      name: c.name.replace(/\[|]/g,""),
       
-      desc: c.description + (nativeOpNEON? "" : "<br>"+nativeOperation),
+      desc: (c.name.includes("[")? overloadedName(c.name.replace(/\[[^\]]+]/g,"")) + "<br>" : "") + c.description + (nativeOpNEON? "" : "<br>"+nativeOperation),
       header: undefined,
       
       implDesc: nativeOpNEON? nativeOperation : undefined,
@@ -562,7 +565,7 @@ async function loadRVV() {
       c.implInstr = () => rvvOps.oper(c).instrHTML;
     }
     c.categories = newOp.categories;
-    if (c.overloaded) c.desc = `Overloaded name: <span class="mono h-name">${mkcopy(c.overloaded,c.overloaded)}</span><br>${c.desc}`;
+    if (c.overloaded) c.desc = `${overloadedName(c.overloaded)}<br>${c.desc}`;
     if (c.specRef) c.desc = `<a target="_blank" href="${specFilePath}#${newOp.specRef}">Specification</a><br>${c.desc}`;
     
   });

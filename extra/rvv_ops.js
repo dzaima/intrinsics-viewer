@@ -164,7 +164,7 @@ const mem_ref = (fn, eln) => {
   let seg = fn.name.match(/seg(\d+)/);
   if (seg) seg = +seg[1];
   if (/_v[ls](e|seg)/.test(fn.name)) return `base%M[i${seg? `*${seg} + o` : ''}%M]`;
-  let ptr = `(${eln? eltype(farg(fn,eln)) : 'RESE{}'}*)(i*b${/riscv_v[ls][ou]x/.test(fn.name)? 'index[i]' : 'stride'} + (char*)base)`;
+  let ptr = `(${eln? eltype(farg(fn,eln)) : 'RESE{}'}*)(${/riscv_v[ls][ou]x/.test(fn.name)? 'bindex[i]' : 'bstride*i'} + (char*)base)`;
   return seg? `(${ptr})%M[o%M]` : '%M*'+ptr;
 }
 const fvhas = (f, t) => {
@@ -952,7 +952,7 @@ let defs = [
     /_vfncvt_/, '_narrowing_floating_pointinteger_type_convert_instructions',
     /_vncvt/, '_vector_narrowing_integer_right_shift_instructions'])}}
   CAT{${f.name.includes('_vsext')? 'Integer|Sign-extend' : f.name.includes('_vzext')? 'Integer|Zero-extend' : typeConvertCat(f)}}
-  INSTR{VLSET ${f.name.includes('ext_')? 'RES{}' : farg(f,op)}; FRMI0{}; BASE DST, R_${op}, MASK; FRMI1{}}
+  INSTR{VLSET ${f.name.includes('ext_')? 'RES{}' : farg(f,op)}; FRMI0{}; BASE DST, R_${op}, MASK${f.name.includes('vncvt_x_x_w')?` // == vnsrl.wi DST, R_${op}, 0`:``}; FRMI1{}}
   VLMAX{${farg(f,op)}}
   FRM{}${'' /* TODO force-add local rounding mode for dynamic? */}
   ${f.name.includes('_rtz_')?`local_rounding_mode = RTZ; // Round towards zero`:``} RMELN{}

@@ -952,7 +952,7 @@ let defs = [
     /_vfncvt_/, '_narrowing_floating_pointinteger_type_convert_instructions',
     /_vncvt/, '_vector_narrowing_integer_right_shift_instructions'])}}
   CAT{${f.name.includes('_vsext')? 'Integer|Sign-extend' : f.name.includes('_vzext')? 'Integer|Zero-extend' : typeConvertCat(f)}}
-  INSTR{VLSET ${f.name.includes('ext_')? 'RES{}' : farg(f,op)}; FRMI0{}; BASE DST, R_${op}, MASK${f.name.includes('vncvt_x_x_w')?` // == vnsrl.wi DST, R_${op}, 0`:``}; FRMI1{}}
+  INSTR{VLSET ${f.name.includes('ext_') || /_vf?ncvt/.test(f.name)? 'RES{}' : farg(f,op)}; FRMI0{}; BASE DST, R_${op}, MASK${f.name.includes('vncvt_x_x_w')?` // == vnsrl.wi DST, R_${op}, 0`:``}; FRMI1{}}
   VLMAX{${farg(f,op)}}
   FRM{}${'' /* TODO force-add local rounding mode for dynamic? */}
   ${f.name.includes('_rtz_')?`local_rounding_mode = RTZ; // Round towards zero`:``} RMELN{}

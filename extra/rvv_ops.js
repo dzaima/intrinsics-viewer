@@ -819,6 +819,7 @@ let defs = [
 [/_vf?merge_/, (f) => `
   REF{${f.name.includes('m_f')? '_vector_floating_point_merge_instruction' : '_vector_integer_merge_instructions'}}
   CAT{Permutation|Merge}
+  KEYW{blend; if-then-else; ITE}
   INSTR{VLSET RES{}; BASE DST, R_op1, R_op2, R_mask IMMALT{op2}}
   VLMAX{RES{}}
   RES{} res;
@@ -1027,6 +1028,7 @@ let defs = [
 [/_vfirst_m_/, (f) => `
   REF{_vfirst_find_first_set_mask_bit}
   CAT{Mask|Find first set}
+  KEYW{tzc; ctz; trailing zero count}
   INSTR{VLSET VLMAXBG{}; BASE DST, R_op1, MASK}
   VLMAXB{}
   for (size_t i = 0; i < vl; i++) {
@@ -1037,6 +1039,7 @@ let defs = [
 [/_vcpop_m_/, (f) => `
   REF{_vector_count_population_in_mask_vcpop_m}
   CAT{Mask|Population count}
+  KEYW{popcnt; popcount}
   INSTR{VLSET VLMAXBG{}; BASE DST, R_op1, MASK}
   VLMAXB{}
   RES{} res = 0;
@@ -1237,7 +1240,7 @@ let defs = [
 }],
 ];
 
-let miniHTMLEscape = (c) => c.replace(/&/g, '&amp;').replace(/<(?!\/?(span|code))/g, '&lt;'); // allow intentional inline HTML usage, but escape most things
+let miniHTMLEscape = (c) => c.replace(/&/g, '&amp;').replace(/<(?!\/?(span|code|!--))/g, '&lt;'); // allow intentional inline HTML usage, but escape most things
 let cleanup = (c) => miniHTMLEscape(c.replace(/\n  /g, "\n").replace(/^(\n *)+\n/, ""));
 defs.forEach(c => { if (typeof c[1] !== 'function') c[1] = cleanup(c[1]); });
 
@@ -1479,6 +1482,7 @@ oper: (o, v) => {
   let specRef, desc;
   let categories = [];
   s = s.replace(/^ *REF{(.*)}\n/m, (_,c) => { specRef = c; return ''; })
+  s = s.replace(/^ *KEYW{(.*)}\n/m, (_,c) => `<!--${c}-->`)
   s = s.replace(/^ *DESC{(.*)}\n/m, (_,c) => { desc = c; return ''; })
   s = s.replace(/^ *CAT{(.*)}\n/mg, (_,c) => { categories.push(c.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>')); return ''; })
   

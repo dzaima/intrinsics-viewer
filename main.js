@@ -1106,6 +1106,7 @@ function updateSearch0() {
           case "arg":  r[P_ARG]  = true; break;
           case "argn": r[P_ARGN] = true; break;
           case "desc": r[P_DESC] = true; break;
+          case "ins": case "instr":
           case "inst": r[P_INST] = true; break;
           case "oper": r[P_OPER] = true; break;
           case "cat":  r[P_CAT]  = true; break;

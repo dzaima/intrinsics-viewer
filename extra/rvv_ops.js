@@ -1029,7 +1029,7 @@ let defs = [
   REF{_vfirst_find_first_set_mask_bit}
   CAT{Mask|Find first set}
   KEYW{tzc; ctz; trailing zero count}
-  INSTR{VLSET VLMAXBG{}; BASE DST, R_op1, MASK}
+  INSTR{VLSET VLMAXBG{}; BASE xd, R_op1, MASK}
   VLMAXB{}
   for (size_t i = 0; i < vl; i++) {
     if (${fvhas(f,'m')?'mask[i] && ':''}op1[i]) return i;
@@ -1040,7 +1040,7 @@ let defs = [
   REF{_vector_count_population_in_mask_vcpop_m}
   CAT{Mask|Population count}
   KEYW{popcnt; popcount}
-  INSTR{VLSET VLMAXBG{}; BASE DST, R_op1, MASK}
+  INSTR{VLSET VLMAXBG{}; BASE xd, R_op1, MASK}
   VLMAXB{}
   RES{} res = 0;
   for (size_t i = 0; i < vl; i++) {

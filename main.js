@@ -501,7 +501,7 @@ async function loadRVV() {
     baseFile = await loadFile("data/rvv_base-5.json");
     rvvOps = new Function(await loadFile("extra/rvv_ops.js"))();
   } catch (e) {
-    console.log(e);
+    console.error(e);
     return null;
   }
   
@@ -1041,6 +1041,7 @@ function updateSearch(link=true) {
     updateSearch0();
     if (link) updateLink();
   } catch (e) {
+    console.error(e);
     toCenterInfo(e);
   }
 }
@@ -1066,6 +1067,7 @@ function updateSearch0() {
         try {
           parts.push([c0,c0=='/'? new RegExp(p) : p]);
         } catch (e) {
+          console.error(e);
           toCenterInfo(e);
           return;
         }

@@ -561,6 +561,7 @@ let defs = [
   let ovl = 2**(2*ew) / (2**ew);
   let ovlen = ovl*ew/lm;
   return `
+  KEYW{${mapn(f,[/redmin/,'minimum', /redmax/,'maximum', /./,''])}}
   REF{${mapn(f,[
     /_vred/, 'sec-vector-integer-reduce',
     /_vwred/, 'sec-vector-integer-reduce-widen',
@@ -872,6 +873,7 @@ let defs = [
 
 // integer min/max
 [/_v(min|max)u?_[vw][vx]_/, (f) => `
+  KEYW{${mapn(f,[/_vmin/,'minimum', /_vmax/,'maximum', /./,''])}}
   REF{_vector_integer_minmax_instructions}
   CAT{Integer|${f.name.includes('_vmin')? 'Min' : 'Max'}}
   INSTR{VLSET RES{}; BASE DST, R_op1, R_op2, MASK}
@@ -1481,10 +1483,10 @@ oper: (o, v) => {
   });
   let specRef, desc;
   let categories = [];
-  s = s.replace(/^ *REF{(.*)}\n/m, (_,c) => { specRef = c; return ''; })
-  s = s.replace(/^ *KEYW{(.*)}\n/m, (_,c) => `<!--${c}-->`)
-  s = s.replace(/^ *DESC{(.*)}\n/m, (_,c) => { desc = c; return ''; })
-  s = s.replace(/^ *CAT{(.*)}\n/mg, (_,c) => { categories.push(c.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>')); return ''; })
+  s = s.replace(/^ *REF{(.*)}\n/m, (_,c) => { specRef = c; return ''; });
+  s = s.replace(/^ *DESC{(.*)}\n/m, (_,c) => { desc = c; return ''; });
+  s = s.replace(/^ *KEYW{(.*)}\n/m, (_,c) => { if (c.length) desc = (desc||'')+`<!--${c}-->`; return ''; });
+  s = s.replace(/^ *CAT{(.*)}\n/mg, (_,c) => { categories.push(c.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>')); return ''; });
   
   s = s.replace(/TAILLOOP{(.*?)};?/g, (_,c) => boring(`for (size_t i = ${c?c:'vl'}; i < vlmax; i++) res[i] = TAIL{};`));
   s = s.replace(/TAIL{}/g, agnBaseT(tail)); // tail element

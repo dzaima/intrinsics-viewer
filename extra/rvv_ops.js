@@ -893,7 +893,7 @@ let defs = [
   INSTR{VLSET RES{}; BASE DST, R_op1, R_op2, MASK}
   VLMAX{RES{}}
   RES{} res;
-  // follows IEEE 754-2019 ${min?'minimum':'maximum'}Number, is commutative even for -0.0 and varying input NaN bit patterns
+  // follows IEEE 754-2019 ${min?'minimum':'maximum'}Number, is commutative and associative even for -0.0 and varying input NaN bit patterns
   for (size_t i = 0; i < vl; i++) {
     MASKWEE{} RMELN{}
     RESE{} a = op1[i];

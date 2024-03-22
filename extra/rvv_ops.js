@@ -376,7 +376,7 @@ let defs = [
   ${fvhas(f,'m')?'if (mask[0]) ':''}for (int o = 0; o < ${x}; o++) base%M[o%M]; // for the side-effect of faulting
   // after this point, this instruction will never fault
   
-  size_t new_vl = /* implementation-defined 1 ≤ new_vl ≤ vl */;
+  size_t new_vl = /* implementation-chosen 1 ≤ new_vl ≤ vl */;
   for (int o = 0; o < ${x}; o++) {
     ${vt} curr;
     for (size_t i = 0; i < new_vl; i++) {
@@ -450,7 +450,7 @@ let defs = [
   ${fvhas(f,'m')?'if (mask[0]) ':''}base%M[0%M]; // for the side-effect of faulting
   // after this point, this instruction will never fault
   
-  size_t new_vl = /* implementation-defined 1 ≤ new_vl ≤ vl */;
+  size_t new_vl = /* implementation-chosen 1 ≤ new_vl ≤ vl */;
   for (size_t i = 0; i < new_vl; i++) {
     res[i] = MASK{base%M[i%M]};
   }
@@ -580,27 +580,34 @@ let defs = [
   INSTR{VLSET FARG{vector}; FRMI0{}; BASE DST, R_vector, R_scalar, MASK; FRMI1{}}
   VLMAX{FARG{vector}}
   FRM{}
-  RESE{} res = scalar[0];
-  for (size_t i = 0; i < vl; i++) {
-    ${fvhas(f,'m')? 'if (mask[i]) ' : ''}res = ${red_op(f, 'res', owd(f.ret, farg(f,'vector'), 'vector[i]'))};${
-      f.name.includes('osum')? ' // yes, sequential sum, rounding on each op'
-      : f.name.includes('wredsum')? ` // note: can overflow if ${ovlen<=65536? `vl ≥ ≈${ovl} (VLEN ≥ ${ovlen}) or if ` : ``}scalar is large enough`
-      : ``
+  RES{} res;
+  if (vl == 0) {
+    for (size_t i = 0; i < VLMAXG{RES{}}; i++) res[i] = TAIL{};
+  } else {
+    RESE{} acc = scalar[0];
+    for (size_t i = 0; i < vl; i++) {
+      ${fvhas(f,'m')? 'if (mask[i]) ' : ''}acc = ${red_op(f, 'acc', owd(f.ret, farg(f,'vector'), 'vector[i]'))};${
+        /vfred(min|max)/.test(f.name)? ` // same operation as vf${f.name.includes('vfredmin')?'min':'max'}`
+        : f.name.includes('redosum')? ' // yes, sequential sum, rounding on each op'
+        : f.name.includes('wredsum')? ` // note: can overflow if ${ovlen<=65536? `vl ≥ ≈${ovl} (VLEN ≥ ${ovlen}) or if ` : ``}scalar is large enough`
+        : ``
+      }
     }
+    res[0] = acc;
+    BORING{for (size_t i = 1; i < VLMAXG{RES{}}; i++) res[i] = TAIL{};}
   }
-  RES{} res_vec;
-  res_vec[0] = res;
-  BORING{for (size_t i = 1; i < VLMAXG{RES{}}; i++) res[i] = TAIL{};}
-  return res_vec;`
+  return res;`
 }],
 
 [/_vfw?redusum/, (f) => { let m=fvhas(f,'m'); return `
   REF{${f.name.includes('_vfw')? 'sec-vector-float-reduce-widen' : 'sec-vector-float-reduce'}}
   CAT{Fold|${f.name.includes('_vfw')? 'Widening tree' : 'Tree'} sum}
   INSTR{VLSET FARG{vector}; FRMI0{}; BASE DST, R_vector, R_scalar, MASK; FRMI1{}}
-  // TL;DR: sum${m?' non-masked':''} elements in some implementation-defined order with
-  //   implementation-defined intermediate types (at least RESE{})
+  // TL;DR: sum${m?' non-masked':''} elements in some implementation-chosen order with
+  //   implementation-chosen intermediate types (at least RESE{})
   //   and some additive identities possibly sprinkled in
+  //   and edge-case on vl==0
+  
   VLMAX{FARG{vector}}
   
   FRM{}
@@ -610,29 +617,35 @@ let defs = [
     if (items.length == 1) {
       return items[0];
     }
-    float_t[] partA = /* implementation-defined non-empty strict subset of 'items' */;
+    float_t[] partA = /* implementation-chosen non-empty strict subset of 'items' */;
     float_t[] partB = /* complement subset */;
     floatinf_t resA = process(partA);
     floatinf_t resB = process(partB);
     
-    type_t new_type = /* implementation-defined type at least as wide as RESE{} */;
+    type_t new_type = /* implementation-chosen type at least as wide as RESE{} */;
     return round(new_type, resA + resB);
   }
   
-  float_t[] all_items = [scalar[0]];
-  for (size_t i = 0; i < vl; i++) {
-    ${m?`if (mask[i]) {
-      if (/* implementation-defined */) all_items.push(additive_identity);
-    } else {
-      all_items.push(vector[i]);
-    }`: `all_items.push(vector[i]);`}
+  RES{} res;
+  if (vl == 0) {
+    for (size_t i = 0; i < VLMAXG{RES{}}; i++) res[i] = TAIL{};
+  } else {
+    float_t[] all_items = [scalar[0]];
+    for (size_t i = 0; i < vl; i++) {
+      ${m?`if (mask[i]) {
+        if (/* implementation-chosen */) all_items.push(additive_identity);
+      } else {
+        all_items.push(vector[i]);
+      }`: `all_items.push(vector[i]);`}
+    }
+    if (/* implementation-chosen */) all_items.push(additive_identity);
+    
+    res[0] = round(RESE{}, process(all_items));
+    
+    BORING{for (size_t i = 1; i < VLMAXG{RES{}}; i++) res[i] = TAIL{};}
   }
-  if (/* implementation-defined */) all_items.push(additive_identity);
   
-  RES{} res_vec;
-  res_vec[0] = round(RESE{}, process(all_items));
   
-  BORING{for (size_t i = 1; i < VLMAXG{RES{}}; i++) res[i] = TAIL{};}
   return res;`
 }],
 
@@ -1423,7 +1436,7 @@ oper: (o, v) => {
   // let agnBase0 = (agn,base) => agn? (base? `agnostic(${base})` : "anything()") : `${base}`;
   let agnBase0 = (agn,base) => agn? "anything()" : `${base}`;
   let agnBaseM = (agn,base) => boring(agnBase0(agn, baseeM));
-  let agnBaseT = (agn,base) => boring(agnBase0(agn, baseeT));
+  let agnBaseT = (agn,base) => agnBase0(agn, baseeT);
   
   // helper function display
   let h = (name, args='') => `<a onclick="rvv_helper('${name}',${args})">${name}</a>`;

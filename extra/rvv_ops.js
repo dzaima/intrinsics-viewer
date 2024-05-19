@@ -159,6 +159,7 @@ function opmap(fn) {
   throw new Error("Unknown operator name in "+name);
 }
 const raise_invalid = "fflags[NV] = 1; // Invalid Operation FP flag";
+// in float comparison: ${fl? boring(`if (${nt}(op1[i]) || ${nt}(IDX{op2})) ${raise_invalid}`) : ''} RMELN{}
 
 const mem_ref = (fn, eln) => {
   let seg = fn.name.match(/seg(\d+)/);
@@ -210,7 +211,7 @@ function typeConvertCat(c) {
 }
 function loadStoreCat(c) {
   let [_, l, strided, _2, ord, seg] = c.name.match(/_v([ls])(s)?(([ou])x)?(seg\d+)?ei?\d+_/);
-  return 'Load/store|' + (seg? 'Segment|' : '') + (
+  return 'Memory|' + (seg? 'Segment|' : '') + (
     ord?
       `Indexed|${l=='l'? 'Load/gather' : 'Store/scatter'} ${ord=='o'?'ordered':'unordered'}`
     :
@@ -368,7 +369,7 @@ let defs = [
 // segment fault-only-first load
 [/vlseg\de\d+ff_/, (f) => { let [x,vt] = xparts(f.ret); return `
   REF{sec-aos}
-  CAT{Load/store|Segment|Fault-only-first load}
+  CAT{Memory|Segment|Fault-only-first load}
   INSTR{VLSET RES{}; BASE DST, (R_base), MASK; csrr R_new_vl, vl // or used as vl directly}
   VLMAX{${vt}}
   ${mem_align_comment(f,1)}
@@ -426,7 +427,7 @@ let defs = [
 // mask load/store
 [/_v[ls]m_v_/, (f) => { let b=+f.name.split('_v_b')[1]; let ld=f.name.includes('_vl'); return `
   REF{_vector_unit_stride_instructions}
-  CAT{Load/store|Mask}
+  CAT{Memory|Mask}
   INSTR{VLSET VLMAXBG{}; BASE ${ld? 'DST' : 'R_value'}, (R_base)${hasarg(f,'bindex')?', R_bindex':''}, MASK}
   VLMAXB{}
   
@@ -442,7 +443,7 @@ let defs = [
 // fault-only-first
 [/_vle\d+ff_v/, (f) => `
   REF{_unit_stride_fault_only_first_loads}
-  CAT{Load/store|Fault-only-first load}
+  CAT{Memory|Fault-only-first load}
   INSTR{VLSET RES{}; BASE DST, (R_base), MASK; csrr R_new_vl, vl // or used as vl directly}
   VLMAX{RES{}}
   ${mem_align_comment(f,1)}
@@ -650,7 +651,7 @@ let defs = [
 }],
 
 // saturating add/sub
-[/_vs(add|sub)u?_v[vx]_/, (f) => `
+[/_vs(add|sub)u?_v[vx]_/, (f) => { let rt=tshort(f.ret); let u=rt[0]=='u'?'u':''; return `
   REF{_vector_single_width_saturating_add_and_subtract}
   CAT{Fixed-point|Saturating ${f.name.includes('_vsadd')? 'add' : 'subtract'}|${/u_v[vx]_/.test(f.name)? 'Unsigned' : 'Signed'}}
   CAT{Integer|${f.name.includes('_vsadd')? 'Add' : 'Subtract'}|Saturating ${/u_v[vx]_/.test(f.name)? 'unsigned' : 'signed'}}
@@ -659,12 +660,12 @@ let defs = [
   RES{} res;
   for (size_t i = 0; i < vl; i++) {
     MASKWEE{} RMELN{}
-    intinf_t exact = intinf(op1[i]) ${opmap(f)} intinf(IDX{op2});
-    res[i] = clip(${tshort(f.ret)}, exact); // may set RVV_VXSAT
+    intinf_t exact = ${u}intinf(op1[i]) ${opmap(f)} ${u}intinf(IDX{op2});
+    res[i] = clip(${rt}, exact); // may set RVV_VXSAT
   }
   TAILLOOP{};
   return res;`
-],
+}],
 
 // comparison
 [/_vm[fs](lt|le|gt|ge|eq|ne)u?_/, (f) => { let fl=farg(f,'op1')[1]=='f'; let mf=fl&&f.short; let nt = '=!'.includes(opmap(f)[0])? "isSNaN" : "isNaN"; return `
@@ -686,7 +687,6 @@ let defs = [
   for (size_t i = 0; i < vl; i++) {
     ${mf? 'MASKWEE{}' : ''} RMELN{}
     res[i] = ${mf?'':'MASK{'}op1[i] ${opmap(f)} IDX{op2}${mf?'':'}'};
-    ${fl? boring(`if (${nt}(op1[i]) || ${nt}(IDX{op2})) ${raise_invalid}`) : ''} RMELN{}
   }
   TAILLOOP{};
   return res;`
@@ -1391,7 +1391,7 @@ case 'rounded_shift_right': {
 case 'anything': return helper_text(`
   Returns any value of the given type.
   May return a different value on each call.
-  Sometimes there may be some more specific set of possible values, but for simplicity <code>anything()</code> is used.
+  The matching instruction might specify a narrower set of possible values, but intrinsics don't necessarily inherit those requirements, and a compiler is thus allowed to optimize or otherwise behave as if the produced values are anything.
 `);
 
 case 'agnostic': return helper_text(`

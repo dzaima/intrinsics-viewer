@@ -778,7 +778,7 @@ async function newCPU() {
     'all|Fold':2,
     'all|Mask':3,
     'all|Bitwise':4,
-    'all|Load/store':5,
+    'all|Memory':5,
     'all|Permutation':6,
     'all|Initialize':7,
     'all|Conversion':8,
@@ -823,10 +823,10 @@ async function newCPU() {
     'Permutation|Shuffle': 0,
     'Permutation|Slide': 1,
     
-    'Load/store|Load': 0,
-    'Load/store|Store': 1,
-    'Load/store|Indexed': 2,
-    'Load/store|Fault-only-first load': 3,
+    'Memory|Load': 0,
+    'Memory|Store': 1,
+    'Memory|Indexed': 2,
+    'Memory|Fault-only-first load': 3,
     
     'Conversion|Integer widen': 0,
     'Conversion|Integer narrow': 1,
@@ -1397,7 +1397,7 @@ async function setCPU(name) {
     toCenterInfo(noDataMsg);
     return false;
   } else {
-    const searchStr = c => c && c.length? c.toLowerCase().replace(/&lt;/g, '<') : undefined;
+    const searchStr = c => c && c.length? c.toLowerCase().replace(/&lt;/g, '<').replace(/overloaded name:|<\/?[a-z][^>]*>/g, '') : undefined; // very crappy HTML filter, but it's all on known data and only for search
     function prepType(t) {
       let c = t.type;
       c = c.replace(/ +(\**) *$/, "$1");

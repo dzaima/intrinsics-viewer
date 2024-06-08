@@ -185,11 +185,17 @@ function mapn(f, l) {
   let name = f.name;
   if (extra_test) {
     let c = 0;
-    for (let i = 0; i < l.length; i+= 2) c+= l[i].test(name);
-    if (c != 1) throw new Error(c+" matches in "+f.name);
+    let rest = 0;
+    for (let i = 0; i < l.length; i+= 2) {
+      let t = l[i];
+      if (t==='*') rest++;
+      else c+= t.test(name);
+    }
+    if (rest>1 || (rest==0? c!=1 : c>1)) throw new Error(`${c}+${rest} matches in ${f.name}`);
   }
   for (let i = 0; i < l.length; i+= 2) {
-    if (l[i].test(name)) return l[i+1];
+    let t = l[i];
+    if (t==='*' || t.test(name)) return l[i+1];
   }
   throw new Error("didn't find in "+f.name);
 }
@@ -560,7 +566,7 @@ let defs = [
   let ovl = 2**(2*ew) / (2**ew);
   let ovlen = ovl*ew/lm;
   return `
-  KEYW{${mapn(f,[/redmin/,'minimum', /redmax/,'maximum', /./,''])}}
+  KEYW{${mapn(f,[/redmin/,'minimum', /redmax/,'maximum', "*",''])}}
   REF{${mapn(f,[
     /_vred/, 'sec-vector-integer-reduce',
     /_vwred/, 'sec-vector-integer-reduce-widen',
@@ -884,7 +890,7 @@ let defs = [
 
 // integer min/max
 [/_v(min|max)u?_[vw][vx]_/, (f) => `
-  KEYW{${mapn(f,[/_vmin/,'minimum', /_vmax/,'maximum', /./,''])}}
+  KEYW{${mapn(f,[/_vmin/,'minimum', /_vmax/,'maximum', "*",''])}}
   REF{_vector_integer_minmax_instructions}
   CAT{Integer|${f.name.includes('_vmin')? 'Min' : 'Max'}}
   INSTR{VLSET RES{}; BASE DST, R_op1, R_op2, MASK}

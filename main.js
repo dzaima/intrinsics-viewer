@@ -986,7 +986,7 @@ async function setCPU(name) {
     
     await loadLink();
   } catch (e) {
-    document.getElementById('search-table').insertAdjacentElement('afterEnd', mkch('span', "Failed to load:\n"+e.stack, {cl: ['mono','code-ws']}));
+    document.getElementById('search-table').insertAdjacentElement('afterEnd', mkch('span', "Failed to load:\n"+e.message+'\n'+e.stack, {cl: ['mono','code-ws']}));
     throw e;
   }
 })();

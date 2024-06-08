@@ -1,8 +1,14 @@
 'use strict';
 let excludeSVML = true; // remove SVML entries, which are provided by an Intel library and not the CPU
 
-let src = await loadFile("data/intel_intrinsics-1.xml");
-let perfSrc = await loadFile("data/intel_perf2-1.js");
+let src, perfSrc;
+try {
+  src = await loadFile("data/intel_intrinsics-1.xml");
+  perfSrc = await loadFile("data/intel_perf2-1.js");
+} catch (e) {
+  console.error(e);
+  throw window.noDataFiles;
+}
 
 let perf = JSON.parse(perfSrc.substring(perfSrc.indexOf('{')).replace(/,\s*}/g,'}').replace(/,\s*]/g,']').replace(/\{l:"/g, '{"l":"').replace(/",t:"/g, '","t":"'));
 

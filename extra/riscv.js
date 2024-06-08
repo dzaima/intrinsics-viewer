@@ -2,8 +2,14 @@
 
 let vSpecFilePath = "data/v-spec.html";
 
-let baseFile = await loadFile("data/rvv-intrinsics-v8.json");
-let rvvOps = await execFile("./extra/rvv_ops.js");
+let baseFile, rvvOps;
+try {
+  baseFile = await loadFile("data/rvv-intrinsics-v8.json");
+  rvvOps = await execFile("./extra/rvv_ops.js");
+} catch (e) {
+  console.error(e);
+  throw window.noDataFiles;
+}
 
 window.rvv_helper = (name, ...args) => {
   let prev_entry = curr_entry;

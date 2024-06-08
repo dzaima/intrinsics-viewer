@@ -1,7 +1,13 @@
 'use strict';
 
-let intrinsics = JSON.parse(await loadFile("data/arm_intrinsics-1.json"));
-let operations = JSON.parse(await loadFile("data/arm_operations-1.json"));
+let intrinsics, operations;
+try {
+  intrinsics = JSON.parse(await loadFile("data/arm_intrinsics-1.json"));
+  operations = JSON.parse(await loadFile("data/arm_operations-1.json"));
+} catch (e) {
+  console.error(e);
+  throw window.noDataFiles;
+}
 
 let operationMap = {};
 operations.forEach(c => {

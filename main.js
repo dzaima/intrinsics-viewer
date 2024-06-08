@@ -570,14 +570,20 @@ searchFieldEl.addEventListener("keydown", e => {
   }
 });
 
-function updateSearch(link=true) {
+function notifyError(f) {
   try {
+    f();
+  } catch (e) {
+    toCenterInfo(e);
+    throw e;
+  }
+}
+
+function updateSearch(link=true) {
+  notifyError(() => {
     updateSearch0();
     if (link) updateLink();
-  } catch (e) {
-    console.error(e);
-    toCenterInfo(e);
-  }
+  });
 }
 function updateSearch0() {
   if (!entries_ccpu) return;
@@ -598,13 +604,9 @@ function updateSearch0() {
           p+= s[i++];
         }
         i++;
-        try {
+        notifyError(() => {
           parts.push([c0,c0=='/'? new RegExp(p) : p]);
-        } catch (e) {
-          console.error(e);
-          toCenterInfo(e);
-          return;
-        }
+        });
       } else {
         let i0 = i;
         while (i<s.length && s[i]!=' ' && s[i]!='"' && s[i]!='/') i++;
@@ -908,6 +910,8 @@ function toCenterInfo(text) {
 function clearCenterInfo() {
   centerInfoEl.textContent = '';
 }
+
+window.noDataFiles = '(no data file message)';
 async function setCPU(name) {
   curr_cpu = name;
   let loader = knownCpuMap[curr_cpu];
@@ -925,7 +929,14 @@ async function setCPU(name) {
   resultCountEl.textContent = "loading…";
   toCenterInfo("Loading "+loader.msg+"…");
   
-  let is = (await execFile(loader.loadPath)).instructions;
+  let is;
+  try {
+    is = (await execFile(loader.loadPath)).instructions;
+  } catch (e) {
+    if (e === window.noDataFiles) is = null;
+    else notifyError(() => { throw e; });
+  }
+  
   if (is === null) {
     loader.noData = true;
     toCenterInfo(noDataMsg);

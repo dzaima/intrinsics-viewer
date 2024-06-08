@@ -616,15 +616,26 @@ function group(list, name, order) {
 
 
 
-function mkch(n, ch, {cl, id, attrs, onclick, href, innerHTML}={}) {
+function mkch(n, ch, {cl, id, attrs, onchange, anyclick, role, href, innerHTML}={}) {
   let r = document.createElement(n);
-  if (ch) r.append(...ch);
-  if (id) r.id = id;
-  if (onclick) r.onclick = e => { onclick(r); }
-  if (href) r.href = href;
-  if (attrs) Object.entries(attrs).map(([k,v]) => r.setAttribute(k,v));
-  if (cl) cl instanceof Array? r.classList.add(...cl) : r.classList.add(cl);
-  if (innerHTML) r.innerHTML = innerHTML
+  if (undefined!==ch) r.append(...ch);
+  if (undefined!==id) r.id = id;
+  if (undefined!==onchange) r.onchange = e => onchange(r);
+  if (undefined!==anyclick) {
+    r.tabIndex = 0;
+    r.onclick = e => anyclick(r);
+    r.addEventListener("keydown", e => {
+      if (e.key=='Enter' || e.key==' ') {
+        e.preventDefault();
+        anyclick(r);
+      }
+    });
+  }
+  if (undefined!==role) r.role = role;
+  if (undefined!==href) r.href = href;
+  if (undefined!==attrs) Object.entries(attrs).map(([k,v]) => r.setAttribute(k,v));
+  if (undefined!==cl) cl instanceof Array? r.classList.add(...cl) : r.classList.add(cl);
+  if (undefined!==innerHTML) r.innerHTML = innerHTML;
   return r;
 };
 const mk = (n, named={}) => mkch(n, undefined, named);
@@ -635,12 +646,12 @@ function docopy(text) {
 function mkcopy(content, text) {
   let hoverMessage = 'Click to copy';
   if (typeof content === 'string') return `<span class="click-copy hover-base" onclick="docopy('${text}')"><span class="hover-text">${hoverMessage}</span>${content}</span>`;
-  return mkch('span', [mkch('span', [hoverMessage], {cl:'hover-text'}), content], {cl:['click-copy', 'hover-base'], onclick: ()=>docopy(text)});
+  return mkch('span', [mkch('span', [hoverMessage], {cl:'hover-text'}), content], {cl:['click-copy', 'hover-base'], anyclick: ()=>docopy(text)});
 }
 
 
-function makeCheckbox(display, key, updated, group) {
-  let check = mk('input', {attrs:{type: "checkbox"}, onclick: c => {
+function makeTreeCheckbox(display, key, updated, group) {
+  let check = mk('input', {attrs:{type: "checkbox"}, onchange: c => {
     if (group) {
       let on = c.checked;
       [...group.getElementsByTagName('input')].forEach(e => {
@@ -655,12 +666,18 @@ function makeCheckbox(display, key, updated, group) {
   let label = mkch('label', [check, display+' (', count, ')'], {cl: ['flex-grow', 'cht-off']});
   
   let row = mkch('div', [
-    mkch('span', [group? (group.hidden? ">" : "∨") : ""], {cl:['gr',group?'gr-yes':'gr-no'], onclick: t => {
-      group.hidden^= 1;
-      t.textContent = group.hidden? ">" : "∨";
-    }}),
+    mkch('span', [group? (group.hidden? ">" : "∨") : ""], {
+      cl: ['gr',group?'gr-yes':'gr-no'],
+      role: 'button',
+      anyclick: group? t => {
+        group.hidden^= 1;
+        t.textContent = group.hidden? ">" : "∨";
+      } : undefined,
+    }),
     label,
-  ], {cl: 'flex-horiz'});
+  ], {
+    cl: 'flex-horiz',
+  });
   
   return {check: check, obj: row, key: key, setCount: (n) => {
     if (n) label.classList.remove('cht-off');
@@ -696,12 +713,12 @@ function makeTree(tree, ob, update) {
   function step(tree, prefix) {
     let key = jp(prefix, tree.name);
     let chRes = tree.ch.map(c=>step(c, key));
-    let leafRes = tree.leaf.map(c => makeCheckbox(c, jp(key,c), updateFn, undefined));
+    let leafRes = tree.leaf.map(c => makeTreeCheckbox(c, jp(key,c), updateFn, undefined));
     let contents = mkch('div', [...chRes, ...leafRes].map(c=>c.obj));
     
     let indent = mkch('div', [contents], {cl:'indent'});
     if (!ob.has(tree.name)) indent.hidden = true;
-    let check = makeCheckbox(tree.name, key, updateFn, indent);
+    let check = makeTreeCheckbox(tree.name, key, updateFn, indent);
     
     return {check: check.check, obj: mkch('div', [check.obj, indent]), ch:chRes, leaf:leafRes, setCount: check.setCount, key:key};
   }
@@ -939,7 +956,7 @@ function displayEnt(ins, fn, link = true) {
     }), ')'];
   }
   if (ins.variations && ins.variations.length) {
-    let mkvar = (fn, short) => mkch('span', short, {cl: ['mono', 'var-link'], onclick: () => displayEnt(ins, fn)});
+    let mkvar = (fn, short) => mkch('span', short, {cl: ['mono', 'var-link'], anyclick: () => displayEnt(ins, fn)});
     descPlaceEl.insertAdjacentElement('afterBegin', mkch('span', [
       'Variations: ',
       ...ins.variationsIncl.flatMap((fn, i) => [i?', ':'', mkvar(fn, fn.short || "base")])
@@ -950,13 +967,21 @@ function displayEnt(ins, fn, link = true) {
   descPlaceEl.insertAdjacentElement('afterBegin', mkch('span', desc, {cl: ['mono', 'code-ws']}));
   if (link) updateLink();
 }
+
+function makePageBtn(text, action) {
+  return mkch('span', [text], {cl: ['page-btn'], anyclick: action});
+}
+
+document.getElementById("pages-0").append(makePageBtn('«', () => deltaPage(-1)));
+document.getElementById("pages-4").append(makePageBtn('»', () => deltaPage(1)));
+
 function toPage(page) {
   query_currPage = page;
   
   let pages = calcPages();
   
   let makeBtn = (n) => {
-    let r = mkch('span', [n+1], {cl: ['page-btn'], onclick: () => toPage(n)});
+    let r = makePageBtn(n+1, () => toPage(n));
     if (page===n) r.classList.add('page-curr');
     return r;
   }
@@ -990,14 +1015,15 @@ function toPage(page) {
       mkch('td', [mkRetLine(cvar)]),
       mkch('td', [mkFnLine(cvar)]),
       // mkch('td', [c.archs.map(c=>c.split(/\|/g).slice(-1)[0]).join("+")]),
-    ]);
-    r.onclick = () => {
-      if (curr_entry && curr_entry[0]===ins && curr_entry[1]===cvar) {
-        displayNoEnt();
-      } else {
-        displayEnt(ins, cvar);
-      }
-    }
+    ], {
+      anyclick: () => {
+        if (curr_entry && curr_entry[0]===ins && curr_entry[1]===cvar) {
+          displayNoEnt();
+        } else {
+          displayEnt(ins, cvar);
+        }
+      },
+    });
     return r;
   }));
 }
@@ -1035,6 +1061,11 @@ function searchTyped() {
     }, 1);
   }
 }
+searchFieldEl.addEventListener("keydown", e => {
+  if (e.key == 'Enter' && resultListEl.children.length > 0) {
+    resultListEl.children[0].focus();
+  }
+});
 
 function updateSearch(link=true) {
   try {

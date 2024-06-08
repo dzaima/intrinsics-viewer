@@ -10,9 +10,9 @@
 <body class="dark">
   <div class="flex-horiz" style="padding: 0.2em;">
     <div style="flex-grow: 1; flex-basis: 65%">
-      <div class="flex-horiz" style="padding: 0.2em; align-items: center;">
+      <label class="flex-horiz" style="padding: 0.2em; align-items: center;">
         Search:&nbsp; <input id="search-field" class="mono" type="search" oninput="searchTyped()" onchange="updateLink()" style="flex-grow: 1;" accesskey="q">
-      </div>
+      </label>
       <script type="text/javascript">document.getElementById("search-field").focus();</script>
       
       <div class="flex-horiz" style="padding: 0.2em;">
@@ -39,11 +39,11 @@
             </span>
           </div>
           <div class="flex-horiz" style="width: 100%;">
-            <span class='page-btn' onclick="deltaPage(-1);"> « </span>
+            <div id="pages-0"></div>
             <div id="pages-1" style="flex-grow: 1;"></div>
             <div id="pages-2" style="flex-grow: 1; text-align: center;"></div>
             <div id="pages-3" style="flex-grow: 1; text-align: right;"></div>
-            <span class='page-btn' onclick="deltaPage(1);"> » </span>
+            <div id="pages-4"></div>
           </div>
           <table id="search-table">
             <thead>

@@ -37,9 +37,9 @@ intrinsic entry:
 }
 */
 
-let cpuLoaderX86_64 = {msg: 'x86-64', load: loadIntel};
-let cpuLoaderARM    = {msg: 'ARM',    load: loadArm};
-let cpuLoaderRISCV  = {msg: 'RISC-V', load: loadRVV};
+let cpuLoaderX86_64 = {msg: 'x86-64', loadPath: "./extra/x86.js"};
+let cpuLoaderARM    = {msg: 'ARM',    loadPath: "./extra/arm.js"};
+let cpuLoaderRISCV  = {msg: 'RISC-V', loadPath: "./extra/riscv.js"};
 let knownCPUs = [
   ['x86-64',  cpuLoaderX86_64],
   ['Arm MVE', cpuLoaderARM],
@@ -90,20 +90,6 @@ function overloadedName(name) {
   return `Overloaded name: <span class="mono h-name">${mkcopy(name,name)}</span>`
 }
 
-
-async function loadIntel() {
-  let {instructions} = await execFile("./extra/x86.js");
-  return instructions;
-}
-async function loadArm() {
-  let {instructions} = await execFile("./extra/arm.js");
-  return instructions;
-}
-
-async function loadRVV() {
-  let {instructions} = await execFile("./extra/riscv.js");
-  return instructions;
-}
 
 function unique(l) {
   return [...new Set(l)];
@@ -939,7 +925,7 @@ async function setCPU(name) {
   resultCountEl.textContent = "loading…";
   toCenterInfo("Loading "+loader.msg+"…");
   
-  let is = await loader.load();
+  let is = (await execFile(loader.loadPath)).instructions;
   if (is === null) {
     loader.noData = true;
     toCenterInfo(noDataMsg);

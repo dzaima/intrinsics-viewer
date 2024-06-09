@@ -283,7 +283,7 @@ let defs = [
 }],
 
 // multiply-add
-[/_vf?w?n?m(acc|add|sub|sac)(su|us?)?_v[vxf]_/, (f) => `
+[/_vf?w?n?m(acc|add|sub|sac)(su|us?|bf16)?_v[vxf]_/, (f) => `
   REF{${mapn(f,[
     /_vn?m/, '_vector_single_width_integer_multiply_add_instructions',
     /_vwm/, '_vector_widening_integer_multiply_add_instructions',
@@ -311,19 +311,19 @@ let defs = [
         ['_vwmaccsu_', '(WD1 * WD2) + vd[i]'],
         ['_vwmaccus_', '(WD1 * WD2) + vd[i]'],
         
-        ['vfmacc',   '(VS1 * vs2[i]) + vd[i]'],
-        ['vfnmacc', '-(VS1 * vs2[i]) - vd[i]'],
-        ['vfmsac',   '(VS1 * vs2[i]) - vd[i]'],
-        ['vfnmsac', '-(VS1 * vs2[i]) + vd[i]'],
-        ['vfmadd',   '(vd[i] * VS1) + vs2[i]'],
-        ['vfnmadd', '-(vd[i] * VS1) - vs2[i]'],
-        ['vfmsub',   '(vd[i] * VS1) - vs2[i]'],
-        ['vfnmsub', '-(vd[i] * VS1) + vs2[i]'],
+        ['_vfmacc',   '(VS1 * vs2[i]) + vd[i]'],
+        ['_vfnmacc', '-(VS1 * vs2[i]) - vd[i]'],
+        ['_vfmsac',   '(VS1 * vs2[i]) - vd[i]'],
+        ['_vfnmsac', '-(VS1 * vs2[i]) + vd[i]'],
+        ['_vfmadd',   '(vd[i] * VS1) + vs2[i]'],
+        ['_vfnmadd', '-(vd[i] * VS1) - vs2[i]'],
+        ['_vfmsub',   '(vd[i] * VS1) - vs2[i]'],
+        ['_vfnmsub', '-(vd[i] * VS1) + vs2[i]'],
         
-        ['_vfwmacc_',   '(VS1 * vs2[i]) + vd[i]'],
-        ['_vfwnmacc_', '-(VS1 * vs2[i]) - vd[i]'],
-        ['_vfwmsac_',   '(VS1 * vs2[i]) - vd[i]'],
-        ['_vfwnmsac_', '-(VS1 * vs2[i]) + vd[i]'],
+        ['_vfwmacc',   '(VS1 * vs2[i]) + vd[i]'],
+        ['_vfwnmacc', '-(VS1 * vs2[i]) - vd[i]'],
+        ['_vfwmsac',   '(VS1 * vs2[i]) - vd[i]'],
+        ['_vfwnmsac', '-(VS1 * vs2[i]) + vd[i]'],
       ].find(c => f.name.includes(c[0]))[1]
       .replace(/WD(\d)/g, (_,n) => owdq(f.ret, f.args.find(c=>c.name.includes(n)), n==2? 'vs2[i]' : 'VS1'))
       .replace("VS1", hasarg(f,'rs1')?'rs1':'vs1[i]')
@@ -954,7 +954,7 @@ let defs = [
 }],
 
 // sign-extend, zero-extend, widen, convert
-[/[sz]ext|_vf?[wn]?cvtu?_/, (f) => {
+[/[sz]ext|_vf?[wn]?cvt(u|bf16)?_/, (f) => {
   let op=argn(f,'src','op1');
   let [rw,rq]=eparts(f.ret);      let rqf = rq=='f';
   let [ow,oq]=eparts(farg(f,op)); let oqf = oq=='f';
@@ -966,7 +966,8 @@ let defs = [
     /_vwcvt/, '_vector_widening_integer_addsubtract',
     /_vfwcvt_/, '_widening_floating_pointinteger_type_convert_instructions',
     /_vfncvt_/, '_narrowing_floating_pointinteger_type_convert_instructions',
-    /_vncvt/, '_vector_narrowing_integer_right_shift_instructions'])}}
+    /_vncvt/, '_vector_narrowing_integer_right_shift_instructions',
+    /__riscv_(.*)bf16_/, ''])}}
   CAT{${f.name.includes('_vsext')? 'Integer|Sign-extend' : f.name.includes('_vzext')? 'Integer|Zero-extend' : typeConvertCat(f)}}
   INSTR{VLSET ${f.name.includes('ext_') || /_vf?ncvt/.test(f.name)? 'RES{}' : farg(f,op)}; FRMI0{}; BASE DST, R_${op}, MASK${f.name.includes('vncvt_x_x_w')?` // == vnsrl.wi DST, R_${op}, 0`:``}; FRMI1{}}
   VLMAX{${farg(f,op)}}
@@ -1137,8 +1138,8 @@ let defs = [
 [/_vsmul_/, (f) => `
   REF{_vector_single_width_fractional_multiply_with_rounding_and_saturation}
   CAT{Fixed-point|Fractional rounding & saturating multiply}
-  VLMAX{RES{}}
   INSTR{VLSET RES{}; INIT csrwi vxrm, <vxrm>; BASE DST, R_op1, R_op2, MASK}
+  VLMAX{RES{}}
   RES{} res;
   
   for (size_t i = 0; i < vl; i++) {
@@ -1475,7 +1476,7 @@ oper: (o, v) => {
       return [0, `vset${vl==='0'?'i':''}vli ${setter? 'xd' : 'zero'}, ${vl}, e${ew}, m${lm<1? 'f'+(1/lm) : lm}, ${tail?'ta':'tu'}, ${mask==2?'mu':'ma'}`];
     }
     if (test('INIT ')) return [0, procInstr(post)[1]];
-    let base = o.name.replace('__riscv_','').split(/_([iuf]\d+mf?\d+(x\d+)?|b\d+)+(_|$)/)[0].replace(/_/g,'.');
+    let base = o.name.replace('__riscv_','').split(/_(([iuf]\d+|bf16)mf?\d+(x\d+)?|b\d+)+(_|$)/)[0].replace(/_/g,'.');
     all = all.replace(/\bBASE\b/, base); // base assembly instruction name
     all = all.replace(/ IMMALT{(\w+)(, (\w+))?}/, (_,r,_2,sh) => {
       let nv = immArgMap[base];
@@ -1496,10 +1497,26 @@ oper: (o, v) => {
   });
   let specRef, desc;
   let categories = [];
+  let archs;
+  s = s.replace(/^ *ARCH{(.*)}\n/m, (_,c) => { archs = [c]; return ''; });
   s = s.replace(/^ *REF{(.*)}\n/m, (_,c) => { specRef = c; return ''; });
   s = s.replace(/^ *DESC{(.*)}\n/m, (_,c) => { desc = c; return ''; });
   s = s.replace(/^ *KEYW{(.*)}\n/m, (_,c) => { if (c.length) desc = (desc||'')+`<!--${c}-->`; return ''; });
   s = s.replace(/^ *CAT{(.*)}\n/mg, (_,c) => { categories.push(c.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>')); return ''; });
+  
+  if (!archs) {
+    let all_types = [...o.args.map(c=>c.type), o.ret.type]
+    if (all_types.some(c => /bfloat16|__bf16/.test(c))) {
+      if (o.name.includes('vfwmaccbf16')) archs = ['Zvfbfwma - bf16|(self)'];
+      else archs = ['Zvfbfwma - bf16|Zvfbfmin'];
+    } else if (all_types.some(c => /float16/.test(c))) {
+      if (o.name.includes('vfwcvt_f_f_v_') || o.name.includes('vfncvt_f_f_w_')) archs = ['Zvfh - f16|Zvfhmin'];
+      else archs = ['Zvfh - f16|(self)'];
+    } else {
+      archs = ['v'];
+    }
+  }
+  o.archs = archs;
   
   s = s.replace(/TAILLOOP{(.*?)};?/g, (_,c) => boring(`for (size_t i = ${c?c:'vl'}; i < vlmax; i++) res[i] = TAIL{};`));
   s = s.replace(/TAIL{}/g, agnBaseT(tail)); // tail element

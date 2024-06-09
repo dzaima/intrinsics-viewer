@@ -498,7 +498,7 @@ async function loadRVV() {
   let specFilePath = "data/v-spec.html";
   let baseFile, rvvOps;
   try {
-    baseFile = await loadFile("data/rvv_base-5.json");
+    baseFile = await loadFile("data/rvv-intrinsics-v8.json");
     rvvOps = new Function(await loadFile("extra/rvv_ops.js"))();
   } catch (e) {
     console.error(e);
@@ -577,7 +577,7 @@ async function loadRVV() {
       id: idCounter++,
       ret: {type: ret}, args, name,
       desc, implDesc: oper,
-      archs: ['rvv'], categories: ["Initialize|General"],
+      archs: ['v'], categories: ["Initialize|General"],
     });
   }
   addSimpleOp("unsigned long", "__riscv_vlenb", [], "Get VLEN in bytes", "return VLEN/8;");
@@ -918,7 +918,7 @@ function displayEnt(ins, fn, link = true) {
   let a0 = fn.archs || ins.archs;
   let a1 = a0;
   if (a0.length>1) a1 = a1.filter(c=>!c.endsWith("|KNCNI"));
-  let a2 = a1.map(c=>esc(c.split(/\|/g).slice(-1)[0])).join(' + ');
+  let a2 = a1.map(c=>esc(c.split(/\|/g).filter(c=>c!='(self)').slice(-1)[0])).join(' + ');
   if (a0.length != a1.length) a2+= " / KNCNI";
   let text = ``;
   text+= `<br>Architecture: <span class="mono">${a2}</span>`;

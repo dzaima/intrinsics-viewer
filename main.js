@@ -96,15 +96,16 @@ function unique(l) {
 
 
 
-function mkch(n, ch, {cl, id, attrs, onchange, anyclick, role, href, innerHTML}={}) {
+function mkch(n, ch, {cl, id, attrs, onchange, anyclick, onclick, role, href, innerHTML}={}) {
   let r = document.createElement(n);
   if (undefined!==ch) r.append(...ch);
   if (undefined!==id) r.id = id;
-  if (undefined!==onchange) r.onchange = e => onchange(r);
+  if (undefined!==onchange) r.addEventListener('change', () => onchange(r));
+  if (undefined!==onclick)  r.addEventListener('click',  () => onclick(r));
   if (undefined!==anyclick) {
     r.tabIndex = 0;
     r.onclick = e => anyclick(r);
-    r.addEventListener("keydown", e => {
+    r.addEventListener('keydown', e => {
       if (e.key=='Enter' || e.key==' ') {
         e.preventDefault();
         anyclick(r);
@@ -149,7 +150,7 @@ function group(list, name, order) {
 }
 
 let aria_owns_counter = 0;
-function makeTree2(joiner, allInfo, defaultOpenSet, updated) {
+function makeTree2(joiner, desc, allInfo, defaultOpenSet, updated) {
   let openSet = defaultOpenSet;
   let selectedSet = new Set();
   
@@ -206,7 +207,10 @@ function makeTree2(joiner, allInfo, defaultOpenSet, updated) {
     let children = has_ch? info.ch.map(ch => mkPart(ch, path===''? ch.name : path+joiner+ch.name)) : undefined;
     
     let isOpen = () => main.ariaExpanded === 'true';
-    let setOpen = (v) => { main.ariaExpanded = v; };
+    let setOpen = (v) => {
+      main.ariaExpanded = v;
+      updateSub();
+    };
     
     
     
@@ -215,14 +219,13 @@ function makeTree2(joiner, allInfo, defaultOpenSet, updated) {
     };
     let subMarker = mkch('span', [has_ch? '?' : ''], {
       cl: ['gr', has_ch? 'gr-yes' : 'gr-no'],
-      role: 'button',
-      anyclick: has_ch? t => {
+      role: 'none',
+      onclick: has_ch? t => {
         setOpen(!isOpen());
-        updateSub();
       } : undefined,
     });
     
-    let selectCheck = mk('input', {attrs: {type:'checkbox'}, onchange: c => {
+    let selectCheck = mk('input', {attrs: {type:'checkbox', tabindex: -1}, onchange: c => {
       let checked = c.checked;
       forAll(me, c => {
         if (!c.children) checked? selectedSet.add(c.path) : selectedSet.delete(c.path);
@@ -240,6 +243,7 @@ function makeTree2(joiner, allInfo, defaultOpenSet, updated) {
     let main = mkch('span', [row], {role: 'treeitem', attrs: {
       'aria-owns': sub_id,
       'aria-expanded': openSet.has(path),
+      'tabindex': -1,
     }});
     
     let els = [main];
@@ -256,20 +260,90 @@ function makeTree2(joiner, allInfo, defaultOpenSet, updated) {
       info,
       path,
       els,
+      mainEl: main,
       children,
       check: selectCheck,
+      isOpen,
       setCount: (n) => {
         if (n) selectLabel.classList.remove('cht-off');
         else   selectLabel.classList.add('cht-off');
         count.textContent = n;
       }
     };
+    
+    if (children) children.forEach(c => { c.parent = me; });
+    
+    main.addEventListener('keydown', e => {
+      if (event.altKey || event.ctrlKey || event.metaKey) return;
+      if (event.shift) return;
+      
+      function last(me) {
+        while (me.children && me.isOpen()) me = me.children[me.children.length-1];
+        return me;
+      }
+      function parentAdj(me, delta) {
+        let p = me.parent;
+        if (!p) return null;
+        let i = p.children.indexOf(me);
+        if (i+delta < 0) return p;
+        if (i+delta>=p.children.length) return parentAdj(p, delta);
+        let r = p.children[i+delta];
+        return delta==-1? last(r) : r;
+      }
+      function up() {
+        let adj = parentAdj(me, -1);
+        if (adj) adj.mainEl.focus();
+      }
+      function down() {
+        if (children && isOpen()) {
+          children[0].mainEl.focus();
+        } else {
+          let adj = parentAdj(me, 1);
+          if (adj) adj.mainEl.focus();
+        }
+      }
+      
+      switch (e.key) {
+        default:
+          return; // don't preventDefault
+        case ' ':
+          selectCheck.checked^= true;
+          selectCheck.dispatchEvent(new Event('change'));
+          break;
+        case 'Up': case 'ArrowUp':
+          up();
+          break;
+        case 'Down': case 'ArrowDown':
+          down();
+          break;
+        case 'Right': case 'ArrowRight':
+          if (children && !isOpen()) setOpen(true);
+          else down();
+          break;
+        case 'Left': case 'ArrowLeft':
+          if (children && isOpen()) setOpen(false);
+          else if (me.parent) me.parent.mainEl.focus();
+          else up();
+          break;
+        case 'Home':
+          all.mainEl.focus();
+          break;
+        case 'End':
+          last(all).mainEl.focus();
+          break;
+      }
+      e.preventDefault();
+    });
+    
     return me;
   }
   
   let all = mkPart(allInfo, '');
+  all.els[0].tabIndex = 0;
+  all.els[0].ariaLabel = desc;
+  let element = mkch('div', all.els);
   return {
-    obj: mkch('div', all.els),
+    element,
     forAll: (f) => forAll(all, f),
     all,
     deserialize,
@@ -286,23 +360,23 @@ async function newCPU() {
   let archs = unique(entries_ccpu.map(c=>c.archs).flat());
   let archGroups = group(archs.map(c => c.split("|")), 'all', curr_cpu_info.archOrder || {});
   query_archs = [...archs];
-  curr_archObj = makeTree2('|', archGroups, curr_cpu_info.archOpen || new Set(['']), (a, link) => {
+  curr_archObj = makeTree2('|', 'Select CPU', archGroups, curr_cpu_info.archOpen || new Set(['']), (a, link) => {
     query_archs = a;
     updateSearch(link);
   });
   archListEl.textContent = '';
-  if (archs.length > 1) archListEl.append(curr_archObj.obj);
+  if (archs.length > 1) archListEl.append(curr_archObj.element);
   
   
   let categories = unique(entries_ccpu.map(c=>c.categories).flat());
   let categoryGroups = group(categories.map(c => c.split("|")), 'all', curr_cpu_info.categoryOrder || {});
   query_categories = categories;
-  curr_categoryObj = makeTree2('|', categoryGroups, curr_cpu_info.categoryOpen || new Set(['']), (c, link) => {
+  curr_categoryObj = makeTree2('|', 'Select category', categoryGroups, curr_cpu_info.categoryOpen || new Set(['']), (c, link) => {
     query_categories = c;
     updateSearch(link);
   });
   categoryListEl.textContent = '';
-  categoryListEl.append(curr_categoryObj.obj);
+  categoryListEl.append(curr_categoryObj.element);
   
   updateSearch(false);
   return true;
@@ -392,12 +466,12 @@ function displayEnt(ins, fn, link = true) {
   if (link) updateLink();
 }
 
-function makePageBtn(text, action) {
-  return mkch('span', [text], {cl: ['page-btn'], anyclick: action});
+function makePageBtn(text, label, action) {
+  return mkch('span', [text], {cl: ['page-btn'], anyclick: action, role: 'button', attrs: {'aria-label': label}});
 }
 
-document.getElementById("pages-0").append(makePageBtn('«', () => deltaPage(-1)));
-document.getElementById("pages-4").append(makePageBtn('»', () => deltaPage(1)));
+document.getElementById("pages-0").append(makePageBtn('«', 'Previous page', () => deltaPage(-1)));
+document.getElementById("pages-4").append(makePageBtn('»', 'Next page', () => deltaPage(1)));
 
 function toPage(page) {
   query_currPage = page;
@@ -405,8 +479,11 @@ function toPage(page) {
   let pages = calcPages();
   
   let makeBtn = (n) => {
-    let r = makePageBtn(n+1, () => toPage(n));
-    if (page===n) r.classList.add('page-curr');
+    let r = makePageBtn(n+1, 'To page '+(n+1), () => toPage(n));
+    if (page===n) {
+      r.classList.add('page-curr');
+      r.setAttribute('aria-current', 'page');
+    }
     return r;
   }
   
@@ -485,7 +562,7 @@ function searchTyped() {
     }, 1);
   }
 }
-searchFieldEl.addEventListener("keydown", e => {
+searchFieldEl.addEventListener('keydown', e => {
   if (e.key == 'Enter' && resultListEl.children.length > 0) {
     resultListEl.children[0].focus();
   }

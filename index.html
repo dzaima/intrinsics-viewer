@@ -29,7 +29,7 @@
         </div>
         <div style="flex-basis: 75%">
           <div>
-            <span class="flex-horiz" style="width: 100%; align-items: center; padding-bottom: 0.1em;">
+            <span class="flex-horiz" style="width: 100%; align-items: center; padding-bottom: 0.1em;" role="group">
               <span>Search in:</span>
               <label class="flex-grow" style="text-align: center;"><input type="checkbox" onclick="updateSearch()" id="s-name" checked> intrinsic</label>
               <label class="flex-grow" style="text-align: center;"><input type="checkbox" onclick="updateSearch()" id="s-desc" checked> description</label>
@@ -39,7 +39,7 @@
               <span style="flex-grow:2; text-align: right; min-width: 6em; width: min-content;"><span id="result-count">loading…</span></span>
             </span>
           </div>
-          <div class="flex-horiz" style="width: 100%;">
+          <div class="flex-horiz" style="width: 100%;" role="navigation" aria-label="pagination">
             <div id="pages-0"></div>
             <div id="pages-1" style="flex-grow: 1;"></div>
             <div id="pages-2" style="flex-grow: 1; text-align: center;"></div>

@@ -13,9 +13,6 @@ body {
   flex-wrap: nowrap;
 }
 
-.indent {
-  padding-left: .8em;
-}
 .flex-grow {
   flex-grow: 1;
 }
@@ -56,6 +53,9 @@ code {
 }
 h4 {
   margin: 0;
+}
+ul {
+  margin-block-start: 0em;
 }
 
 .gr {
@@ -155,13 +155,12 @@ body.dark .op-load {
 }
 
 /* ARM header */
-.arm-header {
+#desc-place .arm-header {
   display: block;
   margin-top: 0.5em;
   font-size: 1.1em;
 }
-ul {
-  margin-block-start: 0em;
+#desc-place ul {
   padding-inline-start: 2em;
 }
 
@@ -256,6 +255,16 @@ body.dark button[disabled] {
 
 .hover-base:hover .hover-text {
   visibility: visible;
+}
+
+
+.tree-ul {
+  list-style: none;
+  padding-left: .8em;
+}
+
+span[role="treeitem"][aria-expanded="false"] + [role="group"] {
+  display: none;
 }
 
 

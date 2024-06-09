@@ -95,28 +95,6 @@ function unique(l) {
   return [...new Set(l)];
 }
 
-function group(list, name, order) {
-  let leaf = list.filter(c=>c.length==1).map(c=>c[0]);
-  let chel = list.filter(c=>c.length>1);
-  
-  let uniq = unique(chel.map(c=>c[0]));
-  
-  let cmp = (a,b) => {
-    let sa = order[name+'|'+a]; if (sa===undefined) sa = 99;
-    let sb = order[name+'|'+b]; if (sb===undefined) sb = 99;
-    if (sa!=sb) return sa-sb;
-    return a.localeCompare(b);
-  };
-  leaf.sort(cmp);
-  uniq.sort(cmp);
-  
-  return {
-    ch: uniq.map(c=>group(chel.filter(e=>e[0]==c).map(e=>e.slice(1)), c, order)),
-    leaf: leaf,
-    name: name,
-  };
-}
-
 
 
 function mkch(n, ch, {cl, id, attrs, onchange, anyclick, role, href, innerHTML}={}) {
@@ -153,81 +131,151 @@ function mkcopy(content, text) {
 }
 
 
-function makeTreeCheckbox(display, key, updated, group) {
-  let check = mk('input', {attrs:{type: "checkbox"}, onchange: c => {
-    if (group) {
-      let on = c.checked;
-      [...group.getElementsByTagName('input')].forEach(e => {
-        e.checked = on;
-      });
+
+function group(list, name, order) {
+  if (list.length==1 && list[0].length == 0) {
+    return {name};
+  } else {
+    let uniq = unique(list.map(c=>c[0])).sort((a,b) => {
+      let sa = order[name+'|'+a]; if (sa===undefined) sa = 99;
+      let sb = order[name+'|'+b]; if (sb===undefined) sb = 99;
+      if (sa!=sb) return sa-sb;
+      return a.localeCompare(b);
+    });
+    return {
+      name,
+      ch: uniq.map(name2 => group(list.filter(c=>c[0]==name2).map(c=>c.slice(1)), name2, order)),
+    };
+  }
+}
+
+let aria_owns_counter = 0;
+function makeTree2(joiner, allInfo, defaultOpenSet, updated) {
+  let openSet = defaultOpenSet;
+  let selectedSet = new Set();
+  
+  function forAll(me, f) {
+    f(me);
+    if (me.children) me.children.forEach(c => forAll(c, f));
+  }
+  
+  function refresh(me) {
+    let mode;
+    if (me.children) {
+      let opens = me.children.map(refresh);
+      mode = opens.every(c=>c===1)? 1 : opens.some(c=>c!==0)? 2 : 0;
+    } else {
+      mode = selectedSet.has(me.path)? 1 : 0;
     }
-    updated();
-  }});
-  check.checked = true;
+    me.check.indeterminate = mode===2;
+    if (mode!==2) me.check.checked = mode;
+    return mode;
+  }
   
-  let count = mkch('span', ['?']);
-  let label = mkch('label', [check, display+' (', count, ')'], {cl: ['flex-grow', 'cht-off']});
+  function selectedChanged(link) {
+    refresh(all);
+    updated([...selectedSet], link);
+  }
   
-  let row = mkch('div', [
-    mkch('span', [group? (group.hidden? ">" : "∨") : ""], {
-      cl: ['gr',group?'gr-yes':'gr-no'],
+  function deserialize(vals) {
+    let trunc = new Set(vals.map(c => c.replace(/^all\|/, '')));
+    selectedSet = new Set();
+    function rec(curr, on) {
+      on = on || trunc.has(curr.path);
+      if (curr.children) curr.children.forEach(c => rec(c, on));
+      else if (on) selectedSet.add(curr.path);
+    }
+    rec(all, false);
+    selectedChanged(false);
+  }
+  
+  function serialize() {
+    function rec(curr) {
+      if (curr.check.indeterminate) return curr.children.flatMap(rec);
+      return curr.check.checked? [curr.path] : [];
+    }
+    
+    let r = rec(all);
+    if (r.length==1 && r[0]=='all') return undefined;
+    return r;
+  }
+  
+  function mkPart(info, path) {
+    let has_ch = !!info.ch;
+    let sub_id = has_ch? `sub_${aria_owns_counter++}` : undefined;
+    
+    let children = has_ch? info.ch.map(ch => mkPart(ch, path===''? ch.name : path+joiner+ch.name)) : undefined;
+    
+    let isOpen = () => main.ariaExpanded === 'true';
+    let setOpen = (v) => { main.ariaExpanded = v; };
+    
+    
+    
+    let updateSub = () => {
+      subMarker.textContent = isOpen()? '∨' : '>';
+    };
+    let subMarker = mkch('span', [has_ch? '?' : ''], {
+      cl: ['gr', has_ch? 'gr-yes' : 'gr-no'],
       role: 'button',
-      anyclick: group? t => {
-        group.hidden^= 1;
-        t.textContent = group.hidden? ">" : "∨";
+      anyclick: has_ch? t => {
+        setOpen(!isOpen());
+        updateSub();
       } : undefined,
-    }),
-    label,
-  ], {
-    cl: 'flex-horiz',
-  });
-  
-  return {check: check, obj: row, key: key, setCount: (n) => {
-    if (n) label.classList.remove('cht-off');
-    else   label.classList.add('cht-off');
-    count.textContent = n;
-  }};
-}
-
-function jp(a, b) {
-  return a? a+"|"+b : b;
-}
-
-function makeTree(tree, ob, update) {
-  let res;
-  function updateFn(link=true) {
-    let rec = (c) => { // 1:off 2:on 3:indeterminate
-      let chRes = c.ch.map(c => rec(c));
-      let status = [
-        ...c.leaf.map(c=>c.check.checked?2:1),
-        ...chRes.map(c=>c[0]),
-      ].reduce((a,b)=>a|b, 0);
-      
-      let cc = c.check;
-      if (status==3) cc.indeterminate = true;
-      else {
-        cc.indeterminate = false;
-        cc.checked = status==2;
-      }
-      return [status, [...chRes.flatMap(c=>c[1]), ...c.leaf.filter(c=>c.check.checked).map(c=>c.key)]];
+    });
+    
+    let selectCheck = mk('input', {attrs: {type:'checkbox'}, onchange: c => {
+      let checked = c.checked;
+      forAll(me, c => {
+        if (!c.children) checked? selectedSet.add(c.path) : selectedSet.delete(c.path);
+      });
+      selectedChanged(true);
+    }});
+    let count = mkch('span', ['?']);
+    let selectLabel = mkch('label', [selectCheck, info.name + ' (', count, ')'], {cl: ['flex-grow', 'cht-off']});
+    let row = mkch('div', [subMarker, selectLabel], {
+      cl: 'flex-horiz',
+    });
+    
+    
+    
+    let main = mkch('span', [row], {role: 'treeitem', attrs: {
+      'aria-owns': sub_id,
+      'aria-expanded': openSet.has(path),
+    }});
+    
+    let els = [main];
+    if (has_ch) {
+      updateSub();
+      els.push(mkch(
+        'ul',
+        children.map(ch => mkch('li', ch.els, {role:'none'})),
+        {id: sub_id, cl: 'tree-ul', role: 'group'},
+      ));
     }
-    update(rec(res)[1].map(c=>c.substring(4)), link);
-  }
-  function step(tree, prefix) {
-    let key = jp(prefix, tree.name);
-    let chRes = tree.ch.map(c=>step(c, key));
-    let leafRes = tree.leaf.map(c => makeTreeCheckbox(c, jp(key,c), updateFn, undefined));
-    let contents = mkch('div', [...chRes, ...leafRes].map(c=>c.obj));
     
-    let indent = mkch('div', [contents], {cl:'indent'});
-    if (!ob.has(tree.name)) indent.hidden = true;
-    let check = makeTreeCheckbox(tree.name, key, updateFn, indent);
-    
-    return {check: check.check, obj: mkch('div', [check.obj, indent]), ch:chRes, leaf:leafRes, setCount: check.setCount, key:key};
+    let me = {
+      info,
+      path,
+      els,
+      children,
+      check: selectCheck,
+      setCount: (n) => {
+        if (n) selectLabel.classList.remove('cht-off');
+        else   selectLabel.classList.add('cht-off');
+        count.textContent = n;
+      }
+    };
+    return me;
   }
-  res = step(tree, '');
-  res.updateFn = updateFn;
-  return res;
+  
+  let all = mkPart(allInfo, '');
+  return {
+    obj: mkch('div', all.els),
+    forAll: (f) => forAll(all, f),
+    all,
+    deserialize,
+    serialize,
+  };
 }
 
 
@@ -367,13 +415,13 @@ async function newCPU() {
     'Fixed-point|Saturating subtract': 1,
   };
   let openByDefault = new Set([
-    'all',
+    '',
     'SSE', 'AVX+AVX2',
   ]);
   archListEl.textContent = '';
   let archGroups = group(archs.map(c => c.split("|")), 'all', orderArch);
   query_archs = [...archs];
-  curr_archObj = makeTree(archGroups, openByDefault, (a, link) => {
+  curr_archObj = makeTree2('|', archGroups, openByDefault, (a, link) => {
     query_archs = a;
     updateSearch(link);
   });
@@ -384,7 +432,7 @@ async function newCPU() {
   categoryListEl.textContent = '';
   let categoryGroups = group(categories.map(c => c.split("|")), 'all', orderCategory);
   query_categories = categories;
-  curr_categoryObj = makeTree(categoryGroups, openByDefault, (c, link) => {
+  curr_categoryObj = makeTree2('|', categoryGroups, openByDefault, (c, link) => {
     query_categories = c;
     updateSearch(link);
   });
@@ -393,6 +441,13 @@ async function newCPU() {
   updateSearch(false);
   return true;
 }
+
+async function newDefaultCPU() {
+  await newCPU();
+  curr_archObj.deserialize(['']);
+  curr_categoryObj.deserialize(['']);
+}
+
 
 
 function esc(s) {
@@ -724,19 +779,24 @@ function updateSearch0() {
   let categorySet = new Set(query_categories);
   let archSet = new Set(query_archs);
   
-  function untree(c) {
-    let objs = [];
-    function rec(c, ps) {
-      let ps2 = [...ps, c];
-      objs.push(c, ...c.leaf);
-      return [...c.ch.flatMap(e => rec(e, ps2)), ...c.leaf.map(e => [e.key, [...ps2, e]])];
+  function untree(tree) {
+    let map = new Map();
+    
+    function recAdd(curr, apath0) {
+      let apath = [...apath0, curr];
+      curr.currSet = new Set();
+      if (curr.children) curr.children.forEach(c => recAdd(c, apath));
+      else map.set(curr.path, apath);
     }
-    let es = rec(c, []);
-    objs.forEach(e => e.currSet=new Set());
-    let map = Object.fromEntries(es);
+    recAdd(tree.all, []);
+    
     return {
-      add: (l, id) => l.forEach(e => map['all|'+e].forEach(e => e.currSet.add(id))),
-      write: () => objs.forEach(e => {
+      add: (l, id) => {
+        // console.log(l, id);
+        // l.forEach(e => (map.get(e).children||[]).forEach(e => e.currSet.add(id)))
+        l.forEach(c => map.get(c).forEach(e => e.currSet.add(id)));
+      },
+      write: () => tree.forAll(e => {
         e.setCount(e.currSet.size);
         e.currSet = undefined;
       }),
@@ -819,16 +879,6 @@ function updateSearch0() {
 
 let pushNext = true;
 function updateLink() {
-  function ser(x) {
-    if (x===undefined) return ["all"];
-    if (x.check.indeterminate) return [...x.ch.flatMap(ser), ...x.leaf.filter(c=>c.check.checked).map(c=>c.key)];
-    return x.check.checked? [x.key] : [];
-  }
-  function ser1(x) {
-    let r = ser(x);
-    if (r.length==1 && r[0]=="all") return undefined;
-    return r;
-  }
   let entval = undefined;
   if (curr_entry) {
     let [eb,ev] = curr_entry;
@@ -837,8 +887,8 @@ function updateLink() {
   let obj = {
     u: curr_cpu,
     e: entval,
-    a: ser1(curr_archObj),
-    c: ser1(curr_categoryObj),
+    a: curr_archObj.serialize(),
+    c: curr_categoryObj.serialize(),
     s: searchFieldEl.value || undefined,
     i: query_searchIn.map(c=>c[1].checked?"1":"0").join('')
   }
@@ -882,22 +932,11 @@ async function loadLink() {
       query_searchIn[i][1].checked = c=='1';
     });
     
-    function selTree(t, vs) {
-      let set = new Set(vs);
-      function rec(c, on) {
-        if (set.has(c.key)) on = true;
-        c.check.checked = on;
-        c.ch.forEach(n => rec(n, on));
-        c.leaf.forEach(n => n.check.checked = on || set.has(n.key));
-      }
-      rec(t);
-      t.updateFn(false);
-    }
-    selTree(curr_archObj, json.a||["all"]);
-    selTree(curr_categoryObj, json.c||["all"]);
+    curr_archObj.deserialize(json.a||['']);
+    curr_categoryObj.deserialize(json.c||['']);
     updateSearch(false);
   } else {
-    newCPU();
+    newDefaultCPU();
   }
 }
 
@@ -942,7 +981,7 @@ async function setCPU(name) {
     toCenterInfo(noDataMsg);
     return false;
   } else {
-    const searchStr = c => c && c.length? c.toLowerCase().replace(/&lt;/g, '<').replace(/overloaded name:|<\/?[a-z][^>]*>/g, '') : undefined; // very crappy HTML filter, but it's all on known data and only for search
+    const searchStr = c => c && c.length? c.toLowerCase().replace(/&lt;/g, '<').replace(/overloaded name:|<asd\/?[a-z][^>]*>/g, '') : undefined; // very crappy HTML filter, but it's all on known data and only for search
     function prepType(t) {
       let c = t.type;
       c = c.replace(/ +(\**) *$/, "$1");

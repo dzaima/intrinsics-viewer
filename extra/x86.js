@@ -250,3 +250,41 @@ res1.sort((a,b) => [a,b].map(c => {
 }).reduce((a,b)=>(a>b)-(a<b)));
 
 export const instructions = res1;
+
+
+export const archOrder = {
+  'all|SSE': 0,
+  'all|AVX+AVX2': 1,
+  'all|AVX2+': 2,
+  'all|AVX512': 3,
+  
+  'SSE|MMX': 0,
+  'SSE|SSE': 1,
+  'SSE|SSE2': 2,
+  'SSE|SSE3': 3,
+  'SSE|SSSE3': 4,
+  
+  'AVX512|AVX512F': 0,
+  'AVX512|AVX512CD': 1,
+  'AVX512|AVX512ER': 2,
+  'AVX512|AVX512PF': 3,
+  'AVX512|AVX512VL': 4,
+  'AVX512|AVX512DQ': 5,
+  'AVX512|AVX512BW': 6,
+  'AVX512|AVX512IFMA52': 7,
+  'AVX512|AVX512_VBMI': 8,
+  'AVX512|AVX512_4VNNIW': 9,
+  'AVX512|AVX512_4FMAPS': 10,
+  'AVX512|AVX512VPOPCNTDQ': 11,
+  'AVX512|AVX512_VNNI': 12,
+  'AVX512|AVX512_BF16': 13,
+  'AVX512|AVX512_VBMI2': 14,
+  'AVX512|AVX512_BITALG': 15,
+  'AVX512|AVX512_VP2INTERSECT': 16,
+};
+
+export const categoryOrder = {
+  'other|all': 0,
+  'other|AMX': 1,
+  'other|KNCNI': 2,
+};

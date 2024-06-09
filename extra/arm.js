@@ -152,3 +152,18 @@ let res1 = [];
 }
 
 export const instructions = res1;
+
+export const archOrder = {};
+export const categoryOrder = {
+  'Logical|Shift': 0,
+  'Logical|AND': 1,
+  'Logical|OR': 2,
+  'Logical|XOR': 3,
+  'Logical|NOT': 4,
+  'Logical|ANDN': 5,
+  'Logical|ORN': 6,
+  
+  'all|Arithmetic': 0,
+  'all|Logical': 1,
+  'all|Vector manipulation': 2,
+};

@@ -93,3 +93,88 @@ instructions.forEach(c => {
 });
 
 export { instructions };
+
+export const archOrder = {
+  'all|v': 0,
+  'all|Zvfh - f16': 1,
+  'all|Zvfbfwma - bf16': 2,
+};
+export const categoryOrder = {
+  'Arithmetic|Add': 0,
+  'Arithmetic|Subtract': 1,
+  'Arithmetic|Multiply': 2,
+  
+  'all|Integer': 0,
+  'all|Float': 1,
+  'all|Fold': 2,
+  'all|Mask': 3,
+  'all|Bitwise': 4,
+  'all|Memory': 5,
+  'all|Permutation': 6,
+  'all|Initialize': 7,
+  'all|Conversion': 8,
+  
+  'Integer|Add': 0,
+  'Integer|Subtract': 1,
+  'Integer|Multiply': 2,
+  'Integer|Compare': 3,
+  'Integer|Min': 4,
+  'Integer|Max': 5,
+  'Integer|Negate': 6,
+  'Integer|Carry / borrow': 7,
+  'Integer|Multiply-add': 8,
+  'Integer|Divide': 9,
+  'Multiply|Same-width': 0,
+  
+  'Float|Add': 0,
+  'Float|Subtract': 1,
+  'Float|Multiply': 2,
+  'Float|Divide': 3,
+  'Float|Min': 4,
+  'Float|Max': 5,
+  'Float|Negate': 6,
+  'Float|Absolute': 7,
+  'Float|Compare': 8,
+  
+  'Compare|==': 0,
+  
+  'Fold|Sum': 0,
+  'Fold|Sequential sum': 1,
+  'Fold|Tree sum': 2,
+  'Fold|Widening float sum': 3,
+  'Fold|Widening integer sum': 4,
+  
+  'Mask|Logical': 0,
+  'Mask|Find first set': 1,
+  'Mask|Population count': 2,
+  'Mask|Set before first': 3,
+  'Mask|Set including first': 4,
+  'Mask|Set only first': 5,
+  
+  'Permutation|Shuffle': 0,
+  'Permutation|Slide': 1,
+  
+  'Memory|Load': 0,
+  'Memory|Store': 1,
+  'Memory|Indexed': 2,
+  'Memory|Fault-only-first load': 3,
+  
+  'Conversion|Integer widen': 0,
+  'Conversion|Integer narrow': 1,
+  'Conversion|Float widen': 2,
+  'Conversion|Float narrow': 3,
+  'Conversion|Integer to float': 4,
+  'Conversion|Float to integer': 5,
+  'Integer to float|Same-width result': 0,
+  'Float to integer|Same-width result': 0,
+  
+  'Bitwise|Shift left': 0,
+  'Bitwise|Shift right': 1,
+  'Bitwise|AND': 2,
+  'Bitwise|OR': 3,
+  'Bitwise|XOR': 4,
+  'Bitwise|NOT': 5,
+  
+  'Fixed-point|Saturating add': 0,
+  'Fixed-point|Saturating subtract': 1,
+};

@@ -67,7 +67,7 @@ let idCounter = 1;
 
 let entries_all = [];
 let entries_ccpu = undefined;
-let curr_archObj, curr_categoryObj, curr_cpu, curr_entry;
+let curr_archObj, curr_categoryObj, curr_cpu_name, curr_cpu_info, curr_entry;
 let query_archs = [];
 let query_categories = [];
 let query_found = [];
@@ -287,133 +287,8 @@ async function newCPU() {
   entries_ccpu = entries_all.filter(c=>c.cpu.includes(cpu));
   
   let archs = unique(entries_ccpu.map(c=>c.archs).flat());
-  let orderArch = {
-    'all|SSE': 0,
-    'all|AVX+AVX2': 1,
-    'all|AVX2+': 2,
-    'all|AVX512': 3,
-    
-    'SSE|MMX':0,
-    'SSE|SSE':1,
-    'SSE|SSE2':2,
-    'SSE|SSE3':3,
-    'SSE|SSSE3':4,
-    
-    'AVX512|AVX512F': 0,
-    'AVX512|AVX512CD': 1,
-    'AVX512|AVX512ER': 2,
-    'AVX512|AVX512PF': 3,
-    'AVX512|AVX512VL': 4,
-    'AVX512|AVX512DQ': 5,
-    'AVX512|AVX512BW': 6,
-    'AVX512|AVX512IFMA52': 7,
-    'AVX512|AVX512_VBMI': 8,
-    'AVX512|AVX512_4VNNIW': 9,
-    'AVX512|AVX512_4FMAPS': 10,
-    'AVX512|AVX512VPOPCNTDQ': 11,
-    'AVX512|AVX512_VNNI': 12,
-    'AVX512|AVX512_BF16': 13,
-    'AVX512|AVX512_VBMI2': 14,
-    'AVX512|AVX512_BITALG': 15,
-    'AVX512|AVX512_VP2INTERSECT': 16,
-  };
-  
-  let orderCategory = {
-    // x86-64
-    'other|all':0,
-    'other|AMX':1,
-    'other|KNCNI':2,
-    
-    // ARM
-    'Logical|AND': 0,
-    'Logical|OR': 1,
-    'Logical|XOR': 2,
-    'Logical|NOT': 3,
-    'Logical|ANDN': 4,
-    'Logical|ORN': 5,
-    
-    'all|Arithmetic':0,
-    'all|Logical':1,
-    'all|Vector manipulation':2,
-    
-    // rvv
-    'Arithmetic|Add':0,
-    'Arithmetic|Subtract':1,
-    'Arithmetic|Multiply':2,
-    
-    'all|Integer':0,
-    'all|Float':1,
-    'all|Fold':2,
-    'all|Mask':3,
-    'all|Bitwise':4,
-    'all|Memory':5,
-    'all|Permutation':6,
-    'all|Initialize':7,
-    'all|Conversion':8,
-    
-    'Integer|Add': 0,
-    'Integer|Subtract': 1,
-    'Integer|Multiply': 2,
-    'Integer|Min': 3,
-    'Integer|Max': 4,
-    'Integer|Negate': 5,
-    'Integer|Compare': 6,
-    'Integer|Carry / borrow': 7,
-    'Integer|Multiply-add': 8,
-    'Integer|Divide': 9,
-    'Multiply|Same-width': 0,
-    
-    'Float|Add': 0,
-    'Float|Subtract': 1,
-    'Float|Multiply': 2,
-    'Float|Divide': 3,
-    'Float|Min': 4,
-    'Float|Max': 5,
-    'Float|Negate': 6,
-    'Float|Absolute': 7,
-    'Float|Compare': 8,
-    
-    'Compare|==': 0,
-    
-    'Fold|Sum': 0,
-    'Fold|Sequential sum': 1,
-    'Fold|Tree sum': 2,
-    'Fold|Widening float sum': 3,
-    'Fold|Widening integer sum': 4,
-    
-    'Mask|Logical': 0,
-    'Mask|Find first set': 1,
-    'Mask|Population count': 2,
-    'Mask|Set before first': 3,
-    'Mask|Set including first': 4,
-    'Mask|Set only first': 5,
-    
-    'Permutation|Shuffle': 0,
-    'Permutation|Slide': 1,
-    
-    'Memory|Load': 0,
-    'Memory|Store': 1,
-    'Memory|Indexed': 2,
-    'Memory|Fault-only-first load': 3,
-    
-    'Conversion|Integer widen': 0,
-    'Conversion|Integer narrow': 1,
-    'Conversion|Float widen': 2,
-    'Conversion|Float narrow': 3,
-    'Conversion|Integer to float': 4,
-    'Conversion|Float to integer': 5,
-    'Integer to float|Same-width result': 0,
-    'Float to integer|Same-width result': 0,
-    
-    'Bitwise|Shift left': 0,
-    'Bitwise|AND': 1,
-    'Bitwise|OR': 2,
-    'Bitwise|XOR': 3,
-    'Bitwise|NOT': 4,
-    
-    'Fixed-point|Saturating add': 0,
-    'Fixed-point|Saturating subtract': 1,
-  };
+  let orderArch = curr_cpu_info.archOrder;
+  let orderCategory = curr_cpu_info.categoryOrder;
   let openByDefault = new Set([
     '',
     'SSE', 'AVX+AVX2',
@@ -885,7 +760,7 @@ function updateLink() {
     entval = eb.cpu[0]+'!'+eb.ref+(eb===ev? '' : '!'+ev.short);
   }
   let obj = {
-    u: curr_cpu,
+    u: curr_cpu_name,
     e: entval,
     a: curr_archObj.serialize(),
     c: curr_categoryObj.serialize(),
@@ -952,8 +827,8 @@ function clearCenterInfo() {
 
 window.noDataFiles = '(no data file message)';
 async function setCPU(name) {
-  curr_cpu = name;
-  let loader = knownCpuMap[curr_cpu];
+  curr_cpu_name = name;
+  let loader = knownCpuMap[curr_cpu_name];
   
   let noDataMsg = "Data files for CPU "+name+" not available";
   if (loader.started) {
@@ -968,13 +843,13 @@ async function setCPU(name) {
   resultCountEl.textContent = "loading…";
   toCenterInfo("Loading "+loader.msg+"…");
   
-  let is;
   try {
-    is = (await execFile(loader.loadPath)).instructions;
+    curr_cpu_info = await execFile(loader.loadPath);
   } catch (e) {
     if (e === window.noDataFiles) is = null;
     else notifyError(() => { throw e; });
   }
+  let is = curr_cpu_info.instructions;
   
   if (is === null) {
     loader.noData = true;

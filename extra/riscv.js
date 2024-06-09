@@ -17,10 +17,10 @@ window.rvv_helper = (name, ...args) => {
   descPlaceEl.getElementsByClassName('rvv-helper-back')[0].onclick = () => displayEnt(...prev_entry, false);
 };
 
-let instructions = JSON.parse(baseFile);
+let instrs = JSON.parse(baseFile);
 
 // process entries
-instructions.forEach(ins => {
+instrs.forEach(ins => {
   let c = ins;
   
   let fxarg = arg => {
@@ -79,7 +79,7 @@ instructions.forEach(ins => {
 rvvOps.initialized();
 
 function addSimpleOp(ret, name, args, desc, oper) {
-  instructions.push({
+  instrs.push({
     id: idCounter++,
     ret: {type: ret}, args, name,
     desc, implDesc: oper,
@@ -88,11 +88,13 @@ function addSimpleOp(ret, name, args, desc, oper) {
 }
 addSimpleOp("unsigned long", "__riscv_vlenb", [], "Get VLEN in bytes", "return VLEN/8;");
 
-instructions.forEach(c => {
+instrs.forEach(c => {
   c.cpu = ['risc-v'];
 });
 
-export { instructions };
+export function instructions(name) {
+  return instrs;
+}
 
 export const archOrder = {
   'all|v': 0,

@@ -823,7 +823,7 @@ async function setCPU(name) {
   
   function setCurrent() {
     curr_cpu_info = loader.loaded_info || {instructions:[]};
-    entries_ccpu = curr_cpu_info.instructions;
+    entries_ccpu = curr_cpu_info.instructions(name);
   }
   
   let noDataMsg = "Data files for CPU "+name+" not available";
@@ -843,59 +843,59 @@ async function setCPU(name) {
   try {
     loader.loaded_info = await execFile(loader.loadPath);
   } catch (e) {
-    if (e === window.noDataFiles) is = null;
-    else notifyError(() => { throw e; });
-  }
-  let is = loader.loaded_info.instructions;
-  
-  if (is === null) {
-    loader.noData = true;
-    toCenterInfo(noDataMsg);
-    return false;
-  } else {
-    const searchStr = c => c && c.length? c.toLowerCase().replace(/&lt;/g, '<').replace(/overloaded name:|<asd\/?[a-z][^>]*>/g, '') : undefined; // very crappy HTML filter, but it's all on known data and only for search
-    function prepType(t) {
-      let c = t.type;
-      c = c.replace(/ +(\**) *$/, "$1");
-      c = c.replace(/(.+) const\b/, "const $1");
-      t.type = c;
-      t.typeSearch = searchStr(t.type);
-      t.nameSearch = searchStr(t.name);
+    if (e === window.noDataFiles) {
+      loader.noData = true;
+      toCenterInfo(noDataMsg);
+      return false;
+    } else {
+      notifyError(() => { throw e; });
     }
-    is.forEach(ins => {
-      if (ins.archs.length==0 || ins.categories.length==0) { console.warn("No categories or architectures for "+ins.name); }
-      let variationsExcl = ins.variations || [];
-      ins.variationsIncl = ins.toVar? variationsExcl : [ins, ...variationsExcl];
-      if (!ins.id) throw new Error("Intrinsic without ID: "+ins.name);
-      ins.variationsIncl.forEach(v => {
-        v.args.forEach(prepType);
-        prepType(v.ret);
-        v.nameSearch = searchStr(v.name);
-        v.descSearch = searchStr(v.desc);
-        if (!v.implInstrSearch && typeof v.implInstr!=='function') v.implInstrSearch = searchStr(v.implInstr);
-        if (!v.implDescSearch && typeof v.implDesc!=='function')  v.implDescSearch = searchStr(v.implDesc);
-      });
-      
-      let ref = ins.name.replace(/^(__riscv_|_mm)/,"");
-      if (ins.cpu[0]==='x86-64') ref = ins.ret.type+';'+ins.archs.join(';')+';'+ref;
-      ins.ref = ref;
+  }
+  setCurrent();
+  
+  const searchStr = c => c && c.length? c.toLowerCase().replace(/&lt;/g, '<').replace(/overloaded name:|<asd\/?[a-z][^>]*>/g, '') : undefined; // very crappy HTML filter, but it's all on known data and only for search
+  function prepType(t) {
+    let c = t.type;
+    c = c.replace(/ +(\**) *$/, "$1");
+    c = c.replace(/(.+) const\b/, "const $1");
+    t.type = c;
+    t.typeSearch = searchStr(t.type);
+    t.nameSearch = searchStr(t.name);
+  }
+  entries_ccpu.forEach(ins => {
+    if (ins.archs.length==0 || ins.categories.length==0) { console.warn("No categories or architectures for "+ins.name); }
+    let variationsExcl = ins.variations || [];
+    ins.variationsIncl = ins.toVar? variationsExcl : [ins, ...variationsExcl];
+    if (!ins.id) throw new Error("Intrinsic without ID: "+ins.name);
+    ins.variationsIncl.forEach(v => {
+      v.args.forEach(prepType);
+      prepType(v.ret);
+      v.nameSearch = searchStr(v.name);
+      v.descSearch = searchStr(v.desc);
+      if (!v.implInstrSearch && typeof v.implInstr!=='function') v.implInstrSearch = searchStr(v.implInstr);
+      if (!v.implDescSearch && typeof v.implDesc!=='function')  v.implDescSearch = searchStr(v.implDesc);
     });
     
-    let badEntry = is.find(c => !c.name || !c.ret.type || c.args.some(c => !c.type || !c.name));
+    let ref = ins.name.replace(/^(__riscv_|_mm)/,"");
+    if (ins.cpu[0]==='x86-64') ref = ins.ret.type+';'+ins.archs.join(';')+';'+ref;
+    ins.ref = ref;
+  });
+  
+  if (extra_test) {
+    let badEntry = entries_ccpu.find(c => !c.name || !c.ret.type || c.args.some(c => !c.type || !c.name));
     if (badEntry) console.warn("Warning: bad entry present: "+badEntry.name);
     
-    let refs = is.map(c=>c.ref);
+    let refs = entries_ccpu.map(c=>c.ref);
     if (new Set(refs).size != refs.length) console.warn("Warning: non-unique refs in "+name);
     
-    unique(is.map(c=>c.cpu).flat()).forEach(foundCPU => {
+    unique(entries_ccpu.map(c=>c.cpu).flat()).forEach(foundCPU => {
       if (!knownCpuMap[foundCPU]) console.warn("Warning: CPU not listed ahead-of-time: "+foundCPU);
     });
-    
-    setCurrent();
-    console.log("parsed "+loader.msg);
-    clearCenterInfo();
-    return true;
   }
+  
+  console.log("parsed "+loader.msg);
+  clearCenterInfo();
+  return true;
 }
 
 (async () => {

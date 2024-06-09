@@ -249,7 +249,10 @@ res1.sort((a,b) => [a,b].map(c => {
   return (c.name.startsWith('_mm')?'0':'1') + (a0i('MMX')||a0i('AES')||a0i('KEYLOCKER')||a0i('SHA')? '~' : a0i('SSE')?'1':'0') + a0 + '__' + c.name.replace(/\[z]|\[?_maskz?]?/g, '') + (c.name.includes('[')?'1':'0');
 }).reduce((a,b)=>(a>b)-(a<b)));
 
-export const instructions = res1;
+
+export function instructions(name) {
+  return res1;
+}
 
 
 export const archOrder = {

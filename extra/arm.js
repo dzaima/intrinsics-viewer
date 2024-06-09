@@ -151,7 +151,9 @@ let res1 = [];
   });
 }
 
-export const instructions = res1;
+export function instructions(name) {
+  return res1.filter(c=>c.cpu.includes(name));
+}
 
 export const categoryOrder = {
   'Logical|Shift': 0,

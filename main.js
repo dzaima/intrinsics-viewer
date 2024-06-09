@@ -65,7 +65,6 @@ let centerInfoEl = document.getElementById("center-info");
 
 let idCounter = 1;
 
-let entries_all = [];
 let entries_ccpu = undefined;
 let curr_archObj, curr_categoryObj, curr_cpu_name, curr_cpu_info, curr_entry;
 let query_archs = [];
@@ -282,9 +281,7 @@ function makeTree2(joiner, allInfo, defaultOpenSet, updated) {
 
 async function newCPU() {
   let cpu = cpuListEl.selectedOptions[0].value;
-  entries_ccpu = undefined;
   if (!await setCPU(cpu)) return false;
-  entries_ccpu = entries_all.filter(c=>c.cpu.includes(cpu));
   
   let archs = unique(entries_ccpu.map(c=>c.archs).flat());
   let archGroups = group(archs.map(c => c.split("|")), 'all', curr_cpu_info.archOrder);
@@ -784,7 +781,7 @@ async function loadLink() {
       let [cpu,ref,...varl] = json.e.split('!');
       cpuListEl.value = cpu;
       if (!await setCPU(cpu)) return;
-      let ent = entries_all.find(c=>c.ref==ref);
+      let ent = entries_ccpu.find(c=>c.ref==ref);
       if (ent) {
         let svar;
         if (varl.length && ent.variations) svar = ent.variations.find(c=>c.short===varl[0]);
@@ -824,8 +821,14 @@ async function setCPU(name) {
   curr_cpu_name = name;
   let loader = knownCpuMap[curr_cpu_name];
   
+  function setCurrent() {
+    curr_cpu_info = loader.loaded_info || {archOrder:{}, categoryOrder:{}, archOpen:new Set(), categoryOpen:new Set(), instructions:[]};
+    entries_ccpu = curr_cpu_info.instructions;
+  }
+  
   let noDataMsg = "Data files for CPU "+name+" not available";
   if (loader.started) {
+    setCurrent();
     if (loader.noData) {
       toCenterInfo(noDataMsg);
       return false;
@@ -838,12 +841,12 @@ async function setCPU(name) {
   toCenterInfo("Loading "+loader.msg+"…");
   
   try {
-    curr_cpu_info = await execFile(loader.loadPath);
+    loader.loaded_info = await execFile(loader.loadPath);
   } catch (e) {
     if (e === window.noDataFiles) is = null;
     else notifyError(() => { throw e; });
   }
-  let is = curr_cpu_info.instructions;
+  let is = loader.loaded_info.instructions;
   
   if (is === null) {
     loader.noData = true;
@@ -884,13 +887,11 @@ async function setCPU(name) {
     let refs = is.map(c=>c.ref);
     if (new Set(refs).size != refs.length) console.warn("Warning: non-unique refs in "+name);
     
-    
-    entries_all = entries_all.concat(is);
-    
-    unique(entries_all.map(c=>c.cpu).flat()).forEach(foundCPU => {
+    unique(is.map(c=>c.cpu).flat()).forEach(foundCPU => {
       if (!knownCpuMap[foundCPU]) console.warn("Warning: CPU not listed ahead-of-time: "+foundCPU);
     });
     
+    setCurrent();
     console.log("parsed "+loader.msg);
     clearCenterInfo();
     return true;

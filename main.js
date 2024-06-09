@@ -168,7 +168,7 @@ function group(list, name, order) {
 
 let id_counter = 0;
 function nextID() { return `autoid_${id_counter++}` }
-function makeTree2(joiner, desc, allInfo, defaultOpenSet, updated) {
+function makeTree(joiner, desc, allInfo, defaultOpenSet, updated) {
   let openSet = defaultOpenSet;
   let selectedSet = new Set();
   
@@ -380,7 +380,7 @@ async function newCPU() {
   let archs = unique(entries_ccpu.map(c=>c.archs).flat());
   let archGroups = group(archs.map(c => c.split("|")), 'all', curr_cpu_info.archOrder || {});
   query_archs = [...archs];
-  curr_archObj = makeTree2('|', 'Select extensions', archGroups, curr_cpu_info.archOpen || new Set(['']), (a, link) => {
+  curr_archObj = makeTree('|', 'Select extensions', archGroups, curr_cpu_info.archOpen || new Set(['']), (a, link) => {
     query_archs = a;
     updateSearch(link);
   });
@@ -391,7 +391,7 @@ async function newCPU() {
   let categories = unique(entries_ccpu.map(c=>c.categories).flat());
   let categoryGroups = group(categories.map(c => c.split("|")), 'all', curr_cpu_info.categoryOrder || {});
   query_categories = categories;
-  curr_categoryObj = makeTree2('|', 'Select category', categoryGroups, curr_cpu_info.categoryOpen || new Set(['']), (c, link) => {
+  curr_categoryObj = makeTree('|', 'Select category', categoryGroups, curr_cpu_info.categoryOpen || new Set(['']), (c, link) => {
     query_categories = c;
     updateSearch(link);
   });

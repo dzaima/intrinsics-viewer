@@ -180,3 +180,6 @@ export const categoryOrder = {
   'Fixed-point|Saturating add': 0,
   'Fixed-point|Saturating subtract': 1,
 };
+
+export const archDefault = ['v'];
+

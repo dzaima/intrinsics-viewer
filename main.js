@@ -310,8 +310,8 @@ async function newCPU() {
 
 async function newDefaultCPU() {
   await newCPU();
-  curr_archObj.deserialize(['']);
-  curr_categoryObj.deserialize(['']);
+  curr_archObj.deserialize(curr_cpu_info.archDefault || ['']);
+  curr_categoryObj.deserialize(curr_cpu_info.categoryDefault || ['']);
 }
 
 

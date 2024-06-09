@@ -290,4 +290,3 @@ export const categoryOrder = {
 };
 
 export const archOpen = new Set(['', 'SSE', 'AVX+AVX2']);
-export const categoryOpen = new Set(['']);

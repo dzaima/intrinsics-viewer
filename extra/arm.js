@@ -153,7 +153,6 @@ let res1 = [];
 
 export const instructions = res1;
 
-export const archOrder = {};
 export const categoryOrder = {
   'Logical|Shift': 0,
   'Logical|AND': 1,
@@ -167,6 +166,3 @@ export const categoryOrder = {
   'all|Logical': 1,
   'all|Vector manipulation': 2,
 };
-
-export const archOpen = new Set(['']);
-export const categoryOpen = new Set(['']);

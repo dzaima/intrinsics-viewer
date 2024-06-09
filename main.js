@@ -284,9 +284,9 @@ async function newCPU() {
   if (!await setCPU(cpu)) return false;
   
   let archs = unique(entries_ccpu.map(c=>c.archs).flat());
-  let archGroups = group(archs.map(c => c.split("|")), 'all', curr_cpu_info.archOrder);
+  let archGroups = group(archs.map(c => c.split("|")), 'all', curr_cpu_info.archOrder || {});
   query_archs = [...archs];
-  curr_archObj = makeTree2('|', archGroups, curr_cpu_info.archOpen, (a, link) => {
+  curr_archObj = makeTree2('|', archGroups, curr_cpu_info.archOpen || new Set(['']), (a, link) => {
     query_archs = a;
     updateSearch(link);
   });
@@ -295,9 +295,9 @@ async function newCPU() {
   
   
   let categories = unique(entries_ccpu.map(c=>c.categories).flat());
-  let categoryGroups = group(categories.map(c => c.split("|")), 'all', curr_cpu_info.categoryOrder);
+  let categoryGroups = group(categories.map(c => c.split("|")), 'all', curr_cpu_info.categoryOrder || {});
   query_categories = categories;
-  curr_categoryObj = makeTree2('|', categoryGroups, curr_cpu_info.categoryOpen, (c, link) => {
+  curr_categoryObj = makeTree2('|', categoryGroups, curr_cpu_info.categoryOpen || new Set(['']), (c, link) => {
     query_categories = c;
     updateSearch(link);
   });
@@ -822,7 +822,7 @@ async function setCPU(name) {
   let loader = knownCpuMap[curr_cpu_name];
   
   function setCurrent() {
-    curr_cpu_info = loader.loaded_info || {archOrder:{}, categoryOrder:{}, archOpen:new Set(), categoryOpen:new Set(), instructions:[]};
+    curr_cpu_info = loader.loaded_info || {instructions:[]};
     entries_ccpu = curr_cpu_info.instructions;
   }
   

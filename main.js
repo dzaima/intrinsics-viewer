@@ -82,6 +82,10 @@ async function loadFile(path) {
   let b = await f.arrayBuffer();
   return new TextDecoder().decode(b);
 }
+
+async function execFile(path) {
+  return await import(path);
+}
 function overloadedName(name) {
   return `Overloaded name: <span class="mono h-name">${mkcopy(name,name)}</span>`
 }
@@ -499,7 +503,7 @@ async function loadRVV() {
   let baseFile, rvvOps;
   try {
     baseFile = await loadFile("data/rvv-intrinsics-v8.json");
-    rvvOps = new Function(await loadFile("extra/rvv_ops.js"))();
+    rvvOps = await execFile("./extra/rvv_ops.js");
   } catch (e) {
     console.error(e);
     return null;

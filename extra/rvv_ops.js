@@ -1,7 +1,5 @@
 'use strict';
 
-const extra_test = false;
-
 function boring(c) {
   return `<span class="boring">${c}</span>`;
 }
@@ -1271,16 +1269,17 @@ function helper_code(s) {
 function helper_text(s) {
   return `<div style="font-family:sans-serif;white-space:normal">${cleanup(s).trim().replace(/.*/g,'<p>$&</p>')}</div>`;
 }
-return {
-initialized: () => {
+
+
+export function initialized() {
   if (extra_test) {
     for (let [k,v] of Object.entries(immArgMap)) {
       if (!v.used) console.warn(`unused immArgMap for ${k} → ${v}`);
     }
   }
-},
+}
 
-helper: (n, ...args) => {
+export function helper(n, ...args) {
 switch(n) {
 case 'clip': {
   let [t] = args;
@@ -1415,10 +1414,10 @@ case 'isQNaN': return helper_text(`Returns whether the argument is any quiet NaN
 case 'isSNaN': return helper_text(`Returns whether the argument is any signaling NaN.`);
 case 'isNaN': return helper_text(`Returns whether the argument is any NaN - that is, either signaling or quiet, with any payload and sign.`);
 
-}},
+}}
 
 
-oper: (o, v) => {
+export function oper(o, v) {
   let name = o.name;
   
   let ent = defs.find(c => c[0].test(name));
@@ -1609,4 +1608,4 @@ oper: (o, v) => {
     instrSearch: !instrArr? undefined : instrArr.map(c=>c[1]).join('\n').replace(/&lt;/g, '<'),
     instrHTML: !instrArr? undefined : instrArr.map(([i,c]) => i? c.replace(/\/\/.*/, boring) : boring(c)).join('\n'),
   };
-}};
+}

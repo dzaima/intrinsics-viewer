@@ -13,8 +13,13 @@ try {
 
 window.rvv_helper = (name, ...args) => {
   let prev_entry = curr_entry;
-  descPlaceEl.innerHTML = `<a class="rvv-helper-back">back</a><pre>${rvvOps.helper(name, ...args)}</pre>`;
-  descPlaceEl.getElementsByClassName('rvv-helper-back')[0].onclick = () => displayEnt(...prev_entry, false);
+  descPlaceEl.innerHTML = `<a href="!" class="rvv-helper-back">back</a><pre>${rvvOps.helper(name, ...args)}</pre>`;
+  let back = descPlaceEl.getElementsByClassName('rvv-helper-back')[0];
+  back.focus();
+  back.onclick = e => {
+    displayEnt(...prev_entry, false);
+    e.preventDefault();
+  }
 };
 
 let instrs = JSON.parse(baseFile);

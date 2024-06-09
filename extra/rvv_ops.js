@@ -1445,7 +1445,7 @@ export function oper(o, v) {
   let agnBaseT = (agn,base) => agnBase0(agn, baseeT);
   
   // helper function display
-  let h = (name, args='') => `<a onclick="rvv_helper('${name}',${args})">${name}</a>`;
+  let h = (name, args='') => `<a href="!" onclick="rvv_helper('${name}',${args});return false;">${name}</a>`;
   
   s = s.replace(/%M([=*\[\]])/g, (_,c) => `<span class="op-load">${c}</span>`); // memory ops
   s = s.replace(/RES{}/g, o.ret.type); // return type

@@ -8,7 +8,6 @@ let perPageMax = 50;
 intrinsic entry:
 {
   raw: whatever original form of the object,
-  cpu: ["CPU"],
   id: idCounter++,
   ref: "unique string within this CPU",
   
@@ -86,7 +85,8 @@ async function execFile(path) {
   return await import(path);
 }
 function overloadedName(name) {
-  return `Overloaded name: <span class="mono h-name">${mkcopy(name,name)}</span>`
+  let id = nextID();
+  return `<span id="${id}">Overloaded name: <span class="mono h-name">${mkcopy(name,name, `aria-labelledby=${id}`)}</span></span>`
 }
 
 
@@ -96,7 +96,7 @@ function unique(l) {
 
 
 
-function mkch(n, ch, {cl, id, attrs, onchange, anyclick, onclick, role, href, innerHTML}={}) {
+function mkch(n, ch, {cl, id, attrs, onchange, anyclick, onenter, onclick, role, href, innerHTML}={}) {
   let r = document.createElement(n);
   if (undefined!==ch) r.append(...ch);
   if (undefined!==id) r.id = id;
@@ -106,7 +106,10 @@ function mkch(n, ch, {cl, id, attrs, onchange, anyclick, onclick, role, href, in
     r.tabIndex = 0;
     r.onclick = e => anyclick(r);
     r.addEventListener('keydown', e => {
-      if (e.key=='Enter' || e.key==' ') {
+      if (undefined!==onenter && e.key=='Enter') {
+        onenter();
+        e.preventDefault();
+      } else if (e.key=='Enter' || e.key==' ') {
         e.preventDefault();
         anyclick(r);
       }
@@ -124,10 +127,24 @@ const mk = (n, named={}) => mkch(n, undefined, named);
 function docopy(text) {
   navigator.clipboard.writeText(text);
 }
-function mkcopy(content, text) {
+function anyclick_key(e, f) {
+  if (e.key=='Enter' || e.key==' ') {
+    e.preventDefault();
+    f();
+  }
+}
+function mkcopy(content, text, attrs='') {
   let hoverMessage = 'Click to copy';
-  if (typeof content === 'string') return `<span class="click-copy hover-base" onclick="docopy('${text}')"><span class="hover-text">${hoverMessage}</span>${content}</span>`;
-  return mkch('span', [mkch('span', [hoverMessage], {cl:'hover-text'}), content], {cl:['click-copy', 'hover-base'], anyclick: ()=>docopy(text)});
+  if (typeof content === 'string') {
+    return `<span class="click-copy hover-base" tabindex="0" onclick="docopy('${text}')" onkeydown="anyclick_key(event,()=>docopy('${text}'))" role="button" ${attrs}>
+      <span class="hover-text">${hoverMessage}</span>
+      ${content}
+    </span>`;
+  } else {
+    return mkch('span', [
+      mkch('span', [hoverMessage], {cl:'hover-text'}), content
+    ], {cl:['click-copy', 'hover-base'], anyclick: ()=>docopy(text), role: 'button'});
+  }
 }
 
 
@@ -149,7 +166,8 @@ function group(list, name, order) {
   }
 }
 
-let aria_owns_counter = 0;
+let id_counter = 0;
+function nextID() { return `autoid_${id_counter++}` }
 function makeTree2(joiner, desc, allInfo, defaultOpenSet, updated) {
   let openSet = defaultOpenSet;
   let selectedSet = new Set();
@@ -202,7 +220,7 @@ function makeTree2(joiner, desc, allInfo, defaultOpenSet, updated) {
   
   function mkPart(info, path) {
     let has_ch = !!info.ch;
-    let sub_id = has_ch? `sub_${aria_owns_counter++}` : undefined;
+    let sub_id = has_ch? nextID() : undefined;
     
     let children = has_ch? info.ch.map(ch => mkPart(ch, path===''? ch.name : path+joiner+ch.name)) : undefined;
     
@@ -223,6 +241,7 @@ function makeTree2(joiner, desc, allInfo, defaultOpenSet, updated) {
       onclick: has_ch? t => {
         setOpen(!isOpen());
       } : undefined,
+      attrs: {'aria-hidden': true},
     });
     
     let selectCheck = mk('input', {attrs: {type:'checkbox', tabindex: -1}, onchange: c => {
@@ -243,6 +262,7 @@ function makeTree2(joiner, desc, allInfo, defaultOpenSet, updated) {
     let main = mkch('span', [row], {role: 'treeitem', attrs: {
       'aria-owns': sub_id,
       'aria-expanded': openSet.has(path),
+      'aria-label': info.name,
       'tabindex': -1,
     }});
     
@@ -360,7 +380,7 @@ async function newCPU() {
   let archs = unique(entries_ccpu.map(c=>c.archs).flat());
   let archGroups = group(archs.map(c => c.split("|")), 'all', curr_cpu_info.archOrder || {});
   query_archs = [...archs];
-  curr_archObj = makeTree2('|', 'Select CPU', archGroups, curr_cpu_info.archOpen || new Set(['']), (a, link) => {
+  curr_archObj = makeTree2('|', 'Select extensions', archGroups, curr_cpu_info.archOpen || new Set(['']), (a, link) => {
     query_archs = a;
     updateSearch(link);
   });
@@ -431,8 +451,8 @@ function displayEnt(ins, fn, link = true) {
   
   let implTimes = fn.implTimes || ins.implTimes;
   
-  if (implInstr) text+= `<br>Instruction:<pre>${implInstr}</pre>`;
-  if (implDesc) text+= `<br>Operation:<pre class="operation">${implDesc}</pre>`;
+  if (implInstr) text+= `<br>Instruction:<pre tabindex="0">${implInstr}</pre>`;
+  if (implDesc) text+= `<br>Operation:<pre tabindex="0" class="operation">${implDesc}</pre>`;
   if (implTimes) text+= `<br>Performance:<table class="perf-table"></table>`;
   descPlaceEl.innerHTML = text;
   
@@ -454,7 +474,7 @@ function displayEnt(ins, fn, link = true) {
     }), ')'];
   }
   if (ins.variations && ins.variations.length) {
-    let mkvar = (fn, short) => mkch('span', short, {cl: ['mono', 'var-link'], anyclick: () => displayEnt(ins, fn)});
+    let mkvar = (fn, short) => mkch('span', short, {cl: ['mono', 'var-link'], anyclick: () => displayEnt(ins, fn), role: 'button'});
     descPlaceEl.insertAdjacentElement('afterBegin', mkch('span', [
       'Variations: ',
       ...ins.variationsIncl.flatMap((fn, i) => [i?', ':'', mkvar(fn, fn.short || "base")])
@@ -478,11 +498,15 @@ function toPage(page) {
   
   let pages = calcPages();
   
-  let makeBtn = (n) => {
-    let r = makePageBtn(n+1, 'To page '+(n+1), () => toPage(n));
-    if (page===n) {
+  let makeBtn = (i0) => {
+    let i1 = i0+1;
+    let r = makePageBtn(i1, `${page===i0? 'Page ' : 'To page '}${i1}${i1==pages? ' - last' : ''}`, () => toPage(i0));
+    if (page===i0) {
       r.classList.add('page-curr');
       r.setAttribute('aria-current', 'page');
+      r.setAttribute('role', 'none');
+    } else if (i1!=1 && i1!=pages) {
+      r.setAttribute('tabindex', -1);
     }
     return r;
   }
@@ -524,6 +548,11 @@ function toPage(page) {
           displayEnt(ins, cvar);
         }
       },
+      onenter: () => {
+        displayEnt(ins, cvar);
+        descPlaceEl.focus();
+      },
+      attrs: {'aria-label': `${cvar.name.replace(/__riscv_/g,'')}(${cvar.args.map(c=>c.type+' '+c.name).join(', ')})${cvar.ret.type? ' returns '+cvar.ret.type : ''}`},
     });
     return r;
   }));

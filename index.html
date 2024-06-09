@@ -18,7 +18,7 @@
       <div class="flex-horiz" style="padding: 0.2em;">
         <div id=options style="flex-basis: 25%">
           
-          <select id="cpu-list" onchange="newDefaultCPU(); updateLink();"></select>
+          <select id="cpu-list" onchange="newDefaultCPU(); updateLink();" aria-label="architecture"></select>
           <br>
           
           <div id="arch-list"></div>
@@ -31,12 +31,12 @@
           <div>
             <span class="flex-horiz" style="width: 100%; align-items: center; padding-bottom: 0.1em;" role="group">
               <span>Search in:</span>
-              <label class="flex-grow" style="text-align: center;"><input type="checkbox" onclick="updateSearch()" id="s-name" checked> intrinsic</label>
-              <label class="flex-grow" style="text-align: center;"><input type="checkbox" onclick="updateSearch()" id="s-desc" checked> description</label>
-              <label class="flex-grow" style="text-align: center;"><input type="checkbox" onclick="updateSearch()" id="s-inst" checked> instruction</label>
-              <label class="flex-grow" style="text-align: center;"><input type="checkbox" onclick="updateSearch()" id="s-oper" checked> operation</label>
-              <label class="flex-grow" style="text-align: center;"><input type="checkbox" onclick="updateSearch()" id="s-catg" checked> category</label>
-              <span style="flex-grow:2; text-align: right; min-width: 6em; width: min-content;"><span id="result-count">loading…</span></span>
+              <label class="flex-grow" style="text-align: center;"><input type="checkbox" onclick="updateSearch()" id="s-name" checked tabindex="-1"> intrinsic</label>
+              <label class="flex-grow" style="text-align: center;"><input type="checkbox" onclick="updateSearch()" id="s-desc" checked tabindex="-1"> description</label>
+              <label class="flex-grow" style="text-align: center;"><input type="checkbox" onclick="updateSearch()" id="s-inst" checked tabindex="-1"> instruction</label>
+              <label class="flex-grow" style="text-align: center;"><input type="checkbox" onclick="updateSearch()" id="s-oper" checked tabindex="-1"> operation</label>
+              <label class="flex-grow" style="text-align: center;"><input type="checkbox" onclick="updateSearch()" id="s-catg" checked tabindex="-1"> category</label>
+              <span style="flex-grow:2; text-align: right; min-width: 6em; width: min-content;"><span id="result-count"  tabindex="0">loading…</span></span>
             </span>
           </div>
           <div class="flex-horiz" style="width: 100%;" role="navigation" aria-label="pagination">
@@ -66,7 +66,7 @@
         </div>
       </div>
     </div>
-    <div id='desc-place' style="flex-grow: 1; flex-basis: 25%; padding-left: 0.5em; padding-top: 1em">
+    <div id='desc-place' style="flex-grow: 1; flex-basis: 25%; padding-left: 0.5em; padding-top: 1em" tabindex="0">
     </div>
   </div>
 </body>

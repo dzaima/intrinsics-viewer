@@ -1,8 +1,8 @@
-RVV_BASE_VER = v8
+RVV_BASE_VER = v9
 download: download-x86 download-arm download-riscv
 download-x86: data/intel_intrinsics-1.xml data/intel_perf2-1.js
 download-arm: data/arm_intrinsics-1.json data/arm_operations-1.json
-download-riscv: data/rvv-intrinsics-$(RVV_BASE_VER).json data/v-spec.html
+download-riscv: data/rvv-intrinsics-$(RVV_BASE_VER).json data/v-spec.html data/riscv-crypto-spec-vector.html
 
 data/intel_perf2-1.js:
 	mkdir -p data
@@ -27,3 +27,7 @@ data/rvv-intrinsics-$(RVV_BASE_VER).json:
 data/v-spec.html:
 	mkdir -p data
 	curl -L 'https://github.com/dzaima/riscv-v-spec/releases/download/v1/v-spec.html' > "$@"
+
+data/riscv-crypto-spec-vector.html:
+	mkdir -p data
+	curl -L 'https://github.com/dzaima/riscv-v-spec/releases/download/v1/riscv-crypto-spec-vector.html' > "$@"

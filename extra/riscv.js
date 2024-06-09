@@ -1,10 +1,11 @@
 'use strict';
 
 let vSpecFilePath = "data/v-spec.html";
+let vkSpecFilePath = "data/riscv-crypto-spec-vector.html";
 
 let baseFile, rvvOps;
 try {
-  baseFile = await loadFile("data/rvv-intrinsics-v8.json");
+  baseFile = await loadFile("data/rvv-intrinsics-v9.json");
   rvvOps = await execFile("./extra/rvv_ops.js");
 } catch (e) {
   console.error(e);
@@ -77,7 +78,15 @@ instrs.forEach(ins => {
   }
   c.categories = newOp.categories;
   if (c.overloaded) c.desc = `${overloadedName(c.overloaded)}<br>${c.desc}`;
-  if (c.specRef) c.desc = `<a target="_blank" href="${vSpecFilePath}#${newOp.specRef}">Specification</a><br>${c.desc}`;
+  if (c.specRef) {
+    let r = newOp.specRef;
+    let f = vSpecFilePath;
+    if (r.startsWith('vcrypto|')) {
+      r = r.substring(8);
+      f = vkSpecFilePath;
+    }
+    c.desc = `<a target="_blank" href="${f}#${r}">Specification</a><br>${c.desc}`;
+  }
   
 });
 
@@ -105,6 +114,10 @@ export const archOrder = {
   'all|v': 0,
   'all|Zvfh - f16': 1,
   'all|Zvfbfwma - bf16': 2,
+  'all|Zvfh': 3,
+  'all|Zvbb': 4,
+  'all|Zvbc': 5,
+  'all|Zvkg': 6,
 };
 export const categoryOrder = {
   'Arithmetic|Add': 0,

@@ -133,7 +133,22 @@ let immArgMap = {
   'vssra.vx':      ['vssra.vi', -1, 31],
   'vssrl.vx':      ['vssrl.vi', -1, 31],
   'vxor.vx':       ['vxor.vi'],
-}
+  'vwsll.vx':      ['vwsll.vi', -1, 31],
+  'vror.vx':       ['vror.vi', -1, 31],
+};
+
+let badArgNames = {'vs1':1, 'vs2':1, 'rs1':1, 'rs2':1};
+let nameRemapDefs = [
+  [/_vandn_/, 'op1', 'op2'],
+  [/_vbrev8?_/, 'op1'],
+  [/_vrev8_/, 'op1'],
+  [/_vc[lt]z_/, 'op1'],
+  [/_vcpop_v_/, 'op1'],
+  [/_vwsll_/, 'op1', 'shift'],
+  [/_vro[lr]_/, 'op1', 'amount'],
+  [/_vclmulh?_/, 'op1', 'op2'],
+];
+
 
 function opmap(fn) {
   let name = fn.name.split('_')[3];
@@ -155,6 +170,11 @@ function opmap(fn) {
   if (/geu?$/.test(name)) return '>=';
   if (/leu?$/.test(name)) return '<=';
   throw new Error("Unknown operator name in "+name);
+}
+function call_binop(fn, l, r) {
+  if (fn.name.includes('_vandn_')) return `(~${l}) & ${r}`;
+  
+  return `${l} ${opmap(fn)} ~${r}`;
 }
 const raise_invalid = "fflags[NV] = 1; // Invalid Operation FP flag";
 // in float comparison: ${fl? boring(`if (${nt}(op1[i]) || ${nt}(IDX{op2})) ${raise_invalid}`) : ''} RMELN{}
@@ -197,7 +217,7 @@ function mapn(f, l) {
     let t = l[i];
     if (t==='*' || t.test(name)) return l[i+1];
   }
-  throw new Error("didn't find in "+f.name);
+  throw new Error(`didn't find any of [${l.slice(0,5)}${l.length>5?',…':''}] in ${f.name}`);
 }
 function typeConvertCat(c) {
   let [rw, rq] = eparts(c.ret);
@@ -235,10 +255,10 @@ function red_op(fn, a, b) {
 
 let defs = [
 // same-width & widening float & integer add/sub/mul/div, integer and/or/xor
-[/_vf?w?(add|sub|mul|div|rem|and|or|xor)(s?u)?_[vw][vxf]_/, (f) => {
+[/_vf?w?(add|sub|mul|div|rem|andn?|or|xor)(s?u)?_[vw][vxf]_/, (f) => {
   let minew = Math.min(eparts(farg(f,'op1'))[0], eparts(farg(f,'op2'))[0]);
   
-  return `
+  return `${f.name.includes('_vandn')?'ARCH{Zvbb|Zvkb}':''}
   REF{${mapn(f,[
     /_v(add|sub)/,     '_vector_single_width_integer_add_and_subtract',
     /_vw(add|sub)/,    '_vector_widening_integer_addsubtract',
@@ -249,7 +269,8 @@ let defs = [
     /_vf(add|sub)/,    '_vector_single_width_floating_point_addsubtract_instructions',
     /_vfw(add|sub)/,   '_vector_widening_floating_point_addsubtract_instructions',
     /_vf(mul|div)/,    '_vector_single_width_floating_point_multiplydivide_instructions',
-    /_vfwmul/,         '_vector_widening_floating_point_multiply'])}}
+    /_vfwmul/,         '_vector_widening_floating_point_multiply',
+    /_vandn_/,         'vcrypto|insns-vandn'])}}
   CAT{${mapn(f,[
     /_vadd/,     'Integer|Add|Same-width',
     /_vsub/,     'Integer|Subtract|Same-width',
@@ -265,6 +286,7 @@ let defs = [
     /_vwmulu_/,  'Integer|Multiply|Widening unsigned',
     /_vwmulsu_/, 'Integer|Multiply|Widening signed*unsigned',
     /_vand_/,    'Bitwise|AND',
+    /_vandn_/,   'Bitwise|ANDN',
     /_vor_/,     'Bitwise|OR',
     /_vxor_/,    'Bitwise|XOR',
     /_vmul/,     'Integer|Multiply|Same-width',
@@ -280,7 +302,7 @@ let defs = [
   FRM{}
   RES{} res;
   for (size_t i = 0; i < vl; i++) {
-    res[i] = MASK{${owdq(f.ret, farg(f,'op1'), `op1[i]`)} ${opmap(f)} ${owdq(f.ret, farg(f,'op2'), `IDX{op2}`)}};
+    res[i] = MASK{${call_binop(f, owdq(f.ret, farg(f,'op1'), `op1[i]`), owdq(f.ret, farg(f,'op2'), `IDX{op2}`))}};
   }
   TAILLOOP{};
   return res;`
@@ -468,7 +490,7 @@ let defs = [
 // shift
 [/_vn?s(ll|ra|rl)_/, (f) => `
   REF{${f.name.includes('_vn')? '_vector_narrowing_integer_right_shift_instructions' : '_vector_single_width_shift_instructions'}}
-  CAT{Bitwise|${mapn(f,[/_vsl/,'Shift left', /_vn?sra/,'Shift right|arithmetic', /_vn?srl/,'Shift right|logical'])}${f.name.includes('_vn')? ' narrowing' : ''}}
+  CAT{Bitwise|${mapn(f,[/_vsl/,'Shift left|Same-width', /_vn?sra/,'Shift right|Arithmetic', /_vn?srl/,'Shift right|Logical'])}${f.name.includes('_vn')? ' narrowing' : ''}}
   INSTR{VLSET RES{}; BASE DST, R_op1, R_shift, MASK IMMALT{shift, FARG{op1}}}
   VLMAX{FARG{op1}}
   RES{} res;
@@ -1258,6 +1280,199 @@ let defs = [
     `for (size_t i = 0; i < count; i++) res[i${j==0? `` : j==1? ` + count` : ` + count*${j}`}] = v${j}[i];`
   ).join('\n')}`
 }],
+
+
+
+// vector crypto
+[/_vbrev_/, (f) => `
+  REF{vcrypto|insns-${f.name.split('_')[3]}}
+  ARCH{Zvbb|(self)}
+  CAT{Bitwise|Reverse|Bits in element}
+  INSTR{VLSET RES{}; BASE DST, R_op1, MASK}
+  VLMAX{RES{}}
+  RES{} res;
+  for (size_t i = 0; i < vl; i++) {
+    res[i] = MASK{bitwise_reverse(op1[i])};
+  }
+  TAILLOOP{};
+  return res;`
+],
+[/_vbrev8_/, (f) => { let [ew,lm] = vparts(f.ret); return `
+  REF{vcrypto|insns-${f.name.split('_')[3]}}
+  ARCH{Zvbb|Zvkb}
+  CAT{Bitwise|Reverse|Bits in bytes}
+  INSTR{VLSET RES{}; BASE DST, R_op1, MASK}
+  VLMAX{RES{}}
+  RES{} res;
+  for (size_t i = 0; i < vl; i++) {
+    MASKWEE{} RMELN{}
+    RESE{} x = op1[i];
+    RESE{} t = 0;
+    for (size_t j = 0; j < ${ew}; j += 8) {
+      t |= bitwise_reverse((uint8_t) (x>>j)) << j;
+    }
+    res[i] = t;
+  }
+  TAILLOOP{};
+  return res;`
+}],
+[/_vrev8_/, (f) => { let [ew,lm] = vparts(f.ret); return `
+  KEYW{bswap}
+  REF{vcrypto|insns-${f.name.split('_')[3]}}
+  ARCH{Zvbb|Zvkb}
+  CAT{Permutation|Reverse bytes}
+  INSTR{VLSET RES{}; BASE DST, R_op1, MASK}
+  VLMAX{RES{}}
+  RES{} res;
+  for (size_t i = 0; i < vl; i++) {
+    MASKWEE{} RMELN{}
+    RESE{} x = op1[i];
+    RESE{} t = 0;
+    for (size_t j = 0; j < ${ew/8}; j++) {
+      t = (t<<8) | ((x >> (j*8)) & 0xff);
+    }
+    res[i] = t;
+  }
+  TAILLOOP{};
+  return res;`
+}],
+[/_vc[lt]z_/, (f) => { let [ew,lm] = vparts(f.ret); let tr = f.name.includes('_vctz'); return `
+  REF{vcrypto|insns-${f.name.split('_')[3]}}
+  ARCH{Zvbb|(self)}
+  CAT{Bitwise|Count ${tr? 'trailing' : 'leading'} zeroes}
+  KEYW{${tr?'cttz; tzcnt':'ctlz; lzcnt'}}
+  INSTR{VLSET RES{}; BASE DST, R_op1, MASK}
+  VLMAX{RES{}}
+  RES{} res;
+  for (size_t i = 0; i < vl; i++) {
+    MASKWEE{} RMELN{}
+    RESE{} x = op1[i];
+    size_t pos = ${ew};
+    for (size_t j = 0; j < ${ew}; j++) {
+      if (((x >> ${tr?'j':`(${ew-1}-j)`}) & 1) != 0) {
+        pos = j;
+        break;
+      }
+    }
+    res[i] = pos;
+  }
+  TAILLOOP{};
+  return res;`
+}],
+[/_vcpop_v_/, (f) => { let [ew,lm] = vparts(f.ret); let tr = f.name.includes('_vctz'); return `
+  REF{vcrypto|insns-${f.name.split('_')[3]}}
+  ARCH{Zvbb|(self)}
+  CAT{Bitwise|Population count}
+  KEYW{popcnt; ctpop}
+  INSTR{VLSET RES{}; BASE DST, R_op1, MASK}
+  VLMAX{RES{}}
+  RES{} res;
+  for (size_t i = 0; i < vl; i++) {
+    MASKWEE{} RMELN{}
+    RESE{} x = op1[i];
+    size_t count = 0;
+    for (size_t j = 0; j < ${ew}; j++) {
+      count += (x >> j) & 1;
+    }
+    res[i] = count;
+  }
+  TAILLOOP{};
+  return res;`
+}],
+[/_vwsll_/, (f) => `
+  REF{vcrypto|insns-${f.name.split('_')[3]}}
+  ARCH{Zvbb|(self)}
+  CAT{Bitwise|Shift left|Widening}
+  INSTR{VLSET ${farg(f,'op1')}; BASE DST, R_op1, R_shift, MASK IMMALT{shift, FARG{op1}}}
+  VLMAX{FARG{op1}}
+  RES{} res;
+  for (size_t i = 0; i < vl; i++) {
+    res[i] = MASK{${owd(f.ret, farg(f,'shift'), 'op1[i]')} << (IDX{shift} & ${eparts(f.ret)[0]-1});}
+  }
+  TAILLOOP{};
+  return res;`
+],
+[/_vro[lr]_/, (f) => { let r = f.name.includes('_vror_'); let w = eparts(f.ret)[0]; return `
+  REF{vcrypto|insns-${f.name.split('_')[3]}}
+  ARCH{Zvbb|Zvkb}
+  CAT{Bitwise|Rotate|${r?'Right':'Left'}}
+  INSTR{VLSET RES{}; BASE DST, R_op1, R_amount, MASK IMMALT{amount, FARG{op1}}}
+  VLMAX{FARG{op1}}
+  RES{} res;
+  for (size_t i = 0; i < vl; i++) {
+    MASKWEE{} RMELN{}
+    RESE{} x = op1[i];
+    RESE{} a = IDX{amount} & ${w-1};
+    res[i] = a==0 ? x : (x ${r?'>>':'<<'} a) | (x ${r?'<<':'>>'} (${w} - a));
+  }
+  TAILLOOP{};
+  return res;`
+}],
+
+[/_vclmulh?_.*_u64/, (f) => { let hi = f.name.includes('clmulh_'); let ty = hi? 'uint128_t' : 'uint64_t'; return `
+  REF{vcrypto|insns-${f.name.split('_')[3]}}
+  ARCH{Zvbc}
+  CAT{Integer|Multiply|Carryless}
+  INSTR{VLSET RES{}; BASE DST, R_op1, R_op2, MASK}
+  VLMAX{FARG{op1}}
+  RES{} res;
+  for (size_t i = 0; i < vl; i++) {
+    MASKWEE{} RMELN{}
+    RESE{} x = IDX{op1};
+    RESE{} y = IDX{op2};
+    ${ty} r = 0;
+    for (size_t j = 0; j < 64; j++) {
+      if (((x >> j) & 1) != 0) {
+        r ^= ${owd(ty, 'uint64_t', 'y')} << j;
+      }
+    }
+    res[i] = r${hi? ' >> 64' : ''};
+  }
+  TAILLOOP{};
+  return res;`
+}],
+
+[/_vg(hsh|mul)_/, (f) => `
+  REF{vcrypto|insns-${f.name.split('_')[3]}}
+  ARCH{Zvkg}
+  CAT{Cryptography|GHASH|${f.name.includes('_vgmul_')? 'Multiply' : 'Add-Multiply'}}
+  OPER_UNDEF`
+],
+
+[/_vaes(ef|em|df|dm|kf1|kf2|z)_/, (f) => `
+  REF{vcrypto|insns-${f.name.split('_')[3]}}
+  ARCH{Zvkn - NIST|Zvkned}
+  CAT{Cryptography|AES|${mapn(f,[
+    /vaesef/, 'Encrypt final round',
+    /vaesem/, 'Encrypt middle round',
+    /vaesdf/, 'Decrypt final round',
+    /vaesdm/, 'Decrypt middle round',
+    /vaeskf1/, 'Generate AES-128 forward KeySchedule',
+    /vaeskf2/, 'Generate AES-256 forward KeySchedule',
+    /vaesz/, 'Round zero',
+  ])}}
+  OPER_UNDEF`
+],
+[/vsha2(ms|c[hl])/, (f) => { let w = eparts(f.ret)[0]; let ms = f.name.includes('_vsha2ms_'); return `
+  REF{vcrypto|insns-${f.name.split('_')[3].replace(/[hl]$/,'')}}
+  ARCH{Zvkn - NIST|Zvknhb|${w==64? '(self)' : 'Zvknha'}}
+  KEYW{sha${w*8}; sha-${w*8}}
+  CAT{Cryptography|SHA-2|${ms? 'Message schedule' : 'Compression'}|SHA-${w*8}}
+  OPER_UNDEF`
+}],
+
+[/_vsm4[kr]_/, (f) => `
+  REF{vcrypto|insns-${f.name.split('_')[3]}}
+  ARCH{Zvks - ShangMi|Zvksed}
+  CAT{Cryptography|ShangMi|SM4}
+  OPER_UNDEF`
+],
+[/_vsm3(me|c)_/, (f) => `
+  REF{vcrypto|insns-${f.name.split('_')[3]}}
+  ARCH{Zvks - ShangMi|Zvksh}
+  CAT{Cryptography|ShangMi|SM3}
+  OPER_UNDEF`
+],
 ];
 
 let miniHTMLEscape = (c) => c.replace(/&/g, '&amp;').replace(/<(?!\/?(span|code|!--))/g, '&lt;'); // allow intentional inline HTML usage, but escape most things
@@ -1425,6 +1640,17 @@ case 'isNaN': return helper_text(`Returns whether the argument is any NaN - that
 
 export function oper(o, v) {
   let name = o.name;
+  
+  let nameRemap = nameRemapDefs.find(c => c[0].test(name));
+  if (nameRemap && !o.argsRemapped) {
+    o.argsRemapped = true;
+    let i = 1;
+    o.args.forEach(c => {
+      if (badArgNames[c.name]) c.name = nameRemap[i++];
+    });
+    
+    if (i != nameRemap.length) throw new Error(`didn't use all args for ${name}: ${i}/${nameRemap.length}`);
+  }
   
   let ent = defs.find(c => c[0].test(name));
   

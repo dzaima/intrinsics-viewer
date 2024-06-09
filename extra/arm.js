@@ -167,3 +167,6 @@ export const categoryOrder = {
   'all|Logical': 1,
   'all|Vector manipulation': 2,
 };
+
+export const archOpen = new Set(['']);
+export const categoryOpen = new Set(['']);

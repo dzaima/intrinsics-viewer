@@ -287,30 +287,24 @@ async function newCPU() {
   entries_ccpu = entries_all.filter(c=>c.cpu.includes(cpu));
   
   let archs = unique(entries_ccpu.map(c=>c.archs).flat());
-  let orderArch = curr_cpu_info.archOrder;
-  let orderCategory = curr_cpu_info.categoryOrder;
-  let openByDefault = new Set([
-    '',
-    'SSE', 'AVX+AVX2',
-  ]);
-  archListEl.textContent = '';
-  let archGroups = group(archs.map(c => c.split("|")), 'all', orderArch);
+  let archGroups = group(archs.map(c => c.split("|")), 'all', curr_cpu_info.archOrder);
   query_archs = [...archs];
-  curr_archObj = makeTree2('|', archGroups, openByDefault, (a, link) => {
+  curr_archObj = makeTree2('|', archGroups, curr_cpu_info.archOpen, (a, link) => {
     query_archs = a;
     updateSearch(link);
   });
+  archListEl.textContent = '';
   if (archs.length > 1) archListEl.append(curr_archObj.obj);
   
   
   let categories = unique(entries_ccpu.map(c=>c.categories).flat());
-  categoryListEl.textContent = '';
-  let categoryGroups = group(categories.map(c => c.split("|")), 'all', orderCategory);
+  let categoryGroups = group(categories.map(c => c.split("|")), 'all', curr_cpu_info.categoryOrder);
   query_categories = categories;
-  curr_categoryObj = makeTree2('|', categoryGroups, openByDefault, (c, link) => {
+  curr_categoryObj = makeTree2('|', categoryGroups, curr_cpu_info.categoryOpen, (c, link) => {
     query_categories = c;
     updateSearch(link);
   });
+  categoryListEl.textContent = '';
   categoryListEl.append(curr_categoryObj.obj);
   
   updateSearch(false);

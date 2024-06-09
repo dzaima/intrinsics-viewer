@@ -288,3 +288,6 @@ export const categoryOrder = {
   'other|AMX': 1,
   'other|KNCNI': 2,
 };
+
+export const archOpen = new Set(['', 'SSE', 'AVX+AVX2']);
+export const categoryOpen = new Set(['']);

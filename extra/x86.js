@@ -263,6 +263,9 @@ export const archOrder = {
   'SSE|SSE2': 2,
   'SSE|SSE3': 3,
   'SSE|SSSE3': 4,
+  'SSE|SSE4.1': 5,
+  'SSE|SSE4.2': 6,
+  'SSE|SSE+': 7,
   
   'AVX512|AVX512F': 0,
   'AVX512|AVX512CD': 1,

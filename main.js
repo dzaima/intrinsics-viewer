@@ -98,7 +98,10 @@ function unique(l) {
 
 function mkch(n, ch, {cl, id, attrs, onchange, anyclick, onenter, onclick, role, href, innerHTML}={}) {
   let r = document.createElement(n);
-  if (undefined!==ch) r.append(...ch);
+  if (undefined!==ch) {
+    if (!Array.isArray(ch)) throw new Error('non-list ch');
+    r.append(...ch);
+  }
   if (undefined!==id) r.id = id;
   if (undefined!==onchange) r.addEventListener('change', () => onchange(r));
   if (undefined!==onclick)  r.addEventListener('click',  () => onclick(r));
@@ -470,11 +473,11 @@ function displayEnt(ins, fn, link = true) {
     desc = [mkRetLine(fn), ' ', mkFnLine(fn, copyWrap)];
   } else {
     desc = [mkRetLine(fn), ' ', copyWrap(hl('name',fn.name)), '(\n', ...fn.args.map((a,i)=>{
-      return mkch('span', ['  ', hl('type',a.type), ' '+a.name, ','.repeat(i!=fn.args.length-1), a.info? hl('comm',mkch('span', [], {innerHTML: ' // '+a.info})) : '', '\n']);
+      return mkch('span', ['  ', hl('type',a.type), ' '+a.name, ','.repeat(i!=fn.args.length-1), a.info? hl('comm',mk('span', {innerHTML: ' // '+a.info})) : '', '\n']);
     }), ')'];
   }
   if (ins.variations && ins.variations.length) {
-    let mkvar = (fn, short) => mkch('span', short, {cl: ['mono', 'var-link'], anyclick: () => displayEnt(ins, fn), role: 'button'});
+    let mkvar = (fn, short) => mkch('span', [short], {cl: ['mono', 'var-link'], anyclick: () => displayEnt(ins, fn), role: 'button'});
     descPlaceEl.insertAdjacentElement('afterBegin', mkch('span', [
       'Variations: ',
       ...ins.variationsIncl.flatMap((fn, i) => [i?', ':'', mkvar(fn, fn.short || "base")])
@@ -914,9 +917,13 @@ async function loadLink() {
 
 let knownCpuMap = Object.fromEntries(knownCPUs);
 
-function toCenterInfo(text) {
+function toCenterInfo(val) {
   resultListEl.textContent = '';
-  centerInfoEl.textContent = text;
+  if (val instanceof Element) {
+    centerInfoEl.textContent = '';
+    centerInfoEl.append(val);
+  }
+  else centerInfoEl.textContent = val;
 }
 function clearCenterInfo() {
   centerInfoEl.textContent = '';
@@ -1012,7 +1019,7 @@ async function setCPU(name) {
     
     await loadLink();
   } catch (e) {
-    document.getElementById('search-table').insertAdjacentElement('afterEnd', mkch('span', "Failed to load:\n"+e.message+'\n'+e.stack, {cl: ['mono','code-ws']}));
+    toCenterInfo(mkch('span', ["Failed to load:\n"+e.message+'\n'+e.stack], {cl: ['mono','code-ws'], attrs: {style: 'text-align:left; display:block;'}}));
     throw e;
   }
 })();

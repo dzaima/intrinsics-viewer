@@ -172,7 +172,7 @@ function opmap(fn) {
   throw new Error("Unknown operator name in "+name);
 }
 function call_binop(fn, l, r) {
-  if (fn.name.includes('_vandn_')) return `(~${l}) & ${r}`;
+  if (fn.name.includes('_vandn_')) return `${l} & ~${r}`;
   
   return `${l} ${opmap(fn)} ${r}`;
 }

@@ -174,7 +174,7 @@ function opmap(fn) {
 function call_binop(fn, l, r) {
   if (fn.name.includes('_vandn_')) return `(~${l}) & ${r}`;
   
-  return `${l} ${opmap(fn)} ~${r}`;
+  return `${l} ${opmap(fn)} ${r}`;
 }
 const raise_invalid = "fflags[NV] = 1; // Invalid Operation FP flag";
 // in float comparison: ${fl? boring(`if (${nt}(op1[i]) || ${nt}(IDX{op2})) ${raise_invalid}`) : ''} RMELN{}

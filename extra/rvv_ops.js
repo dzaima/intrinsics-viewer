@@ -489,6 +489,7 @@ let defs = [
 
 // shift
 [/_vn?s(ll|ra|rl)_/, (f) => `
+  KEYW{${mapn(f,[/_vsl/,'shl', /_vn?sra/,'sar', /_vn?srl/,'shr'])}}
   REF{${f.name.includes('_vn')? '_vector_narrowing_integer_right_shift_instructions' : '_vector_single_width_shift_instructions'}}
   CAT{Bitwise|${mapn(f,[/_vsl/,'Shift left|Same-width', /_vn?sra/,'Shift right|Arithmetic', /_vn?srl/,'Shift right|Logical'])}${f.name.includes('_vn')? ' narrowing' : ''}}
   INSTR{VLSET RES{}; BASE DST, R_op1, R_shift, MASK IMMALT{shift, FARG{op1}}}
@@ -995,7 +996,11 @@ let defs = [
     /_vncvt/, '_vector_narrowing_integer_right_shift_instructions',
     /__riscv_(.*)bf16_/, ''])}}
   CAT{${f.name.includes('_vsext')? 'Integer|Sign-extend' : f.name.includes('_vzext')? 'Integer|Zero-extend' : typeConvertCat(f)}}
-  INSTR{VLSET ${f.name.includes('ext_') || /_vf?ncvt/.test(f.name)? 'RES{}' : farg(f,op)}; FRMI0{}; BASE DST, R_${op}, MASK${f.name.includes('vncvt_x_x_w')?` // == vnsrl.wi DST, R_${op}, 0`:``}; FRMI1{}}
+  INSTR{VLSET ${f.name.includes('ext_') || /_vf?ncvt/.test(f.name)? 'RES{}' : farg(f,op)}; FRMI0{}; BASE DST, R_${op}, MASK${mapn(f,[
+    /vncvt_x_x_w/, ` // == vnsrl.wx DST, R_${op}, zero, MASK`,
+    /vwcvt/, ` // == vwadd${f.name.includes('vwcvtu')?'u':''}.vx DST, R_${op}, zero, MASK`,
+    "*", ``,
+  ])}; FRMI1{}}
   VLMAX{${farg(f,op)}}
   FRM{}${'' /* TODO force-add local rounding mode for dynamic? */}
   ${f.name.includes('_rtz_')?`local_rounding_mode = RTZ; // Round towards zero`:``} RMELN{}
@@ -1380,6 +1385,7 @@ let defs = [
   return res;`
 }],
 [/_vwsll_/, (f) => `
+  KEYW{shl}
   REF{vcrypto|insns-${f.name.split('_')[3]}}
   ARCH{Zvbb|(self)}
   CAT{Bitwise|Shift left|Widening}
@@ -1716,7 +1722,7 @@ export function oper(o, v) {
       if (sh && vparts(sh)[0]-1 <= nv[2]) return ` // or ${nv[0]} if ${r} is constant`;
       return ` // or ${nv[0]} if constant ${nv[1]==-1? `` : `${nv[1]===undefined? -16 : nv[1]} ≤ `}${r} ≤ ${nv[2]||15}`;
     })
-    all = all.replace(/, MASK/, () => mask? ', v0.t' : ''); // mask argument if policy asks for it
+    all = all.replace(/, MASK/g, () => mask? ', v0.t' : ''); // mask argument if policy asks for it
     all = all.replace(/\bR_(\w+)\b/g, (_,c) => { let t = farg(fn,c)[0]; return (t=='v'? 'v' : t=='f'? 'f' : 'x')+'['+c+']'; }); // argument registers
     all = all.replace(/\bDST\b/g, basev? `v[${basev}]` : `vd`); // destination register
     return [1, all];

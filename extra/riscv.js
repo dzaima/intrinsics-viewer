@@ -5,7 +5,7 @@ let vkSpecFilePath = "data/riscv-crypto-spec-vector.html";
 
 let baseFile, rvvOps;
 try {
-  baseFile = await loadFile("data/rvv-intrinsics-v9.json");
+  baseFile = await loadFile("data/rvv-intrinsics-v10.json");
   rvvOps = await execFile("./extra/rvv_ops.js");
 } catch (e) {
   console.error(e);

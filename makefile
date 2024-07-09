@@ -1,4 +1,4 @@
-RVV_BASE_VER = v9
+RVV_BASE_VER = v10
 download: download-x86 download-arm download-riscv
 download-x86: data/intel_intrinsics-1.xml data/intel_perf2-1.js
 download-arm: data/arm_intrinsics-1.json data/arm_operations-1.json

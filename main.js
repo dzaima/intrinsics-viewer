@@ -930,25 +930,22 @@ function clearCenterInfo() {
 }
 
 window.noDataFiles = '(no data file message)';
-async function setCPU(name) {
+function setCPU(name) {
   curr_cpu_name = name;
+  entries_ccpu = undefined;
   let loader = knownCpuMap[curr_cpu_name];
-  
-  function setCurrent() {
-    curr_cpu_info = loader.loaded_info || {instructions:[]};
-    entries_ccpu = curr_cpu_info.instructions(name);
+  if (!loader.promise) loader.promise = setCPU0(loader, name);
+  return loader.promise.then(ok => {
+    loader.promise = undefined;
+    return ok;
+  });
+}
+async function setCPU0(loader, name) {
+  let noDataMsg = "Data files for "+name+" not available";
+  if (loader.noData) {
+    toCenterInfo(noDataMsg);
+    return false;
   }
-  
-  let noDataMsg = "Data files for CPU "+name+" not available";
-  if (loader.started) {
-    setCurrent();
-    if (loader.noData) {
-      toCenterInfo(noDataMsg);
-      return false;
-    }
-    return true;
-  }
-  loader.started = true;
   console.log("parsing "+loader.msg);
   resultCountEl.textContent = "loading…";
   toCenterInfo("Loading "+loader.msg+"…");
@@ -964,7 +961,9 @@ async function setCPU(name) {
       notifyError(() => { throw e; });
     }
   }
-  setCurrent();
+  
+  curr_cpu_info = loader.loaded_info || {instructions:[]};
+  let entries = entries_ccpu = curr_cpu_info.instructions(name);
   
   const searchStr = c => c && c.length? c.toLowerCase().replace(/&lt;/g, '<').replace(/overloaded name:|<\/?[a-z][^>]*>/g, '') : undefined; // very crappy HTML filter, but it's all on known data and only for search
   function prepType(t) {
@@ -975,7 +974,7 @@ async function setCPU(name) {
     t.typeSearch = searchStr(t.type);
     t.nameSearch = searchStr(t.name);
   }
-  entries_ccpu.forEach(ins => {
+  entries.forEach(ins => {
     if (ins.archs.length==0 || ins.categories.length==0) { console.warn("No categories or architectures for "+ins.name); }
     let variationsExcl = ins.variations || [];
     ins.variationsIncl = ins.toVar? variationsExcl : [ins, ...variationsExcl];
@@ -995,13 +994,13 @@ async function setCPU(name) {
   });
   
   if (extra_test) {
-    let badEntry = entries_ccpu.find(c => !c.name || !c.ret.type || c.args.some(c => !c.type || !c.name));
+    let badEntry = entries.find(c => !c.name || !c.ret.type || c.args.some(c => !c.type || !c.name));
     if (badEntry) console.warn("Warning: bad entry present: "+badEntry.name);
     
-    let refs = entries_ccpu.map(c=>c.ref);
+    let refs = entries.map(c=>c.ref);
     if (new Set(refs).size != refs.length) console.warn("Warning: non-unique refs in "+name);
     
-    unique(entries_ccpu.map(c=>c.cpu).flat()).forEach(foundCPU => {
+    unique(entries.map(c=>c.cpu).flat()).forEach(foundCPU => {
       if (!knownCpuMap[foundCPU]) console.warn("Warning: CPU not listed ahead-of-time: "+foundCPU);
     });
   }

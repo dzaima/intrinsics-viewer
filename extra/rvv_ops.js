@@ -678,10 +678,11 @@ let defs = [
 }],
 
 // saturating add/sub
-[/_vs(add|sub)u?_v[vx]_/, (f) => { let rt=tshort(f.ret); let u=rt[0]=='u'?'u':''; return `
+[/_vs(add|sub)u?_v[vx]_/, (f) => { let rt=tshort(f.ret); let u=rt[0]=='u'?'u':''; let add=f.name.includes('_vsadd'); return `
+  KEYW{${add?'add':'sub'}s; q${add?'add':'sub'}}
   REF{_vector_single_width_saturating_add_and_subtract}
-  CAT{Fixed-point|Saturating ${f.name.includes('_vsadd')? 'add' : 'subtract'}|${/u_v[vx]_/.test(f.name)? 'Unsigned' : 'Signed'}}
-  CAT{Integer|${f.name.includes('_vsadd')? 'Add' : 'Subtract'}|Saturating ${/u_v[vx]_/.test(f.name)? 'unsigned' : 'signed'}}
+  CAT{Fixed-point|Saturating ${add? 'add' : 'subtract'}|${/u_v[vx]_/.test(f.name)? 'Unsigned' : 'Signed'}}
+  CAT{Integer|${add? 'Add' : 'Subtract'}|Saturating ${/u_v[vx]_/.test(f.name)? 'unsigned' : 'signed'}}
   INSTR{VLSET RES{}; BASE DST, R_op1, R_op2, MASK IMMALT{op2}}
   VLMAX{RES{}}
   RES{} res;

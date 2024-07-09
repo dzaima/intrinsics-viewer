@@ -966,7 +966,7 @@ async function setCPU(name) {
   }
   setCurrent();
   
-  const searchStr = c => c && c.length? c.toLowerCase().replace(/&lt;/g, '<').replace(/overloaded name:|<asd\/?[a-z][^>]*>/g, '') : undefined; // very crappy HTML filter, but it's all on known data and only for search
+  const searchStr = c => c && c.length? c.toLowerCase().replace(/&lt;/g, '<').replace(/overloaded name:|<\/?[a-z][^>]*>/g, '') : undefined; // very crappy HTML filter, but it's all on known data and only for search
   function prepType(t) {
     let c = t.type;
     c = c.replace(/ +(\**) *$/, "$1");

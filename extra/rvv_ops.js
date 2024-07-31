@@ -1748,7 +1748,12 @@ export function oper(o, v) {
       if (o.name.includes('vfwmaccbf16')) archs = ['Zvfbfwma - bf16|(self)'];
       else archs = ['Zvfbfwma - bf16|Zvfbfmin'];
     } else if (all_types.some(c => /float16/.test(c))) {
-      if (o.name.includes('vfwcvt_f_f_v_') || o.name.includes('vfncvt_f_f_w_')) archs = ['Zvfh - f16|Zvfhmin'];
+      if (
+        o.name.includes('vfwcvt_f_f_v_')
+        || o.name.includes('vfncvt_f_f_w_')
+        || categories.some(c => c.startsWith('Memory'))
+        || categories.some(c => c.startsWith('Permutation')) && !all_types.some(c => c=='float16_t')
+      ) archs = ['Zvfh - f16|Zvfhmin'];
       else archs = ['Zvfh - f16|(self)'];
     } else {
       archs = ['v'];

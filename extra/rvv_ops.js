@@ -961,7 +961,7 @@ let defs = [
     /_vnot_/,        ['Bitwise|NOT', '_vector_bitwise_logical_instructions'],
     /_vneg_/,        ['Integer|Negate', '_vector_single_width_integer_add_and_subtract'],
     /_vmv_v_v_[iu]/, ['Permutation|Move', '_vector_integer_move_instructions'],
-    /_vfneg_/,       ['Float|Negate', '_vector_single_width_floating_point_addsubtract_instructions'],
+    /_vfneg_/,       ['Float|Negate', '_vector_floating_point_sign_injection_instructions'],
     /_vfsqrt_/,      ['Float|Square root', '_vector_floating_point_square_root_instruction'],
     /_vfrsqrt7_/,    ['Float|Estimate reciprocal square-root', '_vector_floating_point_reciprocal_square_root_estimate_instruction'],
     /_vfrec7_/,      ['Float|Estimate reciprocal', '_vector_floating_point_reciprocal_estimate_instruction'],

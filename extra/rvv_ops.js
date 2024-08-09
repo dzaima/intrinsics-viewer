@@ -1743,17 +1743,18 @@ export function oper(o, v) {
   s = s.replace(/^ *CAT{(.*)}\n/mg, (_,c) => { categories.push(c.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>')); return ''; });
   
   if (!archs) {
-    let all_types = [...o.args.map(c=>c.type), o.ret.type]
-    if (all_types.some(c => /bfloat16|__bf16/.test(c))) {
+    let newFloat = () => /vf[nw]cvt/.test(o.name)? 'new' : 'general';
+    let allTypes = [...o.args.map(c=>c.type), o.ret.type]
+    if (allTypes.some(c => /bfloat16|__bf16/.test(c))) {
       if (o.name.includes('vfwmaccbf16')) archs = ['Zvfbfwma - bf16|(self)'];
-      else archs = ['Zvfbfwma - bf16|Zvfbfmin'];
-    } else if (all_types.some(c => /float16/.test(c))) {
+      else archs = ['Zvfbfwma - bf16|Zvfbfmin|' + newFloat()];
+    } else if (allTypes.some(c => /float16/.test(c))) {
       if (
         o.name.includes('vfwcvt_f_f_v_')
         || o.name.includes('vfncvt_f_f_w_')
         || categories.some(c => c.startsWith('Memory'))
-        || categories.some(c => c.startsWith('Permutation')) && !all_types.some(c => c=='float16_t')
-      ) archs = ['Zvfh - f16|Zvfhmin'];
+        || categories.some(c => c.startsWith('Permutation')) && !allTypes.some(c => c=='float16_t')
+      ) archs = ['Zvfh - f16|Zvfhmin|' + newFloat()];
       else archs = ['Zvfh - f16|(self)'];
     } else {
       archs = ['v'];

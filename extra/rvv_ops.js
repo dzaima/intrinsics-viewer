@@ -364,7 +364,7 @@ let defs = [
 [/vl(|s|[ou]x)seg\dei?\d+_/, (f) => { let [x,vt] = xparts(f.ret); return `
   REF{sec-aos}
   CAT{${loadStoreCat(f)}}
-  INSTR{VLSET RES{}; BASE DST, (R_base)${hasarg(f,'bindex')?', R_bindex':''}${hasarg(f,'bstride')?', R_bstride':''}, MASK}
+  INSTR{VLSET RES{} ${hasarg(f,'bindex')?'':'RATIO'}; BASE DST, (R_base)${hasarg(f,'bindex')?', R_bindex':''}${hasarg(f,'bstride')?', R_bstride':''}, MASK}
   VLMAX{${vt}}
   ${mem_align_comment(f,1)}
   RES{} res;
@@ -382,7 +382,7 @@ let defs = [
 [/vs(|s|[ou]x)seg\dei?\d+_/, (f) => { let [x,vt] = xparts(farg(f,'v_tuple')); return `
   REF{sec-aos}
   CAT{${loadStoreCat(f)}}
-  INSTR{VLSET FARG{v_tuple}; BASE R_v_tuple, (R_base)${hasarg(f,'bindex')?', R_bindex':''}${hasarg(f,'bstride')?', R_bstride':''}, MASK}
+  INSTR{VLSET FARG{v_tuple} ${hasarg(f,'bindex')?'':'RATIO'}; BASE R_v_tuple, (R_base)${hasarg(f,'bindex')?', R_bindex':''}${hasarg(f,'bstride')?', R_bstride':''}, MASK}
   VLMAX{${vt}}
   ${mem_align_comment(f,0)}
   for (int o = 0; o < ${x}; o++) {
@@ -396,7 +396,7 @@ let defs = [
 [/vlseg\de\d+ff_/, (f) => { let [x,vt] = xparts(f.ret); return `
   REF{sec-aos}
   CAT{Memory|Segment|Fault-only-first load}
-  INSTR{VLSET RES{}; BASE DST, (R_base), MASK; csrr R_new_vl, vl // or used as vl directly}
+  INSTR{VLSET RES{} RATIO; BASE DST, (R_base), MASK; csrr R_new_vl, vl // or used as vl directly}
   VLMAX{${vt}}
   ${mem_align_comment(f,1)}
   RES{} res;
@@ -424,7 +424,7 @@ let defs = [
     /_vls/, '_vector_strided_instructions',
     /_vl[ou]/, '_vector_indexed_instructions'])}}
   CAT{${loadStoreCat(f)}}
-  INSTR{VLSET RES{}; BASE DST, (R_base)${hasarg(f,'bindex')?', R_bindex':''}${hasarg(f,'bstride')?', R_bstride':''}, MASK}
+  INSTR{VLSET RES{} ${/_vl[es]/.test(f.name)?'RATIO':''}; BASE DST, (R_base)${hasarg(f,'bindex')?', R_bindex':''}${hasarg(f,'bstride')?', R_bstride':''}, MASK}
   VLMAX{RES{}}
   ${mem_align_comment(f,1)}
   RES{} res;
@@ -442,7 +442,7 @@ let defs = [
     /_vss/, '_vector_strided_instructions',
     /_vs[ou]/, '_vector_indexed_instructions'])}}
   CAT{${loadStoreCat(f)}}
-  INSTR{VLSET FARG{value}; BASE R_value, (R_base)${hasarg(f,'bindex')?', R_bindex':''}${hasarg(f,'bstride')?', R_bstride':''}, MASK}
+  INSTR{VLSET FARG{value} ${/_vs[es]/.test(f.name)?'RATIO':''}; BASE R_value, (R_base)${hasarg(f,'bindex')?', R_bindex':''}${hasarg(f,'bstride')?', R_bstride':''}, MASK}
   VLMAX{FARG{value}}
   ${mem_align_comment(f,0)}
   ${mem_loop(f)}
@@ -470,7 +470,7 @@ let defs = [
 [/_vle\d+ff_v/, (f) => `
   REF{_unit_stride_fault_only_first_loads}
   CAT{Memory|Fault-only-first load}
-  INSTR{VLSET RES{}; BASE DST, (R_base), MASK; csrr R_new_vl, vl // or used as vl directly}
+  INSTR{VLSET RES{} RATIO; BASE DST, (R_base), MASK; csrr R_new_vl, vl // or used as vl directly}
   VLMAX{RES{}}
   ${mem_align_comment(f,1)}
   RES{} res;
@@ -1189,7 +1189,7 @@ let defs = [
   REF{sec-vector-config}
   DESC{Returns a number less than or equal to <code>avl</code>, specifying how many elements of the given type should be processed.}
   CAT{Initialize|Set specific vl}
-  INSTR{VLSET ${t}}
+  INSTR{VLSET ${t} RATIO}
   vlmax = VLMAXG{${t}};
   if (avl <= vlmax) {
     return avl;
@@ -1203,7 +1203,7 @@ let defs = [
   REF{sec-vector-config}
   DESC{Returns the maximum number of elements of the specified type to process.}
   CAT{Initialize|Set max vl}
-  INSTR{VLSET ${t}}
+  INSTR{VLSET ${t} RATIO}
   return VLMAXG{${t}};`
 }],
 [/_vlmul_ext/, `
@@ -1684,7 +1684,7 @@ export function oper(o, v) {
   s = s.replace(/RES{}/g, o.ret.type); // return type
   s = s.replace(/RESE{}/g, eltype(o.ret)); // result element
   s = s.replace(/FARG{(.*?)}/g, (_,c) => farg(fn,c)); // find argument with given name
-  s = s.replace(/VLMAXBG{}/g, c => { let b = +o.name.split('_b')[1]; return `vint8m${b<8? 8/b : 'f'+(b/8)}_t`; });
+  s = s.replace(/VLMAXBG{}/g, c => { let b = +o.name.split('_b')[1]; return `vint8m${b<8? 8/b : 'f'+(b/8)}_t RATIO`; });
   s = s.replace(/VLMAXB{}/g, c => {
     let b = +o.name.split('_b')[1];
     let t = `vint8m${b<8? 8/b : 'f'+(b/8)}_t`;
@@ -1708,10 +1708,13 @@ export function oper(o, v) {
     let post;
     let test = (p) => all.startsWith(p)? (post=all.slice(p.length), 1) : 0;
     if (test('VLSET ')) { // automated vlseti generation from intrinsic name & given type
-      let [ew,lm] = vparts(post);
+      let [type, extra] = post.split(' ');
+      let comment = '';
+      if (extra === 'RATIO') comment = ' // or any with this SEW÷LMUL';
+      let [ew,lm] = vparts(type);
       let setter = fn.name.includes('_vsetvl');
       let vl = setter? (hasarg(fn,'avl')? 'x[avl]' : 'zero') : hasarg(fn,'vl')? 'x[vl]' : '0';
-      return [0, `vset${vl==='0'?'i':''}vli ${setter? 'xd' : 'zero'}, ${vl}, e${ew}, m${lm<1? 'f'+(1/lm) : lm}, ${tail?'ta':'tu'}, ${mask==2?'mu':'ma'}`];
+      return [0, `vset${vl==='0'?'i':''}vli ${setter? 'xd' : 'zero'}, ${vl}, e${ew}, m${lm<1? 'f'+(1/lm) : lm}, ${tail?'ta':'tu'}, ${mask==2?'mu':'ma'}${comment}`];
     }
     if (test('INIT ')) return [0, procInstr(post)[1]];
     let base = o.name.replace('__riscv_','').split(/_(([iuf]\d+|bf16)mf?\d+(x\d+)?|b\d+)+(_|$)/)[0].replace(/_/g,'.');

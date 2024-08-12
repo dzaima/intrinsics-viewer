@@ -1746,7 +1746,7 @@ export function oper(o, v) {
   s = s.replace(/^ *CAT{(.*)}\n/mg, (_,c) => { categories.push(c.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>')); return ''; });
   
   if (!archs) {
-    let newFloat = () => /vf[nw]cvt/.test(o.name)? 'new' : 'general';
+    let newFloat = () => /vf[nw]cvt/.test(o.name)? '(new)' : '(general)';
     let allTypes = [...o.args.map(c=>c.type), o.ret.type]
     if (allTypes.some(c => /bfloat16|__bf16/.test(c))) {
       if (o.name.includes('vfwmaccbf16')) archs = ['Zvfbfwma - bf16|(self)'];

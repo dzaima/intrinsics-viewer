@@ -869,7 +869,7 @@ function updateLink() {
   }
   let json = JSON.stringify(obj);
   
-  let historyArgs = [{}, "", "#0"+enc(json)];
+  let historyArgs = [{}, "", "#0"+compressToURI(json)];
   if (pushNext) {
     history.pushState(...historyArgs);
     pushNext = false;
@@ -880,9 +880,9 @@ function updateLink() {
 addEventListener("popstate", (e) => { pushNext = true; });
 
 async function loadLink() {
-  let hash = decodeURIComponent(location.hash.slice(1));
+  let hash = location.hash.slice(1);
   if (hash[0]=='0') {
-    let json = JSON.parse(dec(hash.slice(1)));
+    let json = JSON.parse(decompressURI(hash.slice(1)));
     if (json.s === undefined) json.s = "";
     searchFieldEl.value = json.s;
     
@@ -1027,42 +1027,20 @@ window.onhashchange = () => loadLink();
 
 
 
-
-
-
-
-
-
-
-
-
-
-function enc(str) {
+function compressToURI(str) {
   if (!str) return str;
-  let bytes = new TextEncoder("utf-8").encode(str);
-  return arrToB64(deflate(bytes));
+  let bytes = new TextEncoder('utf-8').encode(str);
+  let arr = pako.deflateRaw(bytes, {'level': 9});
+  let bytestr = [...arr].map(c => String.fromCharCode(c)).join('');
+  return btoa(bytestr).replace(/\+/g, '@').replace(/=+/, '');
 }
-function dec(str) {
+
+function decompressURI(str) {
   if (!str) return str;
   try {
-    return new TextDecoder("utf-8").decode(inflate(b64ToArr(str)));
+    let arr = new Uint8Array([...atob(decodeURIComponent(str).replace(/@/g, '+'))].map(c=>c.charCodeAt()));
+    return new TextDecoder('utf-8').decode(pako.inflateRaw(arr));
   } catch (e) {
     throw new Error("failed to decode - full link not copied?");
   }
-}
-
-function arrToB64(arr) {
-  let bytestr = "";
-  arr.forEach(c => bytestr+= String.fromCharCode(c));
-  return btoa(bytestr).replace(/\+/g, "@").replace(/=+/, "");
-}
-function b64ToArr(str) {
-  return new Uint8Array([...atob(decodeURIComponent(str).replace(/@/g, "+"))].map(c=>c.charCodeAt()));
-}
-
-function deflate(arr) {
-  return pako.deflateRaw(arr, {"level": 9});
-}
-function inflate(arr) {
-  return pako.inflateRaw(arr);
 }

@@ -72,6 +72,7 @@ let query_found = [];
 let query_selVar = undefined;
 let query_currPage = 0;
 let perPage = 37;
+console.log("Variable 'query_found' contains currently found intrinsics");
 
 let extra_test = false;
 
@@ -428,8 +429,12 @@ function deltaPage(n) {
 const hl = (h, text) => mkch('span', [text], {cl:'h-'+h});
 let mkRetLine = (fn) => hl('type',fn.ret.type);
 let mkFnLine = (fn, wrapname=(c=>c)) => mkch('span', [wrapname(hl('name',fn.name)), '(', ...fn.args.flatMap(c=>[hl('type', c.type), ' '+c.name, ', ']).slice(0,-1), ')']);
+
+function refreshGlobalInfo() {
+  if (curr_entry === undefined) displayNoEnt(false);
+}
 function displayNoEnt(link = true) {
-  descPlaceEl.innerText = "";
+  descPlaceEl.innerHTML = curr_cpu_info? (curr_cpu_info.globalInfo || '') : '';
   curr_entry = undefined;
   if (link) updateLink();
 }
@@ -964,6 +969,7 @@ async function setCPU0(loader, name) {
   
   curr_cpu_info = loader.loaded_info || {instructions:[]};
   let entries = entries_ccpu = curr_cpu_info.instructions(name);
+  refreshGlobalInfo();
   
   const searchStr = c => c && c.length? c.toLowerCase().replace(/&lt;/g, '<').replace(/overloaded name:|<\/?[a-z][^>]*>/g, '') : undefined; // very crappy HTML filter, but it's all on known data and only for search
   function prepType(t) {

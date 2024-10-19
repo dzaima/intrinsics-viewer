@@ -201,3 +201,17 @@ export const categoryOrder = {
 
 export const archDefault = ['v'];
 
+export const globalInfo = `
+  <a target="_blank" href="${vSpecFilePath}">RVV specification</a>, <a target="_blank" href="${vkSpecFilePath}">vector crypto specification</a>
+  <br><a href="https://github.com/riscv-non-isa/rvv-intrinsic-doc/blob/main/doc/rvv-intrinsic-spec.adoc">RVV intrinsics specification</a>
+  <br><a href="https://github.com/riscv-non-isa/riscv-c-api-doc/blob/main/src/c-api.adoc">General RISC-V C intrinsics</a> (not present in this viewer)
+  <br><br>
+  
+  Notes:
+  <ul>
+    <li><code>ta</code>/<code>ma</code> element results from intrinsics are always unspecified (unlike the native instructions which are specified to give either all-1s or unchanged) to allow for compiler optimizations.</li>
+    <li>Add <code>__attribute__((target("arch=+v")))</code> to a function to allow local rvv usage without requiring a global <code>-march</code>; <code>"arch=+v,+zvbb"</code> for both <code>v</code> and <code>Zvbb</code>, etc.</li>
+    <li>QEMU: <code>-cpu rv64,v=on,rvv_ta_all_1s=on,rvv_ma_all_1s=on</code> to force ta/ma operations to set masked elements to 1s (which otherwise act like tu/mu).</li>
+    <li>QEMU: <code>-cpu rv64,v=on,vlen=512</code> for VLEN=512, etc.</li>
+  </ul>
+`;

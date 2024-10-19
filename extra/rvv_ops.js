@@ -970,7 +970,13 @@ let defs = [
   return `
   REF{${mapped[1]}}
   CAT{${mapped[0]}}
-  INSTR{VLSET RES{}; FRMI0{}; BASE DST, R_${argn(f,'op1','src')}, MASK; FRMI1{}}
+  INSTR{VLSET RES{}; FRMI0{}; BASE DST, R_${argn(f,'op1','src')}, MASK${mapn(f,[
+    /_vneg_/, ` // == vrsub.vx DST, R_op1, zero, MASK`,
+    /_vnot_/, ` // == vxor.vi DST, R_op1, -1, MASK`,
+    /_vfneg_/, ` // == vfsgnjn.vv DST, R_op1, R_op1, MASK`,
+    /_vfabs_/, ` // == vfsgnjx.vv DST, R_op1, R_op1, MASK`,
+    "*", ``,
+  ])}; FRMI1{}}
   VLMAX{RES{}}
   FRM{}
   RES{} res;

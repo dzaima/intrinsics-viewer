@@ -12,7 +12,7 @@ data/intel_perf2-1.js:
 
 data/intel_intrinsics-1.xml:
 	mkdir -p data
-	$(DOWNLOAD) "$@" 'https://www.intel.com/content/dam/develop/public/us/en/include/intrinsics-guide/data-3-6-3.xml'
+	$(DOWNLOAD) "$@" 'https://www.intel.com/content/dam/develop/public/us/en/include/intrinsics-guide/data-3-6-9.xml'
 
 data/arm_intrinsics-1.json:
 	mkdir -p data

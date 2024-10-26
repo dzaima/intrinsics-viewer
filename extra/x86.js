@@ -45,14 +45,22 @@ let archPre = {
   
   AVX: "AVX+AVX2",
   AVX2: "AVX+AVX2",
+  FMA: "AVX+AVX2",
+  F16C: "AVX+AVX2",
   
   PCLMULQDQ: "SSE|SSE+",
   AES: "SSE|SSE+",
   SHA: "SSE|SSE+",
   
-  FMA: "AVX2+",
   AVX_VNNI: "AVX2+",
+  AVX_VNNI_INT16: "AVX2+",
+  AVX_VNNI_INT8: "AVX2+",
+  AVX_NE_CONVERT: "AVX2+",
+  AVX_IFMA: "AVX2+",
   FP16C: "AVX2+",
+  SHA512: "AVX2+",
+  SM3: "AVX2+",
+  SM4: "AVX2+",
   
   VPCLMULQDQ: "AVX512",
   VAES: "AVX512",
@@ -100,6 +108,11 @@ let archPre = {
   XSAVEC: "other",
   XSAVEOPT: "other",
   XSS: "other",
+  CMPCCXADD: "other",
+  PREFETCHI: "other",
+  PRFCHW: "other",
+  RAO_INT: "other",
+  USER_MSR: "other",
 };
 
 let xml = new DOMParser().parseFromString(src, "text/xml");

@@ -3,7 +3,7 @@ let excludeSVML = true; // remove SVML entries, which are provided by an Intel l
 
 let src, perfSrc;
 try {
-  src = await loadFile("data/intel_intrinsics-1.xml");
+  src = await loadFile("data/intel_intrinsics-2.xml");
   perfSrc = await loadFile("data/intel_perf2-1.js");
 } catch (e) {
   console.error(e);

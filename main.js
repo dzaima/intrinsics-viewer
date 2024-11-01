@@ -661,8 +661,8 @@ function updateSearch0() {
   const P_TYPE = 7;
   const P_ARCH = 8;
   const P_CAT = 9;
-  const P_ARGn = (n) => P_CAT + n*2;
-  const P_ARGnN = (n) => P_CAT + n*2 + 1;
+  const P_ARGn = (n) => P_CAT + n*2 + 1;
+  const P_ARGnN = (n) => P_CAT + n*2 + 2;
   let gsvar = undefined;
   let query;
   { // convert to query

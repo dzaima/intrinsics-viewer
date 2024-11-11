@@ -179,13 +179,32 @@ function call_binop(fn, l, r) {
 const raise_invalid = "fflags[NV] = 1; // Invalid Operation FP flag";
 // in float comparison: ${fl? boring(`if (${nt}(op1[i]) || ${nt}(IDX{op2})) ${raise_invalid}`) : ''} RMELN{}
 
-const mem_ref = (fn, eln) => {
+const mem_ref_both = (fn, eln) => {
   let seg = fn.name.match(/seg(\d+)/);
   if (seg) seg = +seg[1];
-  if (/_v[ls](e|seg)/.test(fn.name)) return `base%M[i${seg? `*${seg} + o` : ''}%M]`;
-  let ptr = `(${eln? eltype(farg(fn,eln)) : 'RESE{}'}*)(${/riscv_v[ls][ou]x/.test(fn.name)? 'bindex[i]' : 'bstride*i'} + (char*)base)`;
-  return seg? `(${ptr})%M[o%M]` : '%M*'+ptr;
+  
+  let ptr;
+  let ptrType = `${eln? eltype(farg(fn,eln)) : 'RESE{}'}*`;
+  if (/_v[ls](e|seg)/.test(fn.name)) {
+    if (seg) {
+      ptr = `&base[i*${seg}]`;
+    } else {
+      return {ref: `base%M[i%M]`};
+    }
+  } else {
+    ptr = `(${ptrType}) (${/riscv_v[ls][ou]x/.test(fn.name)? 'bindex[i]' : 'bstride*i'} + (char*)base)`;
+  }
+  if (seg) {
+    return ({
+      outer: () => `${ptrType} seg_addr = ${ptr};`,
+      ref: `seg_addr%M[f%M]`
+    });
+  } else {
+    return ({ref: '%M*'+ptr});
+  }
 }
+const mem_ref_outer = (...a) => mem_ref_both(...a).outer();
+const mem_ref = (...a) => mem_ref_both( ...a).ref;
 const fvhas = (f, t) => {
   if (!f || !f.short) return false;
   let p = f.short.split('_');
@@ -368,14 +387,15 @@ let defs = [
   VLMAX{${vt}}
   ${mem_align_comment(f,1)}
   RES{} res;
-  for (int o = 0; o < ${x}; o++) {
-    ${vt} curr;
-    for (size_t i = 0; i < vl; i++) {
-      curr[i] = MASK{${mem_ref(f)}};${mem_mask_comment(f)}
+  for (size_t i = 0; i < vl; i++) {
+    ${mem_ref_outer(f)}
+    for (int f = 0; f < ${x}; f++) {
+      res[f][i] = MASK{${mem_ref(f)}};${mem_mask_comment(f)}
     }
-    TAILLOOP{};
-    res[o] = curr;
   }
+  ${boring(`for (int f = 0; f < ${x}; f++) {
+    TAILLOOP_T{};
+  }`)}
   return res;`
 }],
 // segment store, segment stided store, segment indexed store
@@ -385,10 +405,10 @@ let defs = [
   INSTR{VLSET FARG{v_tuple} ${hasarg(f,'bindex')?'':'RATIO'}; BASE R_v_tuple, (R_base)${hasarg(f,'bindex')?', R_bindex':''}${hasarg(f,'bstride')?', R_bstride':''}, MASK}
   VLMAX{${vt}}
   ${mem_align_comment(f,0)}
-  for (int o = 0; o < ${x}; o++) {
-    ${vt} curr = v_tuple[o];
-    for (size_t i = 0; i < vl; i++) {
-      ${fvhas(f,'m')?`if (mask[i]) `:``}${mem_ref(f,'v_tuple')} %M= curr[i];${mem_mask_comment(f)}
+  for (size_t i = 0; i < vl; i++) {
+    ${mem_ref_outer(f,'v_tuple')}
+    for (int f = 0; f < ${x}; f++) {
+      ${fvhas(f,'m')?`if (mask[i]) `:``}${mem_ref(f,'v_tuple')} %M= v_tuple[f][i];${mem_mask_comment(f)}
     }
   }`
 }],
@@ -400,19 +420,25 @@ let defs = [
   VLMAX{${vt}}
   ${mem_align_comment(f,1)}
   RES{} res;
-  ${fvhas(f,'m')?'if (mask[0]) ':''}for (int o = 0; o < ${x}; o++) base%M[o%M]; // for the side-effect of faulting
-  // after this point, this instruction will never fault
   
-  size_t new_vl = /* implementation-chosen 1 ≤ new_vl ≤ vl */;
-  for (int o = 0; o < ${x}; o++) {
-    ${vt} curr;
-    for (size_t i = 0; i < new_vl; i++) {
-      curr[i] = MASK{${mem_ref(f)}};
-    }
+  if (vl > 0) {
+    ${fvhas(f,'m')?'if (mask[0]) ':''}for (int f = 0; f < ${x}; f++) base%M[f%M]; // for the side-effect of faulting
+    // after this point, this instruction will never fault
     
-    for (size_t i = new_vl; i < vl; i++) curr[i] = MASK{anything()};
-    BORING{for (size_t i = vl; i < vlmax; i++) curr[i] = TAIL{};}
-    res[i] = curr;
+    new_vl = /* implementation-chosen 1 ≤ new_vl ≤ vl */;
+    for (size_t i = 0; i < new_vl; i++) {
+      ${mem_ref_outer(f)}
+      for (int f = 0; f < ${x}; f++) {
+        res[f][i] = MASK{${mem_ref(f)}};
+      }
+    }
+  } else {
+    new_vl = 0;
+  }
+  
+  for (int f = 0; f < ${x}; f++) {
+    for (size_t i = new_vl; i < vl; i++) res[f][i] = MASK{anything()};
+    BORING{for (size_t i = vl; i < vlmax; i++) res[f][i] = TAIL{};}
   }
   return res;`
 }],
@@ -474,15 +500,20 @@ let defs = [
   VLMAX{RES{}}
   ${mem_align_comment(f,1)}
   RES{} res;
-  ${fvhas(f,'m')?'if (mask[0]) ':''}base%M[0%M]; // for the side-effect of faulting
-  // after this point, this instruction will never fault
   
-  size_t new_vl = /* implementation-chosen 1 ≤ new_vl ≤ vl */;
-  for (size_t i = 0; i < new_vl; i++) {
-    res[i] = MASK{base%M[i%M]};
+  if (vl > 0) {
+    ${fvhas(f,'m')?'if (mask[0]) ':''}base%M[0%M]; // for the side-effect of faulting
+    // after this point, this instruction will never fault
+    
+    new_vl = /* implementation-chosen 1 ≤ new_vl ≤ vl */;
+    for (size_t i = 0; i < new_vl; i++) {
+      res[i] = MASK{base%M[i%M]};
+    }
+    
+    for (size_t i = new_vl; i < vl; i++) res[i] = MASK{anything()};
+  } else {
+    new_vl = 0;
   }
-  
-  for (size_t i = new_vl; i < vl; i++) res[i] = MASK{anything()};
   TAILLOOP{};
   return res;`
 ],
@@ -1675,7 +1706,7 @@ export function oper(o, v) {
   let mask = !fvhas(v,"m")? 0 : fvhas(v,"mu")? 2 : 1; // 0: no masking; 1: agnostic; 2: undisturbed
   let tail = !fvhas(v,"tu"); // 0: undisturbed; 1: agnostic
   let basev = hasarg(fn, "vd")? "vd" : fn.name.includes("slideup")? "dest" : "";
-  let baseeM = basev? basev+(farg(fn,basev).includes('x')? '[o]' : '')+'[i]' : '';
+  let baseeM = basev? basev+(farg(fn,basev).includes('x')? '[f]' : '')+'[i]' : '';
   let baseeT = fn.ret.type.includes("bool")? "" : baseeM;
   
   // let agnBase0 = (agn,base) => agn? (base? `agnostic(${base})` : "anything()") : `${base}`;
@@ -1771,7 +1802,7 @@ export function oper(o, v) {
   }
   o.archs = archs;
   
-  s = s.replace(/TAILLOOP{(.*?)};?/g, (_,c) => boring(`for (size_t i = ${c?c:'vl'}; i < vlmax; i++) res[i] = TAIL{};`));
+  s = s.replace(/TAILLOOP(_T)?{(.*?)};?/g, (_,tup,c) => boring(`for (size_t i = ${c?c:'vl'}; i < vlmax; i++) res${tup?'[f]':''}[i] = TAIL{};`));
   s = s.replace(/TAIL{}/g, agnBaseT(tail)); // tail element
   s = s.replace(/TAILV{}/g, agnBase0(tail,basev)); // tail vector
   

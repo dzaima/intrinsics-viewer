@@ -52,7 +52,7 @@ let res0 = intrinsics.map(c=>{
   }).join("<br>"));
   let implInstrSearch = optMap(c.instructions, c=>c.map(c => {
     return c.list.map(c => c.base_instruction.toLowerCase()+" "+c.operands).join("\n");
-  }).join("\n"));
+  }).join("\n").toLowerCase());
   
   let args = c.arguments.map(c=>{
     let i = Math.max(c.lastIndexOf(' '), c.lastIndexOf('*'));
@@ -100,18 +100,18 @@ let res0 = intrinsics.map(c=>{
     id: idCounter++,
     
     ret: {type: c.return_type.value},
-    args: args,
+    args,
     name: c.name.replace(/\[|]/g,""),
     
     desc: (c.name.includes("[")? overloadedName(c.name.replace(/\[[^\]]+]/g,"")) + "<br>" : "") + c.description + (nativeOpNEON? "" : "<br>"+nativeOperation),
     header: undefined,
     
     implDesc: nativeOpNEON? nativeOperation : undefined,
-    implInstr: implInstr,
-    implInstrSearch: implInstrSearch,
+    implInstr,
+    implInstrSearch,
     
     archs: [c.SIMD_ISA],
-    categories: categories,
+    categories,
   };
 });
 

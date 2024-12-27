@@ -89,6 +89,7 @@ let res0 = intrinsics.map(c=>{
   
   if (categoryMap[category]) category = categoryMap[category];
   if (c.name.startsWith('vmaxnmq_') || c.name.startsWith('vmaxnm_')) category = "Arithmetic|Maximum";
+  if (category.startsWith('Logical|') && /(and|or|eor)v/.test(c.name)) category = category.replace('|', '|Fold|');
   
   let categories = [category];
   let nativeOpNEON = (c.Operation || "").startsWith("Neon");
@@ -156,13 +157,14 @@ export function instructions(name) {
 }
 
 export const categoryOrder = {
-  'Logical|Shift': 0,
-  'Logical|AND': 1,
-  'Logical|OR': 2,
-  'Logical|XOR': 3,
-  'Logical|NOT': 4,
-  'Logical|ANDN': 5,
-  'Logical|ORN': 6,
+  'Logical|Fold': 0,
+  'Logical|Shift': 1,
+  'Logical|AND': 2,
+  'Logical|OR': 3,
+  'Logical|XOR': 4,
+  'Logical|NOT': 5,
+  'Logical|ANDN': 6,
+  'Logical|ORN': 7,
   
   'all|Arithmetic': 0,
   'all|Logical': 1,

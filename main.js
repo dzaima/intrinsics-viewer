@@ -1008,7 +1008,7 @@ async function setCPU0(loader, name) {
       if (!v.implDescSearch && typeof v.implDesc!=='function')  v.implDescSearch = searchStr(v.implDesc);
     });
     
-    let ref = ins.name.replace(/^(__riscv_|_mm)/,"");
+    let ref = ins.name.replace(/^(__riscv_|_mm|wasm_)/,"");
     if (ins.cpu[0]==='x86-64') ref = ins.ret.type+';'+ins.archs.join(';')+';'+ref;
     ins.ref = ref;
   });

@@ -48,7 +48,7 @@ let knownCPUs = [
   {key:'aarch64', hash:'aarch64', load:cpuLoaderARM},
   {key:'risc-v',  hash:'riscv',   load:cpuLoaderRISCV},
   {key:'wasm',    hash:'wasm',    load:cpuLoaderWasm},
-].map(cpu => { cpu.json = JSON.stringify({u: cpu.key}); return cpu; });
+].map(cpu => { cpu.json = JSON.stringify({u: cpu.key, a: cpu.key=='risc-v'? ['v'] : undefined}); return cpu; });
 
 
 
@@ -412,6 +412,7 @@ async function newDefaultCPU() {
   await newCPU();
   curr_archObj.deserialize(curr_cpu_info.archDefault || ['']);
   curr_categoryObj.deserialize(curr_cpu_info.categoryDefault || ['']);
+  updateLink();
 }
 
 

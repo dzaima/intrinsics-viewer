@@ -39,6 +39,7 @@ intrinsic entry:
 let cpuLoaderX86_64 = {msg: 'x86-64', loadPath: "./extra/x86.js"};
 let cpuLoaderARM    = {msg: 'ARM',    loadPath: "./extra/arm.js"};
 let cpuLoaderRISCV  = {msg: 'RISC-V', loadPath: "./extra/riscv.js"};
+let cpuLoaderWasm   = {msg: 'wasm'   ,loadPath: "./extra/wasm.js"};
 let knownCPUs = [
   ['x86-64',  cpuLoaderX86_64],
   ['Arm MVE', cpuLoaderARM],
@@ -46,6 +47,7 @@ let knownCPUs = [
   ['aarch32', cpuLoaderARM],
   ['aarch64', cpuLoaderARM],
   ['risc-v',  cpuLoaderRISCV],
+  ['wasm',    cpuLoaderWasm],
 ];
 
 
@@ -449,7 +451,8 @@ function displayEnt(ins, fn, link = true) {
   let text = ``;
   text+= `<br>Architecture: <span class="mono">${a2}</span>`;
   text+= `<br>Categor${ins.categories.length>1?"ies":"y"}: <span class="mono">${ins.categories.map(c=>esc(c.replace(/\|/g,'→'))).join(', ')}</span>`;
-  text+= `<br><br>Description:<div class="desc">${fn.desc||ins.desc}</div>`;
+  let description = fn.desc||ins.desc;
+  if (description) text+= `<br><br>Description:<div class="desc">${description}</div>`;
   
   let implInstr = fn.implInstr;
   if (typeof implInstr === 'function') implInstr = implInstr();
@@ -774,7 +777,11 @@ function updateSearch0() {
       add: (l, id) => {
         // console.log(l, id);
         // l.forEach(e => (map.get(e).children||[]).forEach(e => e.currSet.add(id)))
-        l.forEach(c => map.get(c).forEach(e => e.currSet.add(id)));
+        l.forEach(c => {
+          let g = map.get(c);
+          if (g === undefined) throw new Error('Non-uniform category groupness: '+l);
+          return g.forEach(e => e.currSet.add(id));
+        });
       },
       write: () => tree.forAll(e => {
         e.setCount(e.currSet.size);

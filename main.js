@@ -48,7 +48,7 @@ let knownCPUs = [
   {key:'aarch64', hash:'aarch64', load:cpuLoaderARM},
   {key:'risc-v',  hash:'riscv',   load:cpuLoaderRISCV},
   {key:'wasm',    hash:'wasm',    load:cpuLoaderWasm},
-];
+].map(cpu => { cpu.json = JSON.stringify({u: cpu.key}); return cpu; });
 
 
 
@@ -882,8 +882,10 @@ function updateLink() {
     i
   }
   let json = JSON.stringify(obj);
+  let cpu = knownCPUs.find(c => c.json == json);
+  let hash = cpu? cpu.hash : "0"+compressToURI(json);
   
-  let historyArgs = [{}, "", "#0"+compressToURI(json)];
+  let historyArgs = [{}, "", "#"+hash];
   if (pushNext) {
     history.pushState(...historyArgs);
     pushNext = false;
@@ -926,7 +928,7 @@ async function loadLink() {
   let hash = location.hash.slice(1);
   let cpu = knownCPUs.find(c => c.hash == hash);
   if (cpu) {
-    await loadJSON({u: cpu.key});
+    await loadJSON(JSON.parse(cpu.json));
   } else if (hash[0]=='0') {
     await loadJSON(JSON.parse(decompressURI(hash.slice(1))));
   } else {

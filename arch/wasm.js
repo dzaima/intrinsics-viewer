@@ -37,6 +37,10 @@ let res = data.intrinsics.map(c=>{
       case 'floor': case 'ceil': case 'trunc': case 'nearest':
         category = qcat+'Round';
         break;
+      case 'relaxed_min': case 'relaxed_max':
+        category = `Float|M${rest.substring(8,10)}imum|Relaxed`;
+        desc = `Selects and implementation-defined result for arguments of 0.0 & -0.0, or if an argument is NaN.`;
+        break;
       
       case 'bitmask': category = 'Bitwise|Bitmask'; desc = 'Extract top bit from each element.'; keyw('vpmovmskb movemask'); break;
       case 'all_true': category = 'Bitwise|All true'; desc = 'Return if all elements are non-zero.'; break;
@@ -54,8 +58,6 @@ let res = data.intrinsics.map(c=>{
       case 'max': category = qcat+'Maximum|Proper'; break;
       case 'pmin': category = qcat+'Minimum|Comparison-based'; oper = '// Elementwise:\nresult[i] = b[i] < a[i] ? b[i] : a[i];'; break; // https://webassembly.github.io/spec/core/exec/numerics.html#op-fpmin
       case 'pmax': category = qcat+'Maximum|Comparison-based'; oper = '// Elementwise:\nresult[i] = a[i] < b[i] ? b[i] : a[i];'; break;
-      case 'relaxed_min': category = qcat+'Minimum|Relaxed'; break;
-      case 'relaxed_max': category = qcat+'Maximum|Relaxed'; break;
       case 'avgr': category = qcat+'Average'; break;
       case 'sqrt': category = qcat+'Square root'; break;
       case 'q15mulr_sat': category = qcat+'Multiply|Shifted rounding'; break; // https://webassembly.github.io/spec/core/exec/numerics.html#op-iq15mulrsat-s
@@ -90,7 +92,7 @@ let res = data.intrinsics.map(c=>{
       case 'extract_lane': category = 'Permutation|Extract'; break;
       case 'replace_lane': category = 'Permutation|Replace lane'; break;
       
-      case 'relaxed_madd': case 'relaxed_nmadd': category = 'Float|Multiply-add|Relaxed'; keyw('fma fused'); break;
+      case 'relaxed_madd': case 'relaxed_nmadd': category = 'Float|Multiply-add|Relaxed'; desc = `May or may not be fused.`; keyw('fma fused'); break;
       
       default:
         const alignNote = '<br>The pointer does not need to be aligned.';

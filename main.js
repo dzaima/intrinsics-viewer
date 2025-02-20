@@ -36,10 +36,10 @@ intrinsic entry:
 }
 */
 
-let cpuLoaderX86_64 = {msg: 'x86-64', loadPath: "./extra/x86.js"};
-let cpuLoaderARM    = {msg: 'ARM',    loadPath: "./extra/arm.js"};
-let cpuLoaderRISCV  = {msg: 'RISC-V', loadPath: "./extra/riscv.js"};
-let cpuLoaderWasm   = {msg: 'wasm'   ,loadPath: "./extra/wasm.js"};
+let cpuLoaderX86_64 = {msg: 'x86-64', loadPath: "./arch/x86.js"};
+let cpuLoaderARM    = {msg: 'ARM',    loadPath: "./arch/arm.js"};
+let cpuLoaderRISCV  = {msg: 'RISC-V', loadPath: "./arch/riscv.js"};
+let cpuLoaderWasm   = {msg: 'wasm'   ,loadPath: "./arch/wasm.js"};
 let knownCPUs = [
   {key:'x86-64',  hash:'x86',     load:cpuLoaderX86_64},
   {key:'Arm MVE', hash:'arm-mve', load:cpuLoaderARM},

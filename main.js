@@ -220,7 +220,7 @@ function makeTree(joiner, desc, allInfo, defaultOpenSet, updated) {
     }
     
     let r = rec(all);
-    if (r.length==1 && r[0]=='all') return undefined;
+    if (r.length==1 && r[0]=='') return undefined;
     return r;
   }
   
@@ -871,13 +871,15 @@ function updateLink() {
     let [eb,ev] = curr_entry;
     entval = eb.cpu[0]+'!'+eb.ref+(eb===ev? '' : '!'+ev.short);
   }
+  let i = query_searchIn.map(c=>c[1].checked?"1":"0").join('');
+  if (!i.includes('0')) i = undefined;
   let obj = {
     u: curr_cpu_name,
     e: entval,
     a: curr_archObj.serialize(),
     c: curr_categoryObj.serialize(),
     s: searchFieldEl.value || undefined,
-    i: query_searchIn.map(c=>c[1].checked?"1":"0").join('')
+    i
   }
   let json = JSON.stringify(obj);
   

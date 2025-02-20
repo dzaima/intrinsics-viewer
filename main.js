@@ -41,13 +41,13 @@ let cpuLoaderARM    = {msg: 'ARM',    loadPath: "./extra/arm.js"};
 let cpuLoaderRISCV  = {msg: 'RISC-V', loadPath: "./extra/riscv.js"};
 let cpuLoaderWasm   = {msg: 'wasm'   ,loadPath: "./extra/wasm.js"};
 let knownCPUs = [
-  ['x86-64',  cpuLoaderX86_64],
-  ['Arm MVE', cpuLoaderARM],
-  ['armv7',   cpuLoaderARM],
-  ['aarch32', cpuLoaderARM],
-  ['aarch64', cpuLoaderARM],
-  ['risc-v',  cpuLoaderRISCV],
-  ['wasm',    cpuLoaderWasm],
+  {key:'x86-64',  hash:'x86',     load:cpuLoaderX86_64},
+  {key:'Arm MVE', hash:'arm-mve', load:cpuLoaderARM},
+  {key:'armv7',   hash:'armv7',   load:cpuLoaderARM},
+  {key:'aarch32', hash:'aarch32', load:cpuLoaderARM},
+  {key:'aarch64', hash:'aarch64', load:cpuLoaderARM},
+  {key:'risc-v',  hash:'riscv',   load:cpuLoaderRISCV},
+  {key:'wasm',    hash:'wasm',    load:cpuLoaderWasm},
 ];
 
 
@@ -892,9 +892,7 @@ function updateLink() {
 addEventListener("popstate", (e) => { pushNext = true; });
 
 async function loadLink() {
-  let hash = location.hash.slice(1);
-  if (hash[0]=='0') {
-    let json = JSON.parse(decompressURI(hash.slice(1)));
+  async function loadJSON(json) {
     if (json.s === undefined) json.s = "";
     searchFieldEl.value = json.s;
     
@@ -915,19 +913,26 @@ async function loadLink() {
     cpuListEl.value = json.u;
     if (!await newCPU()) return;
     
-    [...json.i].forEach((c,i) => {
+    [...(json.i || [])].forEach((c,i) => {
       query_searchIn[i][1].checked = c=='1';
     });
     
     curr_archObj.deserialize(json.a||['']);
     curr_categoryObj.deserialize(json.c||['']);
     updateSearch(false);
+  }
+  let hash = location.hash.slice(1);
+  let cpu = knownCPUs.find(c => c.hash == hash);
+  if (cpu) {
+    await loadJSON({u: cpu.key});
+  } else if (hash[0]=='0') {
+    await loadJSON(JSON.parse(decompressURI(hash.slice(1))));
   } else {
-    newDefaultCPU();
+    await newDefaultCPU();
   }
 }
 
-let knownCpuMap = Object.fromEntries(knownCPUs);
+let knownCpuMap = Object.fromEntries(knownCPUs.map(c => [c.key,c.load]));
 
 function toCenterInfo(val) {
   resultListEl.textContent = '';
@@ -1025,7 +1030,7 @@ async function setCPU0(loader, name) {
 
 (async () => {
   try {
-    knownCPUs.forEach(([n,f]) => {
+    knownCPUs.forEach(({key: n}) => {
       cpuListEl.append(new Option(n, n));
     });
     

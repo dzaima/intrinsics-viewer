@@ -98,7 +98,7 @@ let res = data.intrinsics.map(c=>{
         const alignNote = '<br>The pointer does not need to be aligned.';
         let lB = (k,sep) => {
           let n = rest.substring(k).split('_')[0]/8;
-          return `${n}${sep}byte${n==1?'':'s'}`;
+          return `${n}${sep}byte${n==1 || sep==='-'? '' : 's'}`;
         }
         if (rest.startsWith('load')) {
           let sub;
@@ -139,11 +139,11 @@ let res = data.intrinsics.map(c=>{
           let sub;
           switch (ps[0] == 'relaxed'? 'relaxed_'+ps[1] : ps[0]) {
             default: throw new Error('Bad name: '+name);
-            case 'convert': sub='Same-width'; break;
-            case 'relaxed_trunc': sub='Integer|Relaxed truncate'; break;
-            case 'trunc': sub='Integer|Saturating narrow'; if(ps[1]!='sat') throw new Error('bad '+name); break;
-            case 'extend': sub='Integer|Extend'; break;
+            case 'convert': sub='Integer→float'; break;
+            case 'relaxed_trunc': sub='Float→integer|Relaxed'; break;
+            case 'trunc': sub='Float→integer|Saturating'; if(ps[1]!='sat') throw new Error('bad '+name); break;
             case 'narrow': sub='Integer|Narrow'; break;
+            case 'extend': sub='Integer|Extend'; break;
             case 'demote': sub='Float|Demote'; break;
             case 'promote': sub='Float|Promote'; break;
           }

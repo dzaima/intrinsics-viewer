@@ -54,8 +54,8 @@ let res = data.intrinsics.map(c=>{
       case 'div': category = qcat+'Divide'; break;
       case 'add_sat': category = qcat+'Add|Saturating'; break;
       case 'sub_sat': category = qcat+'Subtract|Saturating'; break;
-      case 'min': category = qcat+'Minimum|Proper'; break;
-      case 'max': category = qcat+'Maximum|Proper'; break;
+      case 'min': category = qcat+'Minimum' + (quality=='f'? '|Proper' : ''); break;
+      case 'max': category = qcat+'Maximum' + (quality=='f'? '|Proper' : ''); break;
       case 'pmin': category = qcat+'Minimum|Comparison-based'; oper = '// Elementwise:\nresult[i] = b[i] < a[i] ? b[i] : a[i];'; break; // https://webassembly.github.io/spec/core/exec/numerics.html#op-fpmin
       case 'pmax': category = qcat+'Maximum|Comparison-based'; oper = '// Elementwise:\nresult[i] = a[i] < b[i] ? b[i] : a[i];'; break;
       case 'avgr': category = qcat+'Average'; break;

@@ -38,7 +38,7 @@ let res = data.intrinsics.map(c=>{
         category = qcat+'Round';
         break;
       case 'relaxed_min': case 'relaxed_max':
-        category = `Float|M${rest.substring(8,10)}imum|Relaxed`;
+        category = `Float|M${rest.substring(9,11)}imum|Relaxed`;
         desc = `Selects and implementation-defined result for arguments of 0.0 & -0.0, or if an argument is NaN.`;
         break;
       

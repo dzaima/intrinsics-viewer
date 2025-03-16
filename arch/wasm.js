@@ -21,10 +21,10 @@ let res = data.intrinsics.map(c=>{
     let qcat = quality=='f'? 'Float|' : 'Integer|';
     switch (rest) {
       case 'make': case 'const':
-        category = 'Permutation|Initialize';
+        category = 'Data movement|Initialize';
         break;
       case 'splat': case 'const_splat':
-        category = 'Permutation|Broadcast';
+        category = 'Data movement|Broadcast';
         keyw('duplicate vdup');
         break;
       
@@ -68,29 +68,29 @@ let res = data.intrinsics.map(c=>{
         keyw('merge');
         break;
       case 'relaxed_laneselect':
-        category = 'Permutation|Blend';
+        category = 'Data movement|Blend';
         desc = 'Implementation-defined behavior if mask elements are non-homogenous.<br>See <code>wasm_v128_bitselect</code> for a non-relaxed version.';
         keyw('merge');
         break;
       
-      case 'shuffle': category = 'Permutation|Shuffle|Constant'; break;
+      case 'shuffle': category = 'Data movement|Shuffle|Constant'; keyw('permute'); break;
       case 'swizzle':;
         args[1][1] = 's';
-        category = 'Permutation|Shuffle|Zeroing';
+        category = 'Data movement|Shuffle|Zeroing';
         desc = 'Shuffles bytes of <code>a</code> by indices at <code>s</code>. Produces 0 for any byte where <code>s[i] > 15</code>.';
         keyw('permute');
         break;
       case 'relaxed_swizzle':
-        category = 'Permutation|Shuffle|Relaxed';
+        category = 'Data movement|Shuffle|Relaxed';
         desc = 'Like <code>wasm_i8x16_swizzle</code>, but with unspecified results if <code>s[i] > 15</code>.';
         keyw('permute');
         break;
       
       case 'shl': category = 'Bitwise|Shift left'; break;
       case 'shr': category = 'Bitwise|Shift right'; break;
-      case 'extract_lane': category = 'Permutation|Extract'; break;
-      case 'extract_lane': category = 'Permutation|Extract'; break;
-      case 'replace_lane': category = 'Permutation|Replace lane'; break;
+      case 'extract_lane': category = 'Data movement|Extract'; break;
+      case 'extract_lane': category = 'Data movement|Extract'; break;
+      case 'replace_lane': category = 'Data movement|Replace lane'; break;
       
       case 'relaxed_madd': case 'relaxed_nmadd': category = 'Float|Multiply-add|Relaxed'; desc = `May or may not be fused.`; keyw('fma fused'); break;
       
@@ -156,7 +156,8 @@ let res = data.intrinsics.map(c=>{
           category = 'Integer|Dot product|Proper';
         } else if (/^extadd_pairwise_/.test(rest)) {
           category = 'Integer|Add|Pairwise widening';
-        } 
+        }
+        break;
     }
   }
   
@@ -214,9 +215,9 @@ export const categoryOrder = {
   'Bitwise|Shift left': 1,
   'Bitwise|Shift right': 2,
   
-  'Permutation|Shuffle': 0,
-  'Permutation|Initialize': 1,
-  'Permutation|Blend': 2,
+  'Data movement|Shuffle': 0,
+  'Data movement|Initialize': 1,
+  'Data movement|Blend': 2,
   
   'Conversion|Same-width': 0,
 };

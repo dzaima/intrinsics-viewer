@@ -998,7 +998,7 @@ let defs = [
     /_vfrsqrt7_/,    ['Float|Estimate reciprocal square-root', '_vector_floating_point_reciprocal_square_root_estimate_instruction'],
     /_vfrec7_/,      ['Float|Estimate reciprocal', '_vector_floating_point_reciprocal_estimate_instruction'],
     /_vfabs_/,       ['Float|Absolute', '_vector_floating_point_sign_injection_instructions'],
-    /_vmv_v_v_f/,    ['Permutation|Move', 'sec-vector-float-move']])
+    /_vmv_v_v_b?f/,  ['Permutation|Move', 'sec-vector-float-move']])
   return `
   REF{${mapped[1]}}
   CAT{${mapped[0]}}

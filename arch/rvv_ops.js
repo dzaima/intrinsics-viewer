@@ -620,7 +620,7 @@ let defs = [
   let ovl = 2**(2*ew) / (2**ew);
   let ovlen = ovl*ew/lm;
   return `
-  KEYW{${mapn(f,[/redmin/,'minimum', /redmax/,'maximum', "*",''])}}
+  KEYW{${mapn(f,[/redmin/,'minimum', /redmax/,'maximum', "*",''])}; reduce; reduction}
   REF{${mapn(f,[
     /_vred/, 'sec-vector-integer-reduce',
     /_vwred/, 'sec-vector-integer-reduce-widen',
@@ -659,6 +659,7 @@ let defs = [
 }],
 
 [/_vfw?redusum/, (f) => { let m=fvhas(f,'m'); return `
+  KEYW{reduce; reduction}
   REF{${f.name.includes('_vfw')? 'sec-vector-float-reduce-widen' : 'sec-vector-float-reduce'}}
   CAT{Fold|${f.name.includes('_vfw')? 'Widening tree' : 'Tree'} sum}
   INSTR{VLSET FARG{vector}; FRMI0{}; BASE DST, R_vector, R_scalar, MASK; FRMI1{}}

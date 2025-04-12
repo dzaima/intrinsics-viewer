@@ -147,7 +147,7 @@ let res0 = [...xml.children[0].children].map(e=>{
   
   let implTimes = instrs.map(c=>perf[c.getAttribute("xed")]).filter(c=>c);
   // if (implTimes.length>1) console.log(instrs.map(c=>c.getAttribute("xed"))); // TODO do something about this
-  implTimes = implTimes.length? implTimes[0] : undefined;
+  implTimes = implTimes.length? implTimes[0].map(c => { let [[k,v]] = Object.entries(c); return [k, v.l, v.t]; }) : undefined;
   
   let archs = filter("CPUID").map(c=>c.textContent).map(c=>{
     if (e.getAttribute("tech")==='SVML') return "SVML|"+c;

@@ -470,9 +470,8 @@ function displayEnt(ins, fn, link = true) {
   
   if (implTimes) descPlaceEl.getElementsByClassName("perf-table")[0].append(mkch('tbody', [
     mkch('tr', ['Architecture', 'Latency', 'Throughput (CPI)'].map(c=>mkch('th',[c]))),
-    ...implTimes.map(c => {
-      let [[k,v]] = Object.entries(c);
-      return mkch('tr', [k, v.l, v.t].map(e => mkch('td', [e])));
+    ...implTimes.map(([k, lt, tp]) => {
+      return mkch('tr', [k, lt, tp].map(e => mkch('td', [e])));
     })
   ]));
   

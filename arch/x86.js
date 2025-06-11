@@ -208,7 +208,7 @@ let res1 = [];
   
   res0.forEach(n => {
     let key1 = n.name.replace(/^(_mm\d*)_mask[z23]?_/, "$1_");
-    if (!n.archs.length || !(n.archs[0].includes("AVX512") || n.archs[0].includes("KNCNI"))) {
+    if (!n.archs.length || !(n.archs[0].includes("AVX512"))) {
       add(mapX, key1, n);
       n.short = "base";
       res1.push(n);

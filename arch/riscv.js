@@ -38,6 +38,14 @@ instrs.forEach(ins => {
   c.id = idCounter++;
   c.implInstr = c.implInstrRaw? c.implInstrRaw.replace(/\n/g, '<br>') : undefined;
   
+  let specF, specR;
+  let extendDesc = (desc, suffix) => {
+    desc = desc || '';
+    if (c.overloaded) desc = `${overloadedName(c.overloaded + suffix)}<br>${desc}`;
+    if (specF) desc = `<a target="_blank" href="${specF}#${specR}">Specification</a><br>${desc}`;
+    return desc;
+  };
+  
   // process variations
   if (ins.policies) {
     ins.variations = ins.policies.map(s => {
@@ -55,6 +63,8 @@ instrs.forEach(ins => {
       
       obj.implDesc = () => rvvOps.oper(c, obj)?.oper;
       obj.implInstr = () => rvvOps.oper(c, obj)?.instrHTML;
+      obj.desc = () => extendDesc(rvvOps.oper(c, obj)?.desc, s.s);
+      obj.descSearch = c.overloaded? c.overloaded + s.s : undefined;
       if (extra_test) rvvOps.oper(c, obj); // make sure oper generation works for all variations
       
       return obj;
@@ -69,7 +79,6 @@ instrs.forEach(ins => {
   
   let newOp = rvvOps.oper(c);
   if (!newOp) throw new Error("No rvvOps for "+c.name);
-  c.desc = newOp.desc || '';
   c.specRef = newOp.specRef;
   c.implDesc = newOp.oper;
   if (newOp.instrHTML !== undefined) {
@@ -77,16 +86,15 @@ instrs.forEach(ins => {
     c.implInstr = () => rvvOps.oper(c).instrHTML;
   }
   c.categories = newOp.categories;
-  if (c.overloaded) c.desc = `${overloadedName(c.overloaded)}<br>${c.desc}`;
   if (c.specRef) {
-    let r = newOp.specRef;
-    let f = vSpecFilePath;
-    if (r.startsWith('vcrypto|')) {
-      r = r.substring(8);
-      f = vkSpecFilePath;
+    specR = newOp.specRef;
+    specF = vSpecFilePath;
+    if (specR.startsWith('vcrypto|')) {
+      specR = specR.substring(8);
+      specF = vkSpecFilePath;
     }
-    c.desc = `<a target="_blank" href="${f}#${r}">Specification</a><br>${c.desc}`;
   }
+  c.desc = extendDesc(newOp.desc, '');
   
 });
 

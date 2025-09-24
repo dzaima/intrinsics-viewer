@@ -453,6 +453,7 @@ function displayEnt(ins, fn, link = true) {
   text+= `<br>Architecture: <span class="mono">${a2}</span>`;
   text+= `<br>Categor${ins.categories.length>1?"ies":"y"}: <span class="mono">${ins.categories.map(c=>esc(c.replace(/\|/g,'→'))).join(', ')}</span>`;
   let description = fn.desc||ins.desc;
+  if (typeof description === 'function') description = description();
   if (description) text+= `<br><br>Description:<div class="desc">${description}</div>`;
   
   let implInstr = fn.implInstr;
@@ -464,6 +465,7 @@ function displayEnt(ins, fn, link = true) {
   let implTimes = fn.implTimes || ins.implTimes;
   
   if (implInstr) text+= `<br>Instruction:<pre tabindex="0">${implInstr}</pre>`;
+  
   if (implDesc) text+= `<br>Operation:<pre tabindex="0" class="operation">${implDesc}</pre>`;
   if (implTimes) text+= `<br>Performance:<table class="perf-table"></table>`;
   descPlaceEl.innerHTML = text;
@@ -1005,7 +1007,7 @@ async function setCPU0(loader, name) {
       v.args.forEach(prepType);
       prepType(v.ret);
       v.nameSearch = searchStr(v.name);
-      v.descSearch = searchStr(v.desc);
+      if (!v.descSearch) v.descSearch = searchStr(v.desc);
       if (!v.implInstrSearch && typeof v.implInstr!=='function') v.implInstrSearch = searchStr(v.implInstr);
       if (!v.implDescSearch && typeof v.implDesc!=='function')  v.implDescSearch = searchStr(v.implDesc);
     });

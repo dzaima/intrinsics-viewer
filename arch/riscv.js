@@ -98,6 +98,9 @@ instrs.forEach(ins => {
   
 });
 
+let order = (c) => c.name.includes('vsetvl');
+instrs.sort((a,b) => order(b)-order(a));
+
 rvvOps.initialized();
 
 function addSimpleOp(ret, name, args, desc, oper) {

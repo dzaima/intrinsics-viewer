@@ -786,7 +786,7 @@ let defs = [
 [/_vfmv_f_s_|_vmv_x_s_/, (f) => { let elt=tshort(f.ret); return `
   REF{_integer_scalar_move_instructions}
   CAT{Permutation|Extract first}
-  INSTR{VLSET FARG{src}; BASE DST, R_src${elt=='u8'? '; zext.b DST,DST' : elt=='u16'||elt=='u32'? `; slli DST, DST, ${64-elt.slice(1)}; srli DST, DST, ${64-elt.slice(1)}` : ''}}
+  INSTR{VLSET FARG{src}; BASE ${elt[0]=='f'?'fd':'xd'}, R_src${elt[0]!='f' && !elt.includes('64')? ' // destination is sign-extended'+(elt[0]=='u'?', so a zext may be necessary':'') : ''}}
   return src[0];`
 }],
 

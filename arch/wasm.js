@@ -142,7 +142,7 @@ let res = data.intrinsics.map(c=>{
             case 'convert': sub='Integer→float'; break;
             case 'relaxed_trunc': sub='Float→integer|Relaxed'; break;
             case 'trunc': sub='Float→integer|Saturating'; if(ps[1]!='sat') throw new Error('bad '+name); break;
-            case 'narrow': sub='Integer|Narrow'; break;
+            case 'narrow': sub='Integer|Saturating narrow'; break;
             case 'extend': sub='Integer|Extend'; break;
             case 'demote': sub='Float|Demote'; break;
             case 'promote': sub='Float|Promote'; break;

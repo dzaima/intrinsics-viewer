@@ -34,6 +34,9 @@ let categoryMap = {
   
   'Table lookups|Extended table lookup': 'Table lookup|Extended table lookup',
   'Table lookups|Table lookup': 'Table lookup|Table lookup',
+  'Table lookups|ZT0 table lookup': 'Table lookup|ZT0 table lookup',
+  
+  'ZT0 Vector|Zero': 'SME|ZT0 Vector|Zero',
   
   'Bit manipulation|Bitwise clear': 'Logical|ANDN',
   
@@ -68,7 +71,7 @@ let res0 = intrinsics.map(c=>{
     });
   }
   
-  let category = c.instruction_group
+  let category = (c.instruction_group || "Unspecified")
     .replace(/^Vector arithmetic\|/, "Arithmetic\|")
     .replace(/^Scalar arithmetic\|/, "With scalar\|")
     .replace(/^Arithmetic\|Across vector arithmetic\|/, "Arithmetic\|Fold\|")
@@ -86,6 +89,10 @@ let res0 = intrinsics.map(c=>{
       .replace(/greater than( zero)?/i, c=>">")
     ;
   }
+  if (category.startsWith("ZA array|")) category = "SME|" + category;
+  
+  let archs = Array.isArray(c.SIMD_ISA)? c.SIMD_ISA : [c.SIMD_ISA];
+  if (category === "Unspecified" && archs.includes('SME and SME2')) category = 'SME|'+category;
   
   if (categoryMap[category]) category = categoryMap[category];
   if (c.name.startsWith('vmaxnmq_') || c.name.startsWith('vmaxnm_')) category = "Arithmetic|Maximum";
@@ -111,7 +118,7 @@ let res0 = intrinsics.map(c=>{
     implInstr,
     implInstrSearch,
     
-    archs: [c.SIMD_ISA],
+    archs: archs,
     categories,
   };
 });
@@ -169,4 +176,12 @@ export const categoryOrder = {
   'all|Arithmetic': 0,
   'all|Logical': 1,
   'all|Vector manipulation': 2,
+  'all|Bit manipulation': 3,
+  'all|Compare': 4,
+  'all|Data type conversion': 5,
+  'all|Move': 6,
+  'all|Load': 7,
+  'all|Store': 8,
+  'all|Table lookup': 9,
+  'all|With scalar': 10,
 };

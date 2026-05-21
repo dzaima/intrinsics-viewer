@@ -1,10 +1,10 @@
 ## x86-64, ARM, and RISC-V V intrinsics viewer
 
 ### Usage:
-1. `make download` (or some of `make download-x86`, `make download-arm`, `make download-riscv`)
+1. `make download` (or some of `make download-x86`, `make download-arm`, `make download-riscv`, `make download-wasm`)
 2. open `index.html` in a browser (depending on browser settings, you may need to start a local webserver, e.g. `python3 -m http.server`)
 
-Alternatively, the RISC-V V intrinsics can be viewed [online](https://dzaima.github.io/intrinsics-viewer).
+Alternatively, the WASM and RISC-V RVV intrinsics can be viewed [online](https://dzaima.github.io/intrinsics-viewer).
 
 ### Search
 

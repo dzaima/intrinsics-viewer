@@ -201,8 +201,14 @@ function makeTree(joiner, desc, allInfo, defaultOpenSet, updated) {
     updated([...selectedSet], link);
   }
   
+  function upgrade(what) {
+    what = what.replace(/^all\|/, '');
+    if (what==='sve' || what==='sve2') return what.toUpperCase();
+    return what;
+  }
+  
   function deserialize(vals) {
-    let trunc = new Set(vals.map(c => c.replace(/^all\|/, '')));
+    let trunc = new Set(vals.map(c => upgrade(c)));
     selectedSet = new Set();
     function rec(curr, on) {
       on = on || trunc.has(curr.path);

@@ -1,9 +1,10 @@
 'use strict';
 
-let intrinsics, operations;
+let intrinsics, operations, extensions;
 try {
-  intrinsics = JSON.parse(await loadFile("data/arm_intrinsics-1.json"));
+  intrinsics = JSON.parse(await loadFile("data/arm_intrinsics-2.json"));
   operations = JSON.parse(await loadFile("data/arm_operations-1.json"));
+  extensions = JSON.parse(await loadFile("data/arm-extensions-1.json"));
 } catch (e) {
   console.error(e);
   throw window.noDataFiles;
@@ -12,6 +13,10 @@ try {
 let operationMap = {};
 operations.forEach(c => {
   operationMap[c.item.id] = c.item.content;
+});
+let extensionMap = new Map();
+extensions.forEach(([name, value]) => {
+  extensionMap.set(name, value);
 });
 
 let categoryMap = {
@@ -92,6 +97,11 @@ let res0 = intrinsics.map(c=>{
   if (category.startsWith("ZA array|")) category = "SME|" + category;
   
   let archs = Array.isArray(c.SIMD_ISA)? c.SIMD_ISA : [c.SIMD_ISA];
+  if (archs.length==1 && archs[0]==='Neon') {
+    let exts0 = extensionMap.get(c.name) || [];
+    let exts = exts0.filter(c => c!=='simd');
+    archs = exts.length==0? [exts0.length==0? 'Neon|Unknown' : 'Neon|Baseline'] : exts.map(c => 'Neon|'+c);
+  }
   if (category === "Unspecified" && archs.includes('SME and SME2')) category = 'SME|'+category;
   
   if (categoryMap[category]) category = categoryMap[category];
@@ -127,8 +137,9 @@ let res1 = [];
 {
   let map = new Map();
   res0.forEach(n => {
-    if (!n.archs.length || !n.archs[0].includes("sve")) { res1.push(n); return; }
-    let key = n.archs[0] + ';' + n.name.replace(/_[mxz]$/, "");
+    let sveArch = n.archs.find(c => c.startsWith('SVE'));
+    if (!sveArch) { res1.push(n); return; }
+    let key = sveArch + ';' + n.name.replace(/_[mxz]$/, "");
     let l = map.get(key);
     if (!l) {
       map.set(key, l = []);
@@ -184,4 +195,13 @@ export const categoryOrder = {
   'all|Store': 8,
   'all|Table lookup': 9,
   'all|With scalar': 10,
+};
+
+export const archOrder = {
+  'all|Neon': 0,
+  'all|SVE': 1,
+  'all|SVE2': 2,
+  
+  'Neon|Baseline': 0,
+  'Neon|Unknown': 1,
 };

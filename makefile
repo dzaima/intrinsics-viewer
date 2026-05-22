@@ -1,7 +1,7 @@
 RVV_BASE_VER = v11
 download: download-x86 download-arm download-riscv download-wasm
 download-x86: data/intel_intrinsics-2.xml data/intel_perf2-1.js
-download-arm: data/arm_intrinsics-1.json data/arm_operations-1.json
+download-arm: data/arm_intrinsics-2.json data/arm_operations-1.json data/arm-extensions-1.json
 download-riscv: data/rvv-intrinsics-$(RVV_BASE_VER).json data/v-spec.html data/riscv-crypto-spec-vector.html
 download-wasm: data/wasm-1.json
 
@@ -14,7 +14,7 @@ data/intel_perf2-1.js:
 data/intel_intrinsics-2.xml:
 	$(GET) "$@" 'https://www.intel.com/content/dam/develop/public/us/en/include/intrinsics-guide/data-3-6-9.xml'
 
-data/arm_intrinsics-1.json:
+data/arm_intrinsics-2.json:
 	$(GET) "$@" 'https://developer.arm.com/architectures/instruction-sets/intrinsics/data/intrinsics.json'
 
 data/arm_operations-1.json:
@@ -31,3 +31,6 @@ data/riscv-crypto-spec-vector.html:
 
 data/wasm-1.json:
 	$(GET) "$@" 'https://github.com/dzaima/dzaima.github.io/releases/download/wasm-v1/wasm-1.json'
+
+data/arm-extensions-1.json:
+	$(GET) "$@" 'https://github.com/dzaima/dzaima.github.io/releases/download/armext-v1/arm-extensions-1.json'

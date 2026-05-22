@@ -416,6 +416,7 @@ async function newCPU() {
 
 async function newDefaultCPU() {
   await newCPU();
+  if (!curr_archObj) return;
   curr_archObj.deserialize(curr_cpu_info.archDefault || ['']);
   curr_categoryObj.deserialize(curr_cpu_info.categoryDefault || ['']);
   updateLink();
@@ -453,7 +454,7 @@ function displayEnt(ins, fn, link = true) {
   let a0 = fn.archs || ins.archs;
   let a1 = a0;
   if (a0.length>1) a1 = a1.filter(c=>!c.endsWith("|KNCNI"));
-  let a2 = a1.map(c=>esc(c.split(/\|/g).filter(c=>c[0]!=='(').slice(-1)[0])).join(' + ');
+  let a2 = a1.map(c=>esc(c.split(/\|/g).filter(c=>c[0]!=='(').slice(-1)[0])).join(', ');
   if (a0.length != a1.length) a2+= " / KNCNI";
   let text = ``;
   text+= `<br>Architecture: <span class="mono">${a2}</span>`;

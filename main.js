@@ -617,6 +617,14 @@ searchFieldEl.addEventListener('keydown', e => {
   }
 });
 
+addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key == 'f' && document.activeElement != searchFieldEl) {
+    e.preventDefault();
+    searchFieldEl.focus();
+    searchFieldEl.select();
+  }
+});
+
 function notifyError(f) {
   try {
     f();

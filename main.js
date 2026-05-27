@@ -551,7 +551,7 @@ function toPage(page) {
   }
   
   resultListEl.textContent = '';
-  resultListEl.append(...query_found.slice(page*perPage, (page+1)*perPage).map(ins=>{
+  resultListEl.append(...query_found.slice(page*perPage, (page+1)*perPage).map((ins, i) => {
     let cvar = ins;
     if (ins.variations && query_selVar) {
       cvar = ins.variations.find(c=>c.short==query_selVar) || cvar;
@@ -574,6 +574,7 @@ function toPage(page) {
       },
       attrs: {'aria-label': `${cvar.name.replace(/__riscv_/g,'')}(${cvar.args.map(c=>c.type+' '+c.name).join(', ')})${cvar.ret.type? ' returns '+cvar.ret.type : ''}`},
     });
+    if (i==0) r.title = "(click Enter from the search bar to focus the first result)";
     return r;
   }));
 }
@@ -1041,11 +1042,17 @@ async function setCPU0(loader, name) {
   return true;
 }
 
+function accessKeyTitle(prefix, elt) {
+  let label = elt.accessKeyLabel || "accesskey+"+elt.accessKey;
+  elt.title = `${prefix}[${label}]`;
+}
+
 (async () => {
   try {
     knownCPUs.forEach(({key: n}) => {
       cpuListEl.append(new Option(n, n));
     });
+    accessKeyTitle("Search ", searchFieldEl);
     
     await loadLink();
   } catch (e) {

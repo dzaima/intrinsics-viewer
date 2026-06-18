@@ -5,7 +5,7 @@ let vkSpecFilePath = "data/riscv-crypto-spec-vector.html";
 
 let baseFile, rvvOps;
 try {
-  baseFile = await loadFile("data/rvv-intrinsics-v11.json");
+  baseFile = await loadFile("data/rvv-intrinsics-v12.json");
   rvvOps = await execFile("./arch/rvv_ops.js");
 } catch (e) {
   console.error(e);
@@ -53,6 +53,8 @@ instrs.forEach(ins => {
         name: ins.name + s.s,
         short: s.s,
         ret: ins.ret,
+        d0: ins.d0,
+        c0: ins.c0,
         
         args: s.a.map(a => {
           if (typeof a === 'number') return ins.args[a];
@@ -123,12 +125,11 @@ export function instructions(name) {
 
 export const archOrder = {
   'all|v': 0,
-  'all|Zvfh - f16': 1,
-  'all|Zvfbfwma - bf16': 2,
-  'all|Zvfh': 3,
-  'all|Zvbb': 4,
-  'all|Zvbc': 5,
-  'all|Zvkg': 6,
+  'all|Float': 1,
+  'all|Integer': 1,
+  'Float|Zvfh': 0,
+  'Integer|Zvbb': 0,
+  'Integer|Zvbc': 1,
 };
 export const categoryOrder = {
   'Arithmetic|Add': 0,

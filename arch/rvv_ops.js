@@ -22,8 +22,15 @@ function xparts(T) { // 'vint32m2x3_t' → [3, 'vint32m2_t']
 function vparts(T) { // [width, lmul]
   T = tnorm(T);
   if (istuple(T)) T = xparts(T)[1];
-  let [_,e,f,m] = T.match(/^\D*(\d+)m(f?)(\d+)_t$/);
-  return [+e, f? 1/m : +m];
+  let match = T.match(/^\D*(\d+)m(f?)(\d+)_t$/);
+  if (match !== null) {
+    let [_,e,f,m] = match;
+    return [+e, f? 1/m : +m];
+  } else {
+    match = T.match(/^\D*8e(4m3|5m2)m(f?)(\d+)_t$/);
+    let [_,f,m] = match;
+    return [8, f? 1/m : +m];
+  }
 }
 function eparts(T) { // [width, quality]
   T = eltype(T);
@@ -137,16 +144,15 @@ let immArgMap = {
   'vror.vx':       ['vror.vi', -1, 31],
 };
 
-let badArgNames = {'vs1':1, 'vs2':1, 'rs1':1, 'rs2':1};
+let badArgNames = {'vs1':1, 'vs2':1, 'rs1':1, 'rs2':1, 'vs':1, 'v0':1};
 let nameRemapDefs = [
-  [/_vandn_/, 'op1', 'op2'],
-  [/_vbrev8?_/, 'op1'],
-  [/_vrev8_/, 'op1'],
-  [/_vc[lt]z_/, 'op1'],
-  [/_vcpop_v_/, 'op1'],
-  [/_vwsll_/, 'op1', 'shift'],
+  [/_v(f(add|r?sub|mul|r?div|min|max|sgnj[nx]?)|add|r?sub|andn?|or|xor|m[sf](eq|ne|[gl][te]u?)|(min|max|div|rem|[as](add|sub)|abda?)u?|mulh?s?u?|clmulh?|smul)_/, 'op1', 'op2'],
+  [/_v(f(sqrt|rsqrt7|rec7|abs|neg|class)|rev8|brev8?|[sz]ext|neg|not|c([lt]z)|abs|cpop_v)_/, 'op1'],
+  [/_v(w?sll|s?sr[al])_/, 'op1', 'shift'],
   [/_vro[lr]_/, 'op1', 'amount'],
-  [/_vclmulh?_/, 'op1', 'op2'],
+  [/_vf?merge_/, 'op1', 'op2', 'mask'],
+  [/_vrgather(ei16)?_/, 'op1', 'index'],
+  [/_v(f?(mv|[wn]cvtu?|cvt|[nw]cvtbf16))_/, 'src'],
 ];
 
 
@@ -173,6 +179,7 @@ function opmap(fn) {
 }
 function call_binop(fn, l, r) {
   if (fn.name.includes('_vandn_')) return `${l} & ~${r}`;
+  if (/^__riscv_vabdu?_/.test(fn.name)) return `abs(intinf(${l}) - intinf(${r}))`;
   
   return `${l} ${opmap(fn)} ${r}`;
 }
@@ -274,10 +281,10 @@ function red_op(fn, a, b) {
 
 let defs = [
 // same-width & widening float & integer add/sub/mul/div, integer and/or/xor
-[/_vf?w?(add|sub|mul|div|rem|andn?|or|xor)(s?u)?_[vw][vxf]_/, (f) => {
+[/_vf?w?(add|sub|mul|div|rem|andn?|or|xor|abd)(s?u)?_[vw][vxf]_/, (f) => {
   let minew = Math.min(eparts(farg(f,'op1'))[0], eparts(farg(f,'op2'))[0]);
   
-  return `${f.name.includes('_vandn')?'ARCH{Zvbb|Zvkb}':''}
+  return `${f.name.includes('_vandn')?'ARCH{Integer|Zvbb|Zvkb}':''}
   REF{${mapn(f,[
     /_v(add|sub)/,     '_vector_single_width_integer_add_and_subtract',
     /_vw(add|sub)/,    '_vector_widening_integer_addsubtract',
@@ -289,7 +296,9 @@ let defs = [
     /_vfw(add|sub)/,   '_vector_widening_floating_point_addsubtract_instructions',
     /_vf(mul|div)/,    '_vector_single_width_floating_point_multiplydivide_instructions',
     /_vfwmul/,         '_vector_widening_floating_point_multiply',
-    /_vandn_/,         'vcrypto|insns-vandn'])}}
+    /_vandn_/,         'vcrypto|insns-vandn',
+    /_vabdu?_/,        undefined,
+  ])}}
   CAT{${mapn(f,[
     /_vadd/,     'Integer|Add|Same-width',
     /_vsub/,     'Integer|Subtract|Same-width',
@@ -304,6 +313,8 @@ let defs = [
     /_vwmul_/,   'Integer|Multiply|Widening signed',
     /_vwmulu_/,  'Integer|Multiply|Widening unsigned',
     /_vwmulsu_/, 'Integer|Multiply|Widening signed*unsigned',
+    /_vabd_/,    'Integer|Absolute difference|Signed',
+    /_vabdu_/,   'Integer|Absolute difference|Unsigned',
     /_vand_/,    'Bitwise|AND',
     /_vandn_/,   'Bitwise|ANDN',
     /_vor_/,     'Bitwise|OR',
@@ -316,6 +327,7 @@ let defs = [
     /_vfmul/,    'Float|Multiply',
     /_vfdiv/,    'Float|Divide',
     /_vfwmul/,   'Float|Widen|Multiply'])}}
+  ARCH{${f.name.startsWith('__riscv_vabd')?'Integer|Zvabd':'v'}}
   INSTR{VLSET int${minew}${fmtmul(minew * vparts(farg(f,'op1')).reduce((lw,lm)=>lm/lw))}_t; FRMI0{}; BASE DST, R_op1, R_op2, MASK IMMALT{op2}; FRMI1{}}
   VLMAX{RES{}}
   FRM{}
@@ -589,7 +601,7 @@ let defs = [
 [/_v(ad|sb)c_/, (f) => { let a=f.name.includes('_vadc'); let inn=(a?'carry':'borrow')+'in'; return `
   REF{_vector_integer_add_with_carry_subtract_with_borrow_instructions}
   CAT{Integer|Carry / borrow|${a? 'Add' : 'Subtract'}}
-  INSTR{VLSET RES{}; BASE DST, R_op1, R_op2, R_${inn} IMMALT{op2}}
+  INSTR{VLSET RES{}; BASE DST, R_op1, R_op2, v0==${inn} IMMALT{op2}}
   VLMAX{RES{}}
   RES{} res;
   for (size_t i = 0; i < vl; i++) {
@@ -894,7 +906,7 @@ let defs = [
   REF{${f.name.includes('m_f')? '_vector_floating_point_merge_instruction' : '_vector_integer_merge_instructions'}}
   CAT{Permutation|Merge}
   KEYW{blend; if-then-else; ITE}
-  INSTR{VLSET RES{}; BASE DST, R_op1, R_op2, R_mask IMMALT{op2}}
+  INSTR{VLSET RES{}; BASE DST, R_op1, R_op2, v0==mask IMMALT{op2}}
   VLMAX{RES{}}
   RES{} res;
   for (size_t i = 0; i < vl; i++) {
@@ -987,7 +999,7 @@ let defs = [
 }],
 
 // unary same-width things
-[/_vf?neg_|_vfrsqrt7_|_vfsqrt_|_vfrec7_|_vfabs_|_vnot_|_vmv_v_v_/, (f) => {
+[/_vf?neg_|_vfrsqrt7_|_vfsqrt_|_vfrec7_|_vf?abs_|_vnot_|_vmv_v_v_/, (f) => {
   let n=(c)=>f.name.includes(c);
   let mapped = mapn(f,[
     /_vnot_/,        ['Bitwise|NOT', '_vector_bitwise_logical_instructions'],
@@ -998,8 +1010,10 @@ let defs = [
     /_vfrsqrt7_/,    ['Float|Estimate reciprocal square-root', '_vector_floating_point_reciprocal_square_root_estimate_instruction'],
     /_vfrec7_/,      ['Float|Estimate reciprocal', '_vector_floating_point_reciprocal_estimate_instruction'],
     /_vfabs_/,       ['Float|Absolute', '_vector_floating_point_sign_injection_instructions'],
+    /_vabs_v_u/,     ['Integer|Absolute', undefined],
     /_vmv_v_v_b?f/,  ['Permutation|Move', 'sec-vector-float-move']])
   return `
+  ARCH{${n('_vabs_')?'Integer|Zvabd':'v'}}
   REF{${mapped[1]}}
   CAT{${mapped[0]}}
   INSTR{VLSET RES{}; FRMI0{}; BASE DST, R_${argn(f,'op1','src')}, MASK${mapn(f,[
@@ -1013,7 +1027,7 @@ let defs = [
   FRM{}
   RES{} res;
   for (size_t i = 0; i < vl; i++) {
-    res[i] = MASK{${ocall(n('vmv')?'':n('neg')?'-':n('not')?'~':n('rsqrt7')?'reciprocal_sqrt_estimate':n('rec7')?'reciprocal_estimate':n('sqrt')?'sqrt':n('abs')?'abs':'??', argn(f,'op1','src')+'[i]')}};${n("7")? ' // 7 MSB of precision' : n('abs')? ' // abs(-0.0) is +0.0' : ''}
+    res[i] = MASK{${ocall(n('vmv')?'':n('neg')?'-':n('not')?'~':n('rsqrt7')?'reciprocal_sqrt_estimate':n('rec7')?'reciprocal_estimate':n('sqrt')?'sqrt':n('abs')?'abs':'??', argn(f,'op1','src')+'[i]')}};${n("7")? ' // 7 MSB of precision' : n('fabs')? ' // abs(-0.0) is +0.0' : ''}
   }
   TAILLOOP{};
   return res;`
@@ -1330,7 +1344,7 @@ let defs = [
 // vector crypto
 [/_vbrev_/, (f) => `
   REF{vcrypto|insns-${f.name.split('_')[3]}}
-  ARCH{Zvbb|(self)}
+  ARCH{Integer|Zvbb|(self)}
   CAT{Bitwise|Reverse|Bits in element}
   INSTR{VLSET RES{}; BASE DST, R_op1, MASK}
   VLMAX{RES{}}
@@ -1343,7 +1357,7 @@ let defs = [
 ],
 [/_vbrev8_/, (f) => { let [ew,lm] = vparts(f.ret); return `
   REF{vcrypto|insns-${f.name.split('_')[3]}}
-  ARCH{Zvbb|Zvkb}
+  ARCH{Integer|Zvbb|Zvkb}
   CAT{Bitwise|Reverse|Bits in bytes}
   INSTR{VLSET RES{}; BASE DST, R_op1, MASK}
   VLMAX{RES{}}
@@ -1363,7 +1377,7 @@ let defs = [
 [/_vrev8_/, (f) => { let [ew,lm] = vparts(f.ret); return `
   KEYW{bswap}
   REF{vcrypto|insns-${f.name.split('_')[3]}}
-  ARCH{Zvbb|Zvkb}
+  ARCH{Integer|Zvbb|Zvkb}
   CAT{Permutation|Reverse bytes}
   INSTR{VLSET RES{}; BASE DST, R_op1, MASK}
   VLMAX{RES{}}
@@ -1382,7 +1396,7 @@ let defs = [
 }],
 [/_vc[lt]z_/, (f) => { let [ew,lm] = vparts(f.ret); let tr = f.name.includes('_vctz'); return `
   REF{vcrypto|insns-${f.name.split('_')[3]}}
-  ARCH{Zvbb|(self)}
+  ARCH{Integer|Zvbb|(self)}
   CAT{Bitwise|Count ${tr? 'trailing' : 'leading'} zeroes}
   KEYW{${tr?'cttz; tzcnt':'ctlz; lzcnt'}}
   INSTR{VLSET RES{}; BASE DST, R_op1, MASK}
@@ -1405,7 +1419,7 @@ let defs = [
 }],
 [/_vcpop_v_/, (f) => { let [ew,lm] = vparts(f.ret); let tr = f.name.includes('_vctz'); return `
   REF{vcrypto|insns-${f.name.split('_')[3]}}
-  ARCH{Zvbb|(self)}
+  ARCH{Integer|Zvbb|(self)}
   CAT{Bitwise|Population count}
   KEYW{popcnt; ctpop}
   INSTR{VLSET RES{}; BASE DST, R_op1, MASK}
@@ -1426,7 +1440,7 @@ let defs = [
 [/_vwsll_/, (f) => `
   KEYW{shl}
   REF{vcrypto|insns-${f.name.split('_')[3]}}
-  ARCH{Zvbb|(self)}
+  ARCH{Integer|Zvbb|(self)}
   CAT{Bitwise|Shift left|Widening}
   INSTR{VLSET ${farg(f,'op1')}; BASE DST, R_op1, R_shift, MASK IMMALT{shift, FARG{op1}}}
   VLMAX{FARG{op1}}
@@ -1439,7 +1453,7 @@ let defs = [
 ],
 [/_vro[lr]_/, (f) => { let r = f.name.includes('_vror_'); let w = eparts(f.ret)[0]; return `
   REF{vcrypto|insns-${f.name.split('_')[3]}}
-  ARCH{Zvbb|Zvkb}
+  ARCH{Integer|Zvbb|Zvkb}
   CAT{Bitwise|Rotate|${r?'Right':'Left'}}
   INSTR{VLSET RES{}; BASE DST, R_op1, R_amount, MASK IMMALT{amount, FARG{op1}}}
   VLMAX{FARG{op1}}
@@ -1456,7 +1470,7 @@ let defs = [
 
 [/_vclmulh?_.*_u64/, (f) => { let hi = f.name.includes('clmulh_'); let ty = hi? 'uint128_t' : 'uint64_t'; return `
   REF{vcrypto|insns-${f.name.split('_')[3]}}
-  ARCH{Zvbc}
+  ARCH{Integer|Zvbc}
   CAT{Integer|Multiply|Carryless}
   INSTR{VLSET RES{}; BASE DST, R_op1, R_op2, MASK}
   VLMAX{FARG{op1}}
@@ -1479,14 +1493,14 @@ let defs = [
 
 [/_vg(hsh|mul)_/, (f) => `
   REF{vcrypto|insns-${f.name.split('_')[3]}}
-  ARCH{Zvkg}
+  ARCH{Cryptography|Zvkg}
   CAT{Cryptography|GHASH|${f.name.includes('_vgmul_')? 'Multiply' : 'Add-Multiply'}}
   OPER_UNDEF`
 ],
 
 [/_vaes(ef|em|df|dm|kf1|kf2|z)_/, (f) => `
   REF{vcrypto|insns-${f.name.split('_')[3]}}
-  ARCH{Zvkn - NIST|Zvkned}
+  ARCH{Cryptography|Zvkn - NIST|Zvkned}
   CAT{Cryptography|AES|${mapn(f,[
     /vaesef/, 'Encrypt final round',
     /vaesem/, 'Encrypt middle round',
@@ -1500,7 +1514,7 @@ let defs = [
 ],
 [/vsha2(ms|c[hl])/, (f) => { let w = eparts(f.ret)[0]; let ms = f.name.includes('_vsha2ms_'); return `
   REF{vcrypto|insns-${f.name.split('_')[3].replace(/[hl]$/,'')}}
-  ARCH{Zvkn - NIST|Zvknhb|${w==64? '(self)' : 'Zvknha'}}
+  ARCH{Cryptography|Zvkn - NIST|Zvknhb|${w==64? '(self)' : 'Zvknha'}}
   KEYW{sha${w*8}; sha-${w*8}}
   CAT{Cryptography|SHA-2|${ms? 'Message schedule' : 'Compression'}|SHA-${w*8}}
   OPER_UNDEF`
@@ -1508,14 +1522,32 @@ let defs = [
 
 [/_vsm4[kr]_/, (f) => `
   REF{vcrypto|insns-${f.name.split('_')[3]}}
-  ARCH{Zvks - ShangMi|Zvksed}
+  ARCH{Cryptography|Zvks - ShangMi|Zvksed}
   CAT{Cryptography|ShangMi|SM4}
   OPER_UNDEF`
 ],
 [/_vsm3(me|c)_/, (f) => `
   REF{vcrypto|insns-${f.name.split('_')[3]}}
-  ARCH{Zvks - ShangMi|Zvksh}
+  ARCH{Cryptography|Zvks - ShangMi|Zvksh}
   CAT{Cryptography|ShangMi|SM3}
+  OPER_UNDEF`
+],
+[/_vw?abdau?_/, (f) => `
+  ARCH{Integer|Zvabd}
+  DESC{${f.d0}}
+  CAT{Integer|Absolute difference|Accumulating}
+  OPER_UNDEF`
+],
+[/_v(f?q?w?b?dota|dot4a(su|us?)?)_/, (f) => { let intflt = f.ret.type.startsWith("vfloat")? "Float" : "Integer"; return `
+  ARCH{${intflt}|Dot product|${f.c0.match(/(Z\w+) - /)[1]}}
+  DESC{${f.d0}}
+  CAT{${intflt}|Dot product}
+  OPER_UNDEF`
+}],
+[/_v(zip|(unzip|pair)[eo])_/, (f) => `
+  ARCH{${f.c0.match(/(Z\w+) - /)[1]}}
+  DESC{${f.d0}}
+  CAT{Permutation|Pairs}
   OPER_UNDEF`
 ],
 ];
@@ -1694,7 +1726,7 @@ export function oper(o, v) {
       if (badArgNames[c.name]) c.name = nameRemap[i++];
     });
     
-    if (i != nameRemap.length) throw new Error(`didn't use all args for ${name}: ${i}/${nameRemap.length}`);
+    if (i != nameRemap.length) throw new Error(`didn't use all args for ${name}: ${i-1}/${nameRemap.length-1}`);
   }
   
   let ent = defs.find(c => c[0].test(name));
@@ -1778,7 +1810,7 @@ export function oper(o, v) {
   let categories = [];
   let archs;
   s = s.replace(/^ *ARCH{(.*)}\n/m, (_,c) => { archs = [c]; return ''; });
-  s = s.replace(/^ *REF{(.*)}\n/m, (_,c) => { specRef = c; return ''; });
+  s = s.replace(/^ *REF{(.*)}\n/m, (_,c) => { if (c!=='undefined') specRef = c; return ''; });
   s = s.replace(/^ *DESC{(.*)}\n/m, (_,c) => { desc = c; return ''; });
   s = s.replace(/^ *KEYW{(.*)}\n/m, (_,c) => { if (c.length) desc = (desc||'')+`<!--${c}-->`; return ''; });
   s = s.replace(/^ *CAT{(.*)}\n/mg, (_,c) => { categories.push(c.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>')); return ''; });
@@ -1787,16 +1819,16 @@ export function oper(o, v) {
     let newFloat = () => /vf[nw]cvt/.test(o.name)? '(new)' : '(general)';
     let allTypes = [...o.args.map(c=>c.type), o.ret.type]
     if (allTypes.some(c => /bfloat16|__bf16/.test(c))) {
-      if (o.name.includes('vfwmaccbf16')) archs = ['Zvfbfwma - bf16|(self)'];
-      else archs = ['Zvfbfwma - bf16|Zvfbfmin|' + newFloat()];
+      if (o.name.includes('vfwmaccbf16')) archs = ['Float|Zvfbfwma - bf16|(self)'];
+      else archs = ['Float|Zvfbfwma - bf16|Zvfbfmin|' + newFloat()];
     } else if (allTypes.some(c => /float16/.test(c))) {
       if (
         o.name.includes('vfwcvt_f_f_v_')
         || o.name.includes('vfncvt_f_f_w_')
         || categories.some(c => c.startsWith('Memory'))
         || categories.some(c => c.startsWith('Permutation')) && !allTypes.some(c => c=='float16_t')
-      ) archs = ['Zvfh - f16|Zvfhmin|' + newFloat()];
-      else archs = ['Zvfh - f16|(self)'];
+      ) archs = ['Float|Zvfh - f16|Zvfhmin|' + newFloat()];
+      else archs = ['Float|Zvfh - f16|(self)'];
     } else {
       archs = ['v'];
     }

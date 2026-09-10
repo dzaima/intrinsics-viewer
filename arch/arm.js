@@ -97,11 +97,13 @@ let res0 = intrinsics.map(c=>{
   if (category.startsWith("ZA array|")) category = "SME|" + category;
   
   let archs = Array.isArray(c.SIMD_ISA)? c.SIMD_ISA : [c.SIMD_ISA];
-  if (archs.length==1 && archs[0]==='Neon') {
+  archs = archs.flatMap(cArch => {
+    if (cArch !== 'Neon') return [cArch];
     let exts0 = extensionMap.get(c.name) || [];
     let exts = exts0.filter(c => c!=='simd');
-    archs = exts.length==0? [exts0.length==0? 'Neon|Unknown' : 'Neon|Baseline'] : exts.map(c => 'Neon|'+c);
-  }
+    return exts.length==0? [exts0.length==0? 'Neon|Unknown' : 'Neon|Baseline'] : exts.map(c => 'Neon|'+c);
+  });
+  if (archs.length === 0) archs = ['Scalar'];
   if (category === "Unspecified" && archs.includes('SME and SME2')) category = 'SME|'+category;
   
   if (categoryMap[category]) category = categoryMap[category];
@@ -128,7 +130,7 @@ let res0 = intrinsics.map(c=>{
     implInstr,
     implInstrSearch,
     
-    archs: archs,
+    archs,
     categories,
   };
 });
@@ -198,9 +200,10 @@ export const categoryOrder = {
 };
 
 export const archOrder = {
-  'all|Neon': 0,
-  'all|SVE': 1,
-  'all|SVE2': 2,
+  'all|Scalar': 0,
+  'all|Neon': 1,
+  'all|SVE': 2,
+  'all|SVE2': 3,
   
   'Neon|Baseline': 0,
   'Neon|Unknown': 1,
